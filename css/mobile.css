@@ -1,0 +1,35 @@
+/* ==========================================================================
+   E-Diary — the phone layout (js/mobile.js): bottom bar, + button, roomier touch targets
+   ========================================================================== */
+html.ed-mobile .app { padding-bottom: calc(76px + env(safe-area-inset-bottom, 0px)); }
+html.ed-mobile .tab-strip { display: none; }
+html.ed-mobile .tools .tool[data-act="theme"], html.ed-mobile .tools .tool[data-act="close-diary"], html.ed-mobile .tools .tool[data-act="help"],
+html.ed-mobile .tools .tool[data-act="look"], html.ed-mobile .tools .tool[data-act="goto-achievements"], html.ed-mobile .tools .tool[data-act="toggle-completed"] { display: none; }
+html.ed-mobile input.field, html.ed-mobile select.field, html.ed-mobile textarea.field, html.ed-mobile .quick-add input { font-size: 16px; }
+html.ed-mobile .trow { min-height: 48px; }
+html.ed-mobile .icon-btn.sm { min-width: 34px; min-height: 34px; }
+#m-nav {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  padding: 6px max(6px, env(safe-area-inset-left, 0px)) calc(6px + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(0,0,0,.18)), var(--leather-2);
+  border-top: 1px solid rgba(0,0,0,.35); box-shadow: 0 -6px 18px rgba(0,0,0,.35);
+}
+.m-nb { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 2px; border: 0; border-radius: 12px; background: none; color: var(--topbar-ink-2); font-size: 11px; font-weight: 600; }
+.m-nb .ic { width: 24px; height: 24px; }
+.m-nb.on { color: var(--topbar-ink); background: var(--topbar-hover); }
+.m-nb.on .ic { color: var(--look-foil, #e8c58c); }
+#m-fab {
+  position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 61;
+  width: 58px; height: 58px; border-radius: 50%; border: 0; background: var(--accent); color: var(--accent-ink);
+  display: grid; place-items: center; box-shadow: 0 6px 18px rgba(0,0,0,.4);
+}
+#m-fab .ic { width: 28px; height: 28px; }
+.m-more .m-secs { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.m-sec { display: flex; flex-direction: column; gap: 3px; padding: 12px; border: 0; border-radius: 12px; text-align: left; color: #fff; background: linear-gradient(160deg, var(--t1), color-mix(in srgb, var(--t1) 70%, #000)); min-height: 72px; }
+.m-sec b { font-size: 15px; }
+.m-sec span { font-size: 11.5px; opacity: .85; line-height: 1.3; }
+.m-tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; margin-top: 14px; }
+.m-tool { display: flex; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--card-border); border-radius: 12px; background: var(--card-bg); color: var(--ink); font-size: 14px; font-weight: 550; text-align: left; }
+.m-tool .ic { width: 20px; height: 20px; color: var(--accent); }
+@media print { #m-nav, #m-fab { display: none !important; } }

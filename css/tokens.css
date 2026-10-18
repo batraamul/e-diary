@@ -1,0 +1,250 @@
+/* ==========================================================================
+   E-Diary — design tokens
+   Light palette on bare :root. Dark palette applies when:
+     - the OS prefers dark and nothing forces light, or
+     - a host page stamps data-theme="dark", or
+     - the diary's own theme switch stamps data-ed-theme="dark".
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* leather cover */
+  --leather: #5c2618;
+  --leather-2: #7a3824;
+  --leather-3: #33130b;
+  --stitch: rgba(255, 222, 184, 0.32);
+  --topbar-ink: #f6e2d2;
+  --topbar-ink-2: rgba(246, 226, 210, 0.74);
+  --topbar-hover: rgba(255, 236, 220, 0.12);
+
+  /* paper */
+  --paper: #f2f2ef;
+  --paper-2: #e4e4e0;
+  --paper-3: #fbfbf9;
+  --paper-edge: #cdcdc8;
+  --rule: #cfcfca;
+  --rule-strong: #b7b7b1;
+  --well: rgba(0, 0, 0, 0.035);
+
+  /* ink */
+  --ink: #16181c;
+  --ink-2: #4c5159;
+  --ink-3: #8a8f97;
+  --ink-inverse: #ffffff;
+
+  /* accents */
+  --accent: #1f6fe0;
+  --accent-2: #5bb7ff;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(31, 111, 224, 0.12);
+  --focus: #1f6fe0;
+  --frog: #9b1d16;
+  --danger: #c62828;
+  --ok: #2e7d32;
+  --warn: #a15c00;
+  --star: #f2b01e;
+  --now: #e53935;
+
+  /* priorities (Franklin-style ABC) */
+  --prio-a: #0f2a6e;
+  --prio-b: #b3261e;
+  --prio-c: #1f6fe0;
+  --prio-d: #5f6670;
+
+  /* surfaces */
+  --card-bg: rgba(255, 255, 255, 0.55);
+  --card-border: #c6c7c1;
+  --card-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset, 0 1px 2px rgba(0, 0, 0, 0.06);
+  --pop-bg: #ffffff;
+  --pop-border: #d2d3ce;
+  --pop-shadow: 0 12px 32px rgba(20, 10, 5, 0.28);
+  --banner-1: #8fdcff;
+  --banner-2: #2f7df6;
+  --banner-ink: #ffffff;
+  --today-cell: #dcebff;
+  --selected: #1f63d6;
+  --selected-ink: #ffffff;
+  --hours-shade: #e2e2de;
+  --toggle-off: #c9cac5;
+  --chart-track: #cfe0fb;
+  --info-bg: #e6f0ff; --info-ink: #103a7a; --info-bd: #b8cff5;
+  --warn-bg: #fff4d6; --warn-ink: #5a4200; --warn-bd: #e9cf86;
+  --err-bg: #fde8e8; --err-ink: #7a1010; --err-bd: #f2b8b8;
+
+  /* section tabs */
+  --tab-daily: #2f7df6;    --tab-daily-2: #62a8ff;
+  --tab-monthly: #ef6412;  --tab-monthly-2: #ff9a52;
+  --tab-roles: #f2ad1c;    --tab-roles-2: #ffd462;
+  --tab-goals: #2a8f3a;    --tab-goals-2: #4bb85c;
+  --tab-mission: #161616;  --tab-mission-2: #3d3d3d;
+  --tab-career: #2f7df6;   --tab-career-2: #62a8ff;
+  --tab-study: #0f6e64;    --tab-study-2: #1e9a8c;
+  --tab-study-b: #13826f;  --tab-study-b2: #2fb29b;
+  --tab-study-c: #1f9677;  --tab-study-c2: #45c29f;
+  --tab-finance: #5b3aa6;  --tab-finance-2: #8466d1;
+  --tab-finplan: #3f4fb0;  --tab-finplan-2: #6978d6;
+  --tab-vault: #8f1d35;    --tab-vault-2: #bd3c58;
+  --tab-interview: #9c3f86; --tab-interview-2: #c86aae;
+  --tab-health: #c2412d;   --tab-health-2: #e8705a;
+  --tab-events: #0b7ea3;   --tab-events-2: #36a9cc;
+
+  /* data colours (categorical order is fixed; validated for colour-blind separation) */
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #4a3aa7; --s8: #e34948;
+  --good: #0ca30c; --good-ink: #006300; --bad: #d03b3b; --bad-ink: #b3261e;
+
+  /* type */
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Roboto, Arial,
+    "Noto Sans", "Nirmala UI", "Kohinoor Devanagari", "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, Cambria,
+    "Noto Serif", "Nirmala UI", "Kohinoor Devanagari", serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --radius: 10px;
+  --radius-sm: 6px;
+  --ring-metal-1: #fdfdfd;
+  --ring-metal-2: #9aa3ad;
+  --ring-metal-3: #4b5560;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-ed-theme="light"]) {
+    color-scheme: dark;
+    --leather: #26130c;
+    --leather-2: #3d1f14;
+    --leather-3: #120704;
+    --stitch: rgba(255, 210, 170, 0.18);
+    --topbar-ink: #efd9c8;
+    --topbar-ink-2: rgba(239, 217, 200, 0.68);
+    --topbar-hover: rgba(255, 236, 220, 0.1);
+    --paper: #1f2226;
+    --paper-2: #282c32;
+    --paper-3: #2b2f35;
+    --paper-edge: #0c0d0f;
+    --rule: #3b4048;
+    --rule-strong: #4d535c;
+    --well: rgba(255, 255, 255, 0.03);
+    --ink: #eceef1;
+    --ink-2: #b7bcc4;
+    --ink-3: #828892;
+    --ink-inverse: #121417;
+    --accent: #5b9dff;
+    --accent-2: #8cc7ff;
+    --accent-ink: #0b1220;
+    --accent-soft: rgba(91, 157, 255, 0.18);
+    --focus: #8cc7ff;
+    --frog: #ff8f80;
+    --danger: #ff6b6b;
+    --ok: #6fcf7a;
+    --warn: #f0b04a;
+    --star: #f5c542;
+    --now: #ff5a52;
+    --prio-a: #a9c1ff;
+    --prio-b: #ff8a80;
+    --prio-c: #79b6ff;
+    --prio-d: #aab0b8;
+    --card-bg: rgba(255, 255, 255, 0.035);
+    --card-border: #3b4048;
+    --card-shadow: none;
+    --pop-bg: #2b2f35;
+    --pop-border: #444a53;
+    --pop-shadow: 0 14px 36px rgba(0, 0, 0, 0.6);
+    --banner-1: #1f5a99;
+    --banner-2: #14305a;
+    --banner-ink: #f2f7ff;
+    --today-cell: #1c3150;
+    --selected: #2f6fd8;
+    --selected-ink: #ffffff;
+    --hours-shade: #25292e;
+    --toggle-off: #4a5059;
+    --chart-track: #2a3f63;
+    --info-bg: #16284a; --info-ink: #d3e3ff; --info-bd: #2c4b82;
+    --warn-bg: #362b10; --warn-ink: #ffe3a1; --warn-bd: #6b5520;
+    --err-bg: #3b1616; --err-ink: #ffd2d2; --err-bd: #6e2a2a;
+    --tab-roles: #d99a12;
+    --tab-roles-2: #f0bd45;
+    --tab-mission: #0d0d0d;
+    --tab-mission-2: #2e2e2e;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    --good: #0ca30c; --good-ink: #3fcf5a; --bad: #e66767; --bad-ink: #ff8a8a;
+    --ring-metal-1: #d7dde3;
+    --ring-metal-2: #7d8791;
+    --ring-metal-3: #2f363d;
+  }
+}
+
+:root[data-theme="dark"]:not([data-ed-theme="light"]),
+:root[data-ed-theme="dark"] {
+  color-scheme: dark;
+  --leather: #26130c;
+  --leather-2: #3d1f14;
+  --leather-3: #120704;
+  --stitch: rgba(255, 210, 170, 0.18);
+  --topbar-ink: #efd9c8;
+  --topbar-ink-2: rgba(239, 217, 200, 0.68);
+  --topbar-hover: rgba(255, 236, 220, 0.1);
+  --paper: #1f2226;
+  --paper-2: #282c32;
+  --paper-3: #2b2f35;
+  --paper-edge: #0c0d0f;
+  --rule: #3b4048;
+  --rule-strong: #4d535c;
+  --well: rgba(255, 255, 255, 0.03);
+  --ink: #eceef1;
+  --ink-2: #b7bcc4;
+  --ink-3: #828892;
+  --ink-inverse: #121417;
+  --accent: #5b9dff;
+  --accent-2: #8cc7ff;
+  --accent-ink: #0b1220;
+  --accent-soft: rgba(91, 157, 255, 0.18);
+  --focus: #8cc7ff;
+  --frog: #ff8f80;
+  --danger: #ff6b6b;
+  --ok: #6fcf7a;
+  --warn: #f0b04a;
+  --star: #f5c542;
+  --now: #ff5a52;
+  --prio-a: #a9c1ff;
+  --prio-b: #ff8a80;
+  --prio-c: #79b6ff;
+  --prio-d: #aab0b8;
+  --card-bg: rgba(255, 255, 255, 0.035);
+  --card-border: #3b4048;
+  --card-shadow: none;
+  --pop-bg: #2b2f35;
+  --pop-border: #444a53;
+  --pop-shadow: 0 14px 36px rgba(0, 0, 0, 0.6);
+  --banner-1: #1f5a99;
+  --banner-2: #14305a;
+  --banner-ink: #f2f7ff;
+  --today-cell: #1c3150;
+  --selected: #2f6fd8;
+  --selected-ink: #ffffff;
+  --hours-shade: #25292e;
+  --toggle-off: #4a5059;
+  --chart-track: #2a3f63;
+  --info-bg: #16284a; --info-ink: #d3e3ff; --info-bd: #2c4b82;
+  --warn-bg: #362b10; --warn-ink: #ffe3a1; --warn-bd: #6b5520;
+  --err-bg: #3b1616; --err-ink: #ffd2d2; --err-bd: #6e2a2a;
+  --tab-roles: #d99a12;
+  --tab-roles-2: #f0bd45;
+  --tab-mission: #0d0d0d;
+  --tab-mission-2: #2e2e2e;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --good: #0ca30c; --good-ink: #3fcf5a; --bad: #e66767; --bad-ink: #ff8a8a;
+  --ring-metal-1: #d7dde3;
+  --ring-metal-2: #7d8791;
+  --ring-metal-3: #2f363d;
+}
+
+/* category / role colours are user data; soften them on dark paper */
+:root { --tint-mix: 0%; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]):not([data-ed-theme="light"]) { --tint-mix: 45%; }
+}
+:root[data-theme="dark"]:not([data-ed-theme="light"]),
+:root[data-ed-theme="dark"] { --tint-mix: 45%; }

@@ -1,0 +1,162 @@
+/* ==========================================================================
+   E-Diary — the physical book: closed cover, page turns, corner guards
+   ========================================================================== */
+
+/* ---------- closed cover ---------- */
+.cover-wrap {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px;
+  background:
+    radial-gradient(90% 70% at 50% 45%, rgba(255, 236, 214, .10), transparent 70%),
+    linear-gradient(180deg, #2b211c, #17110e);
+  opacity: 0; transition: opacity .35s ease;
+  perspective: 2200px;
+}
+.cover-wrap.shown, .cover-wrap.at-start { opacity: 1; }
+.cover-wrap.at-start .book { transform: rotateX(0) rotateZ(0); }
+.cover-wrap.still, .cover-wrap.still * { transition-duration: .15s !important; animation: none !important; }
+html.book-closed body { overflow: hidden; }
+
+.book {
+  --h: min(78vh, 740px, calc(86vw / .72));
+  position: relative; height: var(--h); width: calc(var(--h) * .72);
+  transform-style: preserve-3d;
+  transform: rotateX(8deg) rotateZ(-2deg);
+  transition: transform .8s cubic-bezier(.3, .1, .2, 1);
+  filter: drop-shadow(0 30px 40px rgba(0, 0, 0, .55)) drop-shadow(0 6px 10px rgba(0, 0, 0, .4));
+}
+.cover-wrap.shown .book { transform: rotateX(0) rotateZ(0); }
+.book-back {
+  position: absolute; inset: 6px -8px -8px 6px; border-radius: 10px 16px 16px 10px;
+  background: #2a1109;
+}
+.book-block { /* page edges between the covers */
+  position: absolute; top: 8px; bottom: -4px; right: -6px; width: 10px; border-radius: 0 4px 4px 0;
+  background: repeating-linear-gradient(180deg, #f3eee2 0 2px, #d8d1c1 2px 3px);
+  box-shadow: inset 2px 0 3px rgba(0, 0, 0, .25);
+}
+.book-cover {
+  position: absolute; inset: 0;
+  transform-origin: 0 50%; transform-style: preserve-3d;
+  transition: transform .85s cubic-bezier(.45, .05, .25, 1);
+}
+.bc-face, .bc-inside { position: absolute; inset: 0; border-radius: 10px 16px 16px 10px; backface-visibility: hidden; }
+.bc-face {
+  overflow: hidden;
+  background-color: #6a2b1a;
+  background-image:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.45'/%3E%3C/svg%3E"),
+    radial-gradient(120% 90% at 30% 10%, #8c3d26 0%, transparent 60%),
+    radial-gradient(120% 120% at 100% 100%, #3a150b 0%, transparent 55%),
+    linear-gradient(90deg, rgba(0,0,0,.35) 0, rgba(0,0,0,.1) 5%, rgba(255,255,255,.06) 6.5%, transparent 9%);
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.4), inset 0 2px 0 rgba(255,255,255,.08), inset 0 -3px 6px rgba(0,0,0,.35);
+}
+.bc-face::before { /* hinge groove along the spine */
+  content: ""; position: absolute; top: 0; bottom: 0; left: 7.5%; width: 3px;
+  background: linear-gradient(90deg, rgba(0,0,0,.4), rgba(255,255,255,.08));
+}
+.bc-stitch { position: absolute; inset: 16px 16px 16px calc(7.5% + 14px); border-radius: 8px 12px 12px 8px; border: 2px dashed rgba(255, 222, 184, .38); pointer-events: none; }
+.bc-inside { transform: rotateY(180deg); background: linear-gradient(90deg, #efe9dc, #e3dccb); box-shadow: inset -12px 0 20px rgba(0,0,0,.15); }
+.bc-emboss {
+  position: absolute; left: calc(7.5% + 30px); right: 30px; top: 22%;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center;
+  color: #e8c58c; font-family: var(--font-serif);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, .6), 0 -1px 0 rgba(255, 240, 210, .25);
+}
+.bc-year { font-size: calc(var(--h) * .05); font-weight: 700; letter-spacing: .12em; }
+.bc-title { font-size: calc(var(--h) * .068); font-style: italic; font-weight: 600; line-height: 1.1; overflow-wrap: anywhere; }
+.bc-owner { font-size: calc(var(--h) * .03); letter-spacing: .06em; opacity: .92; }
+.bc-sub { font-family: var(--font-ui); font-size: calc(var(--h) * .019); letter-spacing: .22em; text-transform: uppercase; opacity: .75; }
+.bc-rule { width: 38%; height: 0; border-top: 1px solid rgba(232, 197, 140, .55); box-shadow: 0 1px 0 rgba(0,0,0,.4); }
+.bc-corner { position: absolute; width: 30px; height: 30px; background: linear-gradient(135deg, #f6e1b0, #b98d45 55%, #7a5a26); box-shadow: 0 1px 2px rgba(0,0,0,.5); }
+.bc-corner.tl { left: 0; top: 0; clip-path: polygon(0 0, 100% 0, 0 100%); border-top-left-radius: 10px; }
+.bc-corner.tr { right: 0; top: 0; clip-path: polygon(0 0, 100% 0, 100% 100%); border-top-right-radius: 16px; }
+.bc-corner.bl { left: 0; bottom: 0; clip-path: polygon(0 0, 100% 100%, 0 100%); border-bottom-left-radius: 10px; }
+.bc-corner.br { right: 0; bottom: 0; clip-path: polygon(100% 0, 100% 100%, 0 100%); border-bottom-right-radius: 16px; }
+.book-strap { /* elastic closure band */
+  position: absolute; top: -8px; bottom: -8px; right: 11%; width: 18px; border-radius: 4px;
+  background: linear-gradient(90deg, #120806, #2b1510 40%, #1a0c08);
+  box-shadow: 0 0 0 1px rgba(0,0,0,.4), 2px 0 6px rgba(0,0,0,.45);
+  transition: transform .35s ease, opacity .3s ease;
+}
+.book-ribbon {
+  position: absolute; bottom: -46px; left: 30%; width: 16px; height: 60px;
+  background: linear-gradient(90deg, #7d0f1a, #b3212f 45%, #8b1320);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%);
+  z-index: -1;
+}
+.cover-open {
+  display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid rgba(232, 197, 140, .5); border-radius: 999px; padding: 9px 18px;
+  background: rgba(0, 0, 0, .25); color: #f3dcb5; font-size: 15px; font-weight: 600;
+  transition: opacity .3s;
+}
+.cover-open .ic { width: 20px; height: 20px; }
+.cover-open:hover { background: rgba(255, 236, 214, .1); }
+.cover-wrap.at-start .cover-open { opacity: 0; }
+
+/* opening */
+.cover-wrap.opening .book-strap { transform: translateX(40px); opacity: 0; }
+.cover-wrap.opening .book-cover { transform: rotateY(-165deg); transition-delay: .12s; }
+.cover-wrap.opening { opacity: 0; transition: opacity .35s ease .55s; pointer-events: none; }
+.cover-wrap.opening .cover-open { opacity: 0; }
+.cover-wrap.still.opening { transition-delay: 0s; }
+
+/* ---------- page turns ---------- */
+.leaf, .leaf-under { position: absolute; pointer-events: none; }
+.leaf-under { z-index: 29; }
+.leaf { z-index: 30; transform-style: preserve-3d; transform: perspective(2400px) rotateY(0deg); transition: transform .62s cubic-bezier(.35, .08, .25, 1); }
+.leaf-fwd.go { transform: perspective(2400px) rotateY(-180deg); }
+.leaf-back.go { transform: perspective(2400px) rotateY(180deg); }
+.lf { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.lf-rear { transform: rotateY(180deg); }
+.lf::after { /* light falling across the lifting sheet */
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .62s;
+  background: linear-gradient(90deg, rgba(0,0,0,.28), rgba(0,0,0,0) 60%);
+}
+.leaf-back .lf-front::after, .leaf-fwd .lf-rear::after { background: linear-gradient(270deg, rgba(0,0,0,.28), rgba(0,0,0,0) 60%); }
+.leaf.go .lf-front::after { opacity: 1; }
+.snap { position: absolute !important; inset: 0; width: 100% !important; height: 100% !important; margin: 0 !important; }
+.snap .page-anim-fwd .page-inner, .snap .page-inner { animation: none !important; }
+
+/* ---------- corner guards on the open binder ---------- */
+.cguard { position: absolute; z-index: 1; width: 28px; height: 28px; pointer-events: none; background: linear-gradient(135deg, #f6e1b0, #b98d45 55%, #7a5a26); box-shadow: 0 1px 2px rgba(0,0,0,.5); }
+.cguard.tl { left: 0; top: 0; clip-path: polygon(0 0, 100% 0, 0 100%); border-top-left-radius: 18px; }
+.cguard.tr { right: 0; top: 0; clip-path: polygon(0 0, 100% 0, 100% 100%); border-top-right-radius: 18px; }
+.cguard.bl { left: 0; bottom: 0; clip-path: polygon(0 0, 100% 100%, 0 100%); border-bottom-left-radius: 18px; }
+.cguard.br { right: 0; bottom: 0; clip-path: polygon(100% 0, 100% 100%, 0 100%); border-bottom-right-radius: 18px; }
+
+/* thicker page block and a gentle curve of the paper toward the rings */
+@media (min-width: 1181px) and (min-height: 601px) {
+.binder.many-tabs { grid-template-columns: 46px minmax(0, 1fr) 46px; }
+.page-left {
+  box-shadow:
+    -1px 1px 0 var(--paper-edge), -2px 2px 0 var(--paper), -3px 3px 0 var(--paper-edge),
+    -4px 4px 0 var(--paper), -5px 5px 0 var(--paper-edge), -6px 6px 0 var(--paper), -7px 7px 0 var(--paper-edge),
+    0 14px 28px rgba(0, 0, 0, 0.45);
+}
+.page-right {
+  box-shadow:
+    1px 1px 0 var(--paper-edge), 2px 2px 0 var(--paper), 3px 3px 0 var(--paper-edge),
+    4px 4px 0 var(--paper), 5px 5px 0 var(--paper-edge), 6px 6px 0 var(--paper), 7px 7px 0 var(--paper-edge),
+    0 14px 28px rgba(0, 0, 0, 0.45);
+}
+.page-left::after, .page-right::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none; z-index: 1;
+}
+.page-left::after { background: linear-gradient(90deg, rgba(255,255,255,.0) 0%, rgba(255,255,255,.05) 55%, rgba(0,0,0,.035) 85%, rgba(0,0,0,.0) 100%); }
+.page-right::after { background: linear-gradient(270deg, rgba(255,255,255,.0) 0%, rgba(255,255,255,.05) 55%, rgba(0,0,0,.035) 85%, rgba(0,0,0,.0) 100%); }
+}
+
+/* day of the year, printed at the foot of the diary page */
+.dfoot { text-align: center; font-size: 12px; color: var(--ink-3); padding: 4px 0 8px; font-family: var(--font-serif); font-style: italic; letter-spacing: .02em; }
+
+@media (max-width: 1180px), (max-height: 600px) {
+  .cguard { display: none; }
+  .book { --h: min(70vh, 640px, calc(84vw / .72)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .leaf, .leaf-under { display: none; }
+  .book, .book-cover, .cover-wrap { transition-duration: .01s !important; }
+}
+@media print { .cover-wrap, .cguard, .leaf, .leaf-under { display: none !important; } }
