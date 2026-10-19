@@ -351,3 +351,19 @@ Then:
 - **Item by item, in any mode:** the task / event / study-session editors show **In Google Calendar ✓** or **Add to Google Calendar**; clicking takes an item out of Google (it stays in the diary) or puts it in. A task’s ⋯ menu has the same.
 - **Never twice:** before adding, the diary looks in Google for the same item (its E-Diary tag) or the same title at the same time, and reuses it instead of adding another.
 - **Remove duplicates from Google Calendar** (button in the same settings): removes extra copies made earlier — for example by the diary opened from different addresses or PCs before this version — keeping one of each.
+
+### v1.15 — editing a study plan, wardrobe purchases in the planner
+
+**Your app address:** https://batraamul.github.io/e-diary/ — install it from there on every device (Chrome/Edge → Install; Android → ⋮ → Install app; iPhone → Safari → Share → Add to Home Screen). New versions arrive by themselves: the app shows "A new version of the diary is ready" → **Reload**. No reinstall needed.
+
+**Study → Plan ▾**
+- **Change the start date…** moves the whole plan — every week and every session — by the same number of days. Ticked sessions keep their tick, minutes and notes. The window warns you if the new date falls on a different weekday (then each session moves to another weekday too). Also reachable from Plan settings (“Starts on … Change the start date…”). Undo works right after.
+- **Change many sessions (move, change, delete)…** — choose *which* sessions (subject, slot, weekdays, from–to dates, with or without ticked ones; the window counts them as you choose) and *what to do*: move to another weekday in the same week, move by a number of days (negative = earlier), change the subject, change the slot (the session then uses the new slot's time), change the planned minutes, or delete them. Example: Physics, all slots, Tuesdays, from next Monday → Move to Thursday.
+- **Removing a subject that has sessions:** Plan settings → the bin next to the subject now works for every subject. It asks first (and says how many sessions are already ticked); on **Save** the subject goes with its sessions and its own topics. Undo brings them back.
+
+**Wardrobe “To buy” in the daily planner** (like groceries)
+- Every item on the To-buy list is a task **Buy: <item>** on its **Buy by** day (an item without a date gets today). “Must have” items are priority A. The task shows a small person icon; clicking it opens Wardrobe → To buy.
+- **Ticking the task** marks the item bought at its expected cost, adds it to My clothes and records the spending under Shopping & clothes; the message offers **Change price** for what you actually paid. Unticking undoes all of that (the clothes entry goes again unless you have worn it since).
+- Marking the item bought on the Wardrobe list ticks the task. Moving the task to another day changes Buy by, and changing Buy by moves the task.
+- **Deleting the task** takes the item out of the planner and Finance → Bills; it stays on the To-buy list with **Add back to planner**. Deleting the item removes its task.
+- Items bought before 1.15 do not get tasks.
