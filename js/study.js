@@ -1047,11 +1047,12 @@
       '<input class="field" data-tr="' + i + '" data-f="name" value="' + e(t.name) + '" aria-label="Subject name">' +
       '<input class="field" data-tr="' + i + '" data-f="short" value="' + e(t.short || '') + '" aria-label="Short name" placeholder="Short name">' +
       '<select class="field" data-tr="' + i + '" data-f="day" aria-label="Day">' + dayOpts(t) + '</select>' +
-      '<button type="button" class="icon-btn sm" data-x="trdel" data-i="' + i + '" aria-label="Remove subject"' + (usedT(t.id) ? ' disabled title="It has ' + U.plural(usedT(t.id), 'session') + '"' : ' title="Remove subject"') + '>' + ED.icon('trash') + '</button></div>').join('');
+      '<button type="button" class="icon-btn sm" data-x="trdel" data-i="' + i + '" aria-label="Remove subject" title="Remove subject' + (usedT(t.id) ? ' (and its ' + U.plural(usedT(t.id), 'session') + ')' : '') + '">' + ED.icon('trash') + '</button></div>').join('');
     const body = '<form class="st-form">' +
       '<div class="st-grid">' +
       '<label class="lbl" for="sp-title">Plan name</label><input id="sp-title" class="field" value="' + e(p.title) + '">' +
       '<label class="lbl" for="sp-sub">Subtitle</label><input id="sp-sub" class="field" value="' + e(p.subtitle || '') + '">' +
+      '<span class="lbl">Starts on</span><span>' + e(U.fmtShort((p.weeks.slice().sort((a, b) => a.start.localeCompare(b.start))[0] || {}).start || p.start)) + ' <button type="button" class="link-btn" data-x="start">Change the start date…</button> · <button type="button" class="link-btn" data-x="bulk">Change many sessions…</button></span>' +
       '</div>' +
       '<h3 class="set-h">Study slots</h3><p class="hint">As many slots a day as you like. Give a slot a start time and its sessions appear on the Daily Tasks timeline (and in Google Calendar, if you link it). To put a new slot into the days, use <b>Plan → Add to the schedule</b>.</p>' +
       '<div class="st-slotrow st-slotrow-h hint"><span>No.</span><span>Name</span><span>Start time</span><span>Usual min</span><span></span><span></span></div><div id="sp-slots">' + slotRows() + '</div>' +
@@ -1071,6 +1072,8 @@
         el.addEventListener('click', async ev => {
           const b = ev.target.closest('[data-x]'); if (!b) return;
           const k = b.dataset.x;
+          if (k === 'start') { api.close(); ST.editStart(); return; }
+          if (k === 'bulk') { api.close(); ST.bulkChange(); return; }
           if (k === 'slotadd') { readInputs(); const no = Math.max(0, ...slots.map(x => x.no)) + 1; slots.push({ no, name: 'Slot ' + no, time: '', min: 60 }); redraw(); const inp = el.querySelector('[data-sl="' + (slots.length - 1) + '"][data-f="name"]'); if (inp) { inp.focus(); inp.select(); } }
           else if (k === 'slotdel') {
             readInputs(); const i = +b.dataset.i; const sl = slots[i]; const n = used(sl.no);
@@ -1078,7 +1081,12 @@
             slots.splice(i, 1); slots.removed = (slots.removed || []).concat([sl]); redraw();
           }
           else if (k === 'tradd') { readInputs(); const name = await ED.ui.prompt({ title: 'New subject', label: 'Subject name', ok: 'Add' }); if (!name || !name.trim()) return; const i = tracks.length; tracks.push({ id: 'tr-' + slug(name) + '-' + Date.now().toString(36).slice(-4), name: name.trim(), short: autoShort(name.trim()), day: null, slot: '', idx: i, color: i < 8 ? SERIES[i] : 'var(--ink-3)' }); redraw(); }
-          else if (k === 'trdel') { readInputs(); tracks.splice(+b.dataset.i, 1); redraw(); }
+          else if (k === 'trdel') {
+            readInputs(); const t = tracks[+b.dataset.i]; if (!t) return;
+            const all = ST.sessions().filter(s => s.trackId === t.id), dn = all.filter(s => s.done).length;
+            if (all.length && !(await ED.ui.confirm({ title: 'Remove ' + t.name, message: 'Remove the subject “' + t.name + '” and its ' + U.plural(all.length, 'session') + (dn ? ' (' + dn + ' already ticked)' : '') + ' when you save? You can undo right after.', ok: 'Remove with sessions', danger: true }))) return;
+            tracks.splice(+b.dataset.i, 1); tracks.removed = (tracks.removed || []).concat([t.id]); redraw();
+          }
           else if (k === 'save') {
             readInputs();
             ED.store.checkpoint('Plan settings');
@@ -1095,9 +1103,16 @@
               const o = p.tracks.find(x => x.id === t.id);
               if (o && o.short && o.name !== t.name && t.short === o.short && (o.short === o.name || o.short === autoShort(o.name))) t.short = autoShort(t.name);
             });
-            p.tracks = tracks;
+            const goneT = (tracks.removed || []).filter(id => !tracks.some(t => t.id === id));
+            if (goneT.length) {
+              D().study.sessions = ST.sessions().filter(s => goneT.indexOf(s.trackId) < 0);
+              if (Array.isArray(p.topics)) p.topics = p.topics.filter(x => goneT.indexOf(x.trackId) < 0);
+              (p.weeks || []).forEach(w => { if (w.themes) goneT.forEach(id => { delete w.themes[id]; }); });
+            }
+            p.tracks = tracks.slice();
             p.updatedAt = Date.now();
-            ED.store.commit(); api.close(); ED.ui.toast('Plan saved');
+            ED.store.commit(); api.close();
+            if (goneT.length) ED.ui.undoToast('Plan saved — ' + U.plural(goneT.length, 'subject') + ' removed with its sessions'); else ED.ui.toast('Plan saved');
           }
           else if (k === 'del') {
             const ok = await ED.ui.confirm({ title: 'Delete study plan', message: 'Delete “' + p.title + '” and all its ' + ST.sessions().length + ' sessions and ticks? You can undo right after, or import the Excel file again.', ok: 'Delete plan', danger: true });
@@ -1322,8 +1337,127 @@
     } });
   };
 
+  /* ---------- 1.15: move the whole plan to a new start date ---------- */
+  // every week and every session moves by the same number of days; ticks, minutes and notes stay with their sessions
+  // (doneOn — the day you actually studied — is not changed)
+  ST.moveStart = newStart => {
+    const p = ST.plan(); if (!p || !U.isKey(newStart)) return 0;
+    const wk = p.weeks.slice().sort((a, b) => a.start.localeCompare(b.start));
+    const old = (wk[0] && wk[0].start) || p.start;
+    const delta = U.diffDays(old, newStart); if (!delta) return 0;
+    const now = Date.now();
+    p.weeks.forEach(w => {
+      const auto = !w.label || w.label === U.fmtDM(w.start) + ' – ' + U.fmtDM(U.addDays(w.start, 6)) + ' ' + U.addDays(w.start, 6).slice(0, 4);
+      w.start = U.addDays(w.start, delta);
+      if (auto) w.label = U.fmtDM(w.start) + ' – ' + U.fmtDM(U.addDays(w.start, 6)) + ' ' + U.addDays(w.start, 6).slice(0, 4);
+    });
+    const oldStart = p.start, oldEnd = p.end;
+    p.start = U.isKey(p.start) ? U.addDays(p.start, delta) : newStart;
+    if (U.isKey(p.end)) p.end = U.addDays(p.end, delta);
+    if (p.subtitle && oldStart && oldEnd) p.subtitle = p.subtitle.split(U.fmtShort(oldStart)).join(U.fmtShort(p.start)).split(U.fmtShort(oldEnd)).join(U.fmtShort(p.end));
+    let n = 0;
+    ST.sessions().forEach(s => { if (U.isKey(s.date)) { s.date = U.addDays(s.date, delta); s.updatedAt = now; n++; } });
+    p.updatedAt = now;
+    return n;
+  };
+  ST.editStart = () => {
+    const p = ST.plan(); if (!p) return;
+    const wk = p.weeks.slice().sort((a, b) => a.start.localeCompare(b.start));
+    const cur = (wk[0] && wk[0].start) || p.start;
+    const body = '<form class="st-form"><div class="st-grid">' +
+      '<span class="lbl">Now</span><span>' + e(U.fmtShort(cur)) + ' to ' + e(U.fmtShort(p.end)) + ' · ' + U.plural(wk.length, 'week') + ' · ' + U.plural(ST.sessions().length, 'session') + '</span>' +
+      '<label class="lbl" for="ms-d">New start date</label><input id="ms-d" class="field" type="date" value="' + e(cur) + '">' +
+      '</div><p class="hint" id="ms-msg"></p><p class="hint">Every week and every session moves by the same number of days, so the timetable stays the same. Ticked sessions keep their tick, minutes and notes. Tip: start on the same weekday (e.g. a Monday) to keep each subject on its usual day.</p></form>';
+    ED.ui.modal({ title: 'Change the start date', body, footer: '<button type="button" class="btn" data-mclose>Cancel</button><button type="button" class="btn primary" data-x="save">Move the plan</button>', onMount(el, api) {
+      const inp = el.querySelector('#ms-d'), msg = el.querySelector('#ms-msg');
+      const show = () => {
+        const v = inp.value; if (!U.isKey(v)) { msg.textContent = ''; return; }
+        const d = U.diffDays(cur, v);
+        msg.innerHTML = !d ? 'Same date — nothing to move.' : 'Moves the plan <b>' + U.plural(Math.abs(d), 'day') + (d > 0 ? ' later' : ' earlier') + '</b>: ' + e(U.fmtShort(v)) + ' to ' + e(U.fmtShort(U.addDays(p.end, d))) + '.' + (U.dow(v) !== U.dow(cur) ? ' <b>The weekday changes</b> (' + e(U.DAYS[U.dow(cur)]) + ' → ' + e(U.DAYS[U.dow(v)]) + '), so each session moves to another weekday too.' : '');
+      };
+      inp.addEventListener('input', show); show();
+      el.addEventListener('click', ev => {
+        const b = ev.target.closest('[data-x="save"]'); if (!b) return;
+        const v = inp.value; if (!U.isKey(v)) { ED.ui.toast('Choose a date'); return; }
+        if (!U.diffDays(cur, v)) { api.close(); return; }
+        ED.store.checkpoint('Plan start date');
+        const n = ST.moveStart(v);
+        ED.store.commit(); api.close();
+        ED.ui.undoToast('The plan now starts on ' + U.fmtShort(v) + (n ? ' — ' + U.plural(n, 'session') + ' moved' : ''));
+      });
+    } });
+  };
+
+  /* ---------- 1.15: change many sessions at once ---------- */
+  ST.bulkChange = () => {
+    const p = ST.plan(); if (!p) return;
+    const slots = ST.slots(), today = U.today();
+    const from0 = p.start && today < p.start ? p.start : today;
+    const days = [1, 2, 3, 4, 5, 6, 0];
+    const trOpts = (sel, all) => (all ? opt('', 'All subjects', !sel) : '') + p.tracks.map(t => opt(t.id, t.name, t.id === sel)).join('');
+    const slOpts = (sel, all) => (all ? opt('', 'All slots', !sel) : '') + slots.map(x => opt(x.no, x.no + ' - ' + x.name, String(x.no) === String(sel))).join('');
+    const body = '<form class="st-form">' +
+      '<h3 class="set-h">Which sessions</h3><div class="st-grid">' +
+      '<label class="lbl" for="bc-tr">Subject</label><select id="bc-tr" class="field">' + trOpts('', true) + '</select>' +
+      '<label class="lbl" for="bc-sl">Slot</label><select id="bc-sl" class="field">' + slOpts('', true) + '</select>' +
+      '<span class="lbl">Days</span><div class="bc-days">' + days.map(d => '<label class="chk"><input type="checkbox" data-day="' + d + '" checked> ' + e(U.DAYS[d].slice(0, 3)) + '</label>').join('') + '</div>' +
+      '<label class="lbl" for="bc-from">From</label><input id="bc-from" class="field" type="date" value="' + e(from0) + '">' +
+      '<label class="lbl" for="bc-to">To</label><input id="bc-to" class="field" type="date" value="' + e(p.end || '') + '">' +
+      '<span class="lbl"></span><label class="switch"><input type="checkbox" id="bc-done"><span class="track"></span><span>Include sessions already ticked</span></label>' +
+      '</div>' +
+      '<h3 class="set-h">What to do</h3><div class="st-grid">' +
+      '<label class="lbl" for="bc-act">Change</label><select id="bc-act" class="field">' +
+        opt('day', 'Move to another weekday (same week)', true) + opt('shift', 'Move by a number of days', false) + opt('track', 'Change the subject', false) + opt('slot', 'Change the slot', false) + opt('min', 'Change the planned minutes', false) + opt('del', 'Delete them', false) + '</select>' +
+      '<label class="lbl bc-o" data-o="day" for="bc-day">To</label><select id="bc-day" class="field bc-o" data-o="day">' + days.map(d => opt(d, U.DAYS[d], d === 4)).join('') + '</select>' +
+      '<label class="lbl bc-o" data-o="shift" for="bc-n">Days</label><input id="bc-n" class="field num bc-o" data-o="shift" type="number" value="7" step="1" title="Negative = earlier">' +
+      '<label class="lbl bc-o" data-o="track" for="bc-ntr">New subject</label><select id="bc-ntr" class="field bc-o" data-o="track">' + trOpts((p.tracks[0] || {}).id, false) + '</select>' +
+      '<label class="lbl bc-o" data-o="slot" for="bc-nsl">New slot</label><select id="bc-nsl" class="field bc-o" data-o="slot">' + slOpts((slots[0] || {}).no, false) + '</select>' +
+      '<label class="lbl bc-o" data-o="min" for="bc-min">Minutes</label><input id="bc-min" class="field num bc-o" data-o="min" type="number" min="5" max="600" step="5" value="60">' +
+      '</div><p class="hint" id="bc-msg"></p></form>';
+    ED.ui.modal({ title: 'Change many sessions', cls: 'st-modal wide', body, footer: '<button type="button" class="btn" data-mclose>Cancel</button><button type="button" class="btn primary" data-x="apply">Apply</button>', onMount(el, api) {
+      const $ = id => el.querySelector('#bc-' + id);
+      const pick = () => {
+        const tr = $('tr').value, sl = $('sl').value, from = $('from').value, to = $('to').value, inc = $('done').checked;
+        const dd = new Set(U.$$('[data-day]', el).filter(x => x.checked).map(x => +x.dataset.day));
+        return ST.sessions().filter(s => (!tr || s.trackId === tr) && (!sl || String(s.slotNo || 1) === sl) && dd.has(U.dow(s.date)) &&
+          (!U.isKey(from) || s.date >= from) && (!U.isKey(to) || s.date <= to) && (inc || !s.done));
+      };
+      const show = () => {
+        const act = $('act').value;
+        U.$$('.bc-o', el).forEach(x => { x.hidden = x.dataset.o !== act; });
+        const list = pick();
+        $('msg').innerHTML = list.length ? '<b>' + U.plural(list.length, 'session') + '</b> will change' + (list.length ? ' (' + e(U.fmtShort(list[0].date)) + ' – ' + e(U.fmtShort(list[list.length - 1].date)) + ')' : '') + '.' + (act === 'del' ? ' They are deleted — you can undo right after.' : '') + (!$('done').checked ? ' Ticked sessions are left as they are.' : '')
+          : 'No sessions match.';
+      };
+      el.addEventListener('input', show); el.addEventListener('change', show); show();
+      el.addEventListener('click', async ev => {
+        if (!ev.target.closest('[data-x="apply"]')) return;
+        const list = pick(), act = $('act').value;
+        if (!list.length) { ED.ui.toast('No sessions match'); return; }
+        if (act === 'del' && list.some(s => s.done) && !(await ED.ui.confirm({ title: 'Delete sessions', message: U.plural(list.filter(s => s.done).length, 'ticked session') + ' will be deleted too.', ok: 'Delete', danger: true }))) return;
+        ED.store.checkpoint('Change sessions');
+        const now = Date.now(), ids = new Set(list.map(s => s.id));
+        const reWeek = s => { const w = ST.weekOf(s.date); if (w) s.week = w.n; };
+        if (act === 'del') D().study.sessions = ST.sessions().filter(s => !ids.has(s.id));
+        else list.forEach(s => {
+          if (act === 'day') { const d = +$('day').value; s.date = U.addDays(U.startOfWeek(s.date, 1), (d + 6) % 7); reWeek(s); }
+          else if (act === 'shift') { s.date = U.addDays(s.date, Math.round(+$('n').value || 0)); reWeek(s); }
+          else if (act === 'track') { s.trackId = $('ntr').value; }
+          else if (act === 'slot') { s.slotNo = +$('nsl').value; s.slot = ST.slotText(s.slotNo, s.kind); s.time = null; }
+          else if (act === 'min') { s.min = Math.max(5, Math.min(600, Math.round(+$('min').value || 60))); }
+          s.updatedAt = now;
+        });
+        if (act === 'day' || act === 'shift') { if (ST.extendWeeks) ST.extendWeeks(); list.forEach(reWeek); }
+        D().study.sessions.sort((a, b) => a.date.localeCompare(b.date) || (a.slotNo || 9) - (b.slotNo || 9));
+        p.updatedAt = now;
+        ED.store.commit(); api.close();
+        ED.ui.undoToast((act === 'del' ? 'Deleted ' : 'Changed ') + U.plural(list.length, 'session'));
+      });
+    } });
+  };
+
   const A = (ED.actions = ED.actions || {});
-  A['study-toggle'] = el => ST.toggle(el.dataset.sid || el.closest('[data-sid]').dataset.sid);
+  A['study-toggle'] =el => ST.toggle(el.dataset.sid || el.closest('[data-sid]').dataset.sid);
   A['study-open'] = (el, ev) => { if (ev && ev.target.closest('[data-act="study-toggle"]') && ev.target.closest('[data-act="study-toggle"]') !== el) return; ST.editSession(el.dataset.sid || el.closest('[data-sid]').dataset.sid); };
   A['study-add'] = el => ST.editSession(null, { date: el.dataset.date || ST.focusDay() });
   A['study-log'] = el => { const k = el.dataset.date || U.today(); ST.editSession(null, { date: k, done: true, doneOn: k }); };
@@ -1355,6 +1489,8 @@
     if (p) items.push({ sep: true },
       { label: 'Add to the schedule (slots, subjects, days)…', icon: 'calendar', onClick: () => ST.bulkAdd() },
       { label: 'Log study time…', icon: 'clock', onClick: () => A['study-log']({ dataset: {} }) },
+      { label: 'Change many sessions (move, change, delete)…', icon: 'pencil', onClick: () => ST.bulkChange() },
+      { label: 'Change the start date…', icon: 'calendar', onClick: () => ST.editStart() },
       { label: 'Plan settings: slots, times, subjects…', icon: 'gear', onClick: () => ST.editPlan() },
       { label: 'Number of weeks: add or remove…', icon: 'calendar', onClick: () => ST.editWeeks() },
       { label: 'Add a book or lecture…', icon: 'book', onClick: () => ST.editSource(null) },

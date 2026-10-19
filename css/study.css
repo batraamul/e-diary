@@ -239,3 +239,7 @@
 .ri-st.fin { background: var(--well); color: var(--ink-2); border-color: var(--rule); }
 .ri-late { color: var(--bad-ink); font-weight: 600; }
 .ri-late .hint { color: var(--bad-ink); font-weight: 400; }
+
+/* 1.15: Change many sessions — weekday ticks */
+.bc-days { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
+.bc-days .chk { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }

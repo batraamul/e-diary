@@ -61,7 +61,7 @@
       '<button type="button" class="tstat" data-act="task-toggle" aria-label="' + e(M.statusLabel(st)) + ' — click to ' + (M.isClosed(st) ? 'reopen' : 'complete') + '" title="' + e(M.statusLabel(st)) + '">' + TU.statusIcon(st) + '</button>' +
       '<span class="tcode num">' + e(M.code(t)) + '</span>' +
       '<span class="tbody" data-act="task-open">' +
-      '<span class="ttitle' + (cat ? ' tinted' : '') + '"' + (cat ? ' style="--c:' + e(cat.color) + '"' : '') + '>' + (t.link ? '<span class="tlink" title="Opens the grocery list">' + ED.icon('cart') + '</span>' : '') + e(t.title || 'Untitled task') + '</span>' +
+      '<span class="ttitle' + (cat ? ' tinted' : '') + '"' + (cat ? ' style="--c:' + e(cat.color) + '"' : '') + '>' + (t.link ? '<span class="tlink" title="' + (t.link.k === 'ward' ? 'Opens the Wardrobe “To buy” list' : 'Opens the grocery list') + '">' + ED.icon(t.link.k === 'ward' ? 'user' : 'cart') + '</span>' : '') + e(t.title || 'Untitled task') + '</span>' +
       TU.meta(o) + '</span>' +
       '<span class="tbadges">' + TU.badges(t, 2) + '</span>' +
       '<button type="button" class="tmore icon-btn sm" data-act="task-menu" aria-label="Task actions">' + ED.icon('more') + '</button>' +

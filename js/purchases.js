@@ -20,6 +20,8 @@
   const groc = () => (D().lists && Array.isArray(D().lists.groc)) ? D().lists.groc : [];
   const wish = () => (D().wardrobe && Array.isArray(D().wardrobe.wish)) ? D().wardrobe.wish : [];
   const TID = id => 'tk-groc-' + id;
+  const WTID = id => 'tk-ward-' + id;
+  const wTitle = x => 'Buy: ' + String(x.name || 'clothes').trim();
   const RID = (k, id) => 'fr-pu-' + k + '-' + id;
   PU.on = () => S().purchases !== false;              // show them in Bills and put the grocery task in the planner
   const recOn = () => S().purchaseRecords !== false;  // add bought purchases to Money records
@@ -113,10 +115,44 @@
         const st = M.isClosed(t.status) ? 'done' : 'open';
         if (t.linkSt !== st) { t.linkSt = st; ch = true; }
       });
-      // grocery tasks whose list is gone or taken out: open ones go; done ones stay as history (no longer linked)
+      // 1.15: each thing on the Wardrobe "To buy" list gets a task on its "Buy by" day — "Buy: Formal shoes"
+      wish().forEach(x => {
+        if (!x || !x.id) return;
+        const id = WTID(x.id);
+        let t = d.tasks.find(y => y.id === id);
+        if (!PU.on() || x.noBill) return;                           // taken out: no task (an open one is tidied below)
+        if (!t && x.done) return;                                    // bought before 1.15: no task afterwards
+        live.add(id);
+        if (!U.isKey(x.by)) { x.by = today; x.updatedAt = Date.now(); ch = true; }
+        const title = wTitle(x);
+        if (!t) {
+          t = M.newTask({ id, title, date: x.by, prio: x.prio === 'need' ? 'A' : (S().defaultPrio || 'B'), link: { k: 'ward', id: x.id }, linkTitle: title, linkDate: x.by, linkSt: 'open',
+            categoryId: (d.categories.find(c => /shop|cloth|wardrobe|personal|home/i.test(c.name)) || {}).id || null });
+          t.num = M.nextNum(t.prio, t.date);
+          d.tasks.push(t); ch = true;
+          return;
+        }
+        if (!t.link) { t.link = { k: 'ward', id: x.id }; ch = true; }
+        if (t.date && t.date !== t.linkDate) { if (x.by !== t.date) { x.by = t.date; x.updatedAt = Date.now(); ch = true; } }
+        else if (t.date !== x.by) { t.date = x.by; ch = true; }
+        if (t.linkDate !== t.date) { t.linkDate = t.date; ch = true; }
+        if (t.linkTitle !== title) { if (!t.title || t.title === t.linkTitle) t.title = title; t.linkTitle = title; ch = true; }
+        const tDone = M.isClosed(t.status);
+        if (t.linkSt != null && tDone !== (t.linkSt === 'done')) {
+          // ticked in the planner: bought at the expected price (the toast lets you change it); unticked: not bought
+          if (tDone && !x.done) {
+            if (ED.wardrobe && ED.wardrobe.markBought) ED.wardrobe.markBought(x, x.cost); else { x.done = true; x.doneOn = today; x.paid = num(x.cost); x.updatedAt = Date.now(); }
+            const wid = x.id; setTimeout(() => ED.ui.toast('Bought: ' + x.name + (x.paid ? ' for ' + money(x.paid) : '') + ' — added to My clothes', { action: 'Change price', timeout: 9000, onAction: () => PU.price(wid) }), 50);
+          } else if (!tDone && x.done) { if (ED.wardrobe && ED.wardrobe.unBuy) ED.wardrobe.unBuy(x); else { x.done = false; x.doneOn = null; x.updatedAt = Date.now(); } }
+          ch = true;
+        } else if (!!x.done !== tDone) { M.setStatus(t, t.date, x.done ? 'done' : 'open'); ch = true; }
+        const st = M.isClosed(t.status) ? 'done' : 'open';
+        if (t.linkSt !== st) { t.linkSt = st; ch = true; }
+      });
+      // grocery and wardrobe tasks whose list / item is gone or taken out: open ones go; done ones stay as history (no longer linked)
       const before = d.tasks.length;
       d.tasks = d.tasks.filter(t => {
-        if (!t.link || t.link.k !== 'groc' || live.has(t.id)) return true;
+        if (!t.link || (t.link.k !== 'groc' && t.link.k !== 'ward') || live.has(t.id)) return true;
         if (M.isClosed(t.status)) { delete t.link; ch = true; return true; }
         return false;
       });
@@ -165,6 +201,11 @@
       const g = groc().find(x => x.id === t.link.id);
       if (g) { g.noPlan = true; g.updatedAt = Date.now(); }
     }
+    // deleting a wardrobe task takes the item out of the planner and Bills (it stays on the Wardrobe list)
+    if (t && t.link && t.link.k === 'ward' && !quiet) {
+      const w = wish().find(x => x.id === t.link.id);
+      if (w && !w.done) { w.noBill = true; w.updatedAt = Date.now(); }
+    }
     return del0(id);
   };
 
@@ -187,6 +228,7 @@
     if (ev && ev.target && ev.target.closest && ev.target.closest('.tstat, .tmore')) return;
     const o = ED.tasksUI.occFrom(el);
     if (o && o.t.link && o.t.link.k === 'groc' && groc().some(g => g.id === o.t.link.id)) { PU.open('groc:' + o.t.link.id); return; }
+    if (o && o.t.link && o.t.link.k === 'ward' && wish().some(w => w.id === o.t.link.id)) { PU.open('ward:' + o.t.link.id); return; }
     return open0 && open0(el, ev);
   };
 
@@ -194,7 +236,7 @@
   PU.billsHtml = m => {
     const head = '<h3 class="gh fin-gap">Planned purchases <span class="hint">from Grocery &amp; Wardrobe</span></h3>';
     const sw = (id, on, label) => '<label class="switch pu-sw"><input type="checkbox" data-change="pu-set" data-k="' + id + '"' + (on ? ' checked' : '') + '><span class="track"></span><span>' + label + '</span></label>';
-    if (!PU.on()) return head + '<p class="hint">Purchases from the Grocery list and the Wardrobe “To buy” list are not shown here.</p>' + sw('purchases', false, 'Show them here (and the grocery task in the planner)');
+    if (!PU.on()) return head + '<p class="hint">Purchases from the Grocery list and the Wardrobe “To buy” list are not shown here.</p>' + sw('purchases', false, 'Show them here (and as tasks in the planner)');
     const mk = m.slice(0, 7), today = U.today(), all = PU.items();
     const open = all.filter(x => !x.paid).sort((a, b) => String(a.date || '9999').localeCompare(String(b.date || '9999')));
     const paid = all.filter(x => x.paid && String(x.paidOn || '').slice(0, 7) === mk).sort((a, b) => String(a.paidOn).localeCompare(String(b.paidOn)));
@@ -206,14 +248,14 @@
         '<button type="button" class="plain-btn grow fin-bn" data-act="pu-open" data-key="' + e(x.key) + '" title="Open the ' + (x.kind === 'groc' ? 'grocery list' : 'Wardrobe “To buy” list') + '"><b>' + e(x.name) + '</b><span class="hint">' + e(when + (x.sub ? ' · ' + x.sub : '')) + (late ? ' ⚠' : '') + '</span></button>' +
         '<span class="chip pu-src pu-' + x.kind + '">' + ED.icon(x.kind === 'groc' ? 'cart' : 'user') + e(x.src) + '</span>' +
         '<span class="num">' + (x.paid ? money(x.paidAmount) : x.amount ? money(x.amount) : '—') + '</span>' +
-        (x.paid ? '' : '<button type="button" class="icon-btn sm" data-act="pu-hide" data-key="' + e(x.key) + '" aria-label="Take ' + e(x.name) + ' out of Bills" title="Take out of Bills' + (x.kind === 'groc' ? ' and the planner' : '') + '">' + ED.icon('x') + '</button>') + '</li>';
+        (x.paid ? '' : '<button type="button" class="icon-btn sm" data-act="pu-hide" data-key="' + e(x.key) + '" aria-label="Take ' + e(x.name) + ' out of Bills" title="Take out of Bills and the planner">' + ED.icon('x') + '</button>') + '</li>';
     };
     return head +
       (all.length ? '<div class="fin-bsum pu-sum"><span class="num">To buy: <b>' + money(toPay) + '</b>' + (open.length ? ' · ' + U.plural(open.length, 'purchase') : '') + '</span><span class="num">Bought in ' + e(U.MONTHS[+m.slice(5, 7) - 1]) + ': <b>' + money(spent) + '</b></span></div>' : '') +
       (open.length ? '<ul class="fin-bills pu-bills">' + open.map(row).join('') + '</ul>' : '<p class="hint">Nothing to buy. Grocery lists with items and the Wardrobe “To buy” list appear here by themselves.</p>') +
       (paid.length ? '<h4 class="pu-h4">Bought in ' + e(U.fmtMonthYear(m)) + '</h4><ul class="fin-bills pu-bills">' + paid.map(row).join('') + '</ul>' : '') +
       '<div class="btn-row"><button type="button" class="btn small" data-act="pu-goto" data-k="groc">' + ED.icon('cart') + 'Grocery lists</button><button type="button" class="btn small" data-act="pu-goto" data-k="ward">' + ED.icon('user') + 'Wardrobe — to buy</button></div>' +
-      '<div class="pu-sws">' + sw('purchaseRecords', recOn(), 'Add them to my Money records when bought') + sw('purchases', true, 'Show them here (and the grocery task in the planner)') + '</div>';
+      '<div class="pu-sws">' + sw('purchaseRecords', recOn(), 'Add them to my Money records when bought') + sw('purchases', true, 'Show them here (and as tasks in the planner)') + '</div>';
   };
 
   /* note on the Grocery page (js/lists.js) */
@@ -225,7 +267,7 @@
     return '<p class="hint pu-hint">' + ED.icon('calendar') + ' In the planner as <button type="button" class="link-btn" data-act="pu-day" data-date="' + e((t && t.date) || g.date || U.today()) + '">“' + e(PU.title(g)) + '”</button> and in <button type="button" class="link-btn" data-act="pu-bills">Finance → Bills</button>' + (gTotal(g) ? ' (' + e(money(gTotal(g))) + ')' : '') + '.</p>';
   };
   /* note on the Wardrobe "To buy" page */
-  PU.wardNote = () => PU.on() && wish().some(x => !x.done && !x.noBill) ? '<p class="hint pu-hint">' + ED.icon('receipt') + ' These are also in <button type="button" class="link-btn" data-act="pu-bills">Finance → Bills</button> as planned purchases.</p>' : '';
+  PU.wardNote = () => PU.on() && wish().some(x => !x.done && !x.noBill) ? '<p class="hint pu-hint">' + ED.icon('receipt') + ' Each one is also a task “Buy: …” in the daily planner on its <b>Buy by</b> day, and in <button type="button" class="link-btn" data-act="pu-bills">Finance → Bills</button> as a planned purchase. Ticking the task marks it bought; deleting the task takes it out of the planner and Bills.</p>' : '';
 
   /* ---------------- actions ---------------- */
   A['pu-open'] = el => PU.open(el.dataset.key);
@@ -244,13 +286,23 @@
       return;
     }
     const w = wish().find(y => y.id === x.id); if (!w) return;
-    if (x.paid) { ED.store.checkpoint('To buy'); w.done = false; w.doneOn = null; w.updatedAt = Date.now(); ED.store.commit(); ED.ui.undoToast(w.name + ' — marked as not bought'); return; }
+    if (x.paid) { ED.store.checkpoint('To buy'); if (ED.wardrobe && ED.wardrobe.unBuy) ED.wardrobe.unBuy(w); else { w.done = false; w.doneOn = null; w.updatedAt = Date.now(); } ED.store.commit(); ED.ui.undoToast(w.name + ' — marked as not bought'); return; }
     const paid = await ED.ui.prompt({ title: 'Bought: ' + w.name, label: 'What did it cost (₹)?', type: 'number', value: w.cost || '', ok: 'Bought' });
     if (paid == null) return;
     ED.store.checkpoint('Bought');
     if (ED.wardrobe && ED.wardrobe.markBought) ED.wardrobe.markBought(w, paid);
     else { w.done = true; w.doneOn = U.today(); w.paid = +paid || +w.cost || 0; w.updatedAt = Date.now(); }
     ED.store.commit(); ED.ui.undoToast(w.name + ' — bought and added to My clothes' + (recOn() && w.paid ? ' · ' + money(w.paid) + ' recorded' : ''));
+  };
+  /* the price actually paid for something bought from the planner */
+  PU.price = async id => {
+    const w = wish().find(y => y.id === id); if (!w) return;
+    const v = await ED.ui.prompt({ title: 'Bought: ' + w.name, label: 'What did it cost (₹)?', type: 'number', value: w.paid || w.cost || '', ok: 'Save' });
+    if (v == null) return;
+    ED.store.checkpoint('Price');
+    w.paid = +v || 0; w.updatedAt = Date.now();
+    const it = w.itemId && D().wardrobe.items.find(y => y.id === w.itemId); if (it) { it.cost = w.paid; it.updatedAt = Date.now(); }
+    ED.store.commit(); ED.ui.toast('Price saved' + (recOn() && w.paid ? ' · ' + money(w.paid) + ' in Money records' : ''));
   };
   A['pu-hide'] = el => {
     const [k, id] = String(el.dataset.key).split(':');
@@ -259,7 +311,7 @@
     if (k === 'groc') src.noPlan = true; else src.noBill = true;
     src.updatedAt = Date.now();
     ED.store.commit();
-    ED.ui.undoToast(k === 'groc' ? 'Taken out of Bills and the planner (the list stays)' : 'Taken out of Bills (still on the Wardrobe list)');
+    ED.ui.undoToast(k === 'groc' ? 'Taken out of Bills and the planner (the list stays)' : 'Taken out of Bills and the planner (still on the Wardrobe list)');
   };
   A['pu-back'] = el => {
     const [k, id] = String(el.dataset.key).split(':');
@@ -267,7 +319,7 @@
     if (k === 'groc') delete src.noPlan; else delete src.noBill;
     src.updatedAt = Date.now();
     ED.store.commit();
-    ED.ui.toast(k === 'groc' ? 'Back in the planner and in Bills' : 'Back in Bills');
+    ED.ui.toast('Back in the planner and in Bills');
   };
   CH['pu-set'] = el => { S()[el.dataset.k] = el.checked; ED.store.commit(); };
 })();

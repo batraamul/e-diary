@@ -70,6 +70,7 @@
       FX().tile('Budget', bud ? money(bud) : '—', bud ? (tot > bud ? money(tot - bud) + ' over' : money(bud - tot) + ' left') : 'set one on the right', bud && tot > bud ? 'warn' : '') + FX().tile('Bought', String(done.length), money(done.reduce((a, x) => a + (+x.paid || +x.cost || 0), 0)) + ' spent') + '</div>';
     const row = x => '<li class="wd-wish' + (x.done ? ' done' : '') + '"><button type="button" class="hz-tick' + (x.done ? ' on' : '') + '" data-act="wd-bought" data-id="' + e(x.id) + '" aria-pressed="' + !!x.done + '" aria-label="' + (x.done ? 'Bought' : 'Mark as bought') + '">' + (x.done ? ED.icon('check') : '') + '</button>' +
       '<button type="button" class="link-btn grow wd-wn" data-act="wd-wish" data-id="' + e(x.id) + '"><b>' + e(x.name) + '</b><span class="hint">' + [x.type, x.where, x.by ? 'by ' + U.fmtShort(x.by) : ''].filter(Boolean).map(e).join(' · ') + '</span></button>' +
+      (!x.done && x.noBill && ED.purchases && ED.purchases.on() ? '<button type="button" class="link-btn" data-act="pu-back" data-key="ward:' + e(x.id) + '" title="Put it back in the daily planner and Finance → Bills">Add back to planner</button>' : '') +
       '<span class="chip wd-p-' + e(x.prio || 'want') + '">' + (x.prio === 'need' ? 'Must have' : 'Nice to have') + '</span><b class="num">' + (x.done && x.paid ? money(x.paid) : x.cost ? money(x.cost) : '') + '</b></li>';
     return tiles + '<div class="xp-filters"><button type="button" class="btn small primary" data-act="wd-wish">' + ED.icon('plus') + 'Add something to buy</button></div>' + (ED.purchases ? ED.purchases.wardNote() : '') +
       (open.length ? '<ul class="wd-wl">' + open.sort((a, b) => (a.prio === 'need' ? 0 : 1) - (b.prio === 'need' ? 0 : 1) || String(a.by || '9999').localeCompare(String(b.by || '9999'))).map(row).join('') + '</ul>' : '<p class="hint">Nothing on the list. Add what you want to buy and roughly what it costs — or take one of the suggestions on the right.</p>') +
@@ -170,7 +171,7 @@
   };
   A['wd-bought'] = async el => {
     const x = W().wish.find(y => y.id === el.dataset.id); if (!x) return;
-    if (x.done) { ED.store.checkpoint('To buy'); x.done = false; x.doneOn = null; x.updatedAt = Date.now(); ED.store.commit(); return; }
+    if (x.done) { ED.store.checkpoint('To buy'); WD.unBuy(x); ED.store.commit(); return; }
     const paid = await ED.ui.prompt({ title: 'Bought: ' + x.name, label: 'What did it cost (₹)?', type: 'number', value: x.cost || '', ok: 'Bought' });
     if (paid == null) return;
     ED.store.checkpoint('Bought');
@@ -180,8 +181,19 @@
   /* bought: into My clothes (also used by Finance → Bills → Planned purchases, js/purchases.js) */
   WD.markBought = (x, paid) => {
     x.done = true; x.doneOn = U.today(); x.paid = +paid || +x.cost || 0; x.updatedAt = Date.now();
-    W().items.push({ id: U.uid('wd'), name: x.name.replace(/^Replace:\s*/, '').replace(/^\d+\s*×\s*/, ''), type: x.type || 'Other', occasion: 'Office', cond: 'good', cost: x.paid, bought: U.today(), wears: 0, lastWorn: null, notes: x.notes || '', updatedAt: Date.now() });
+    x.itemId = U.uid('wd');
+    W().items.push({ id: x.itemId, name: x.name.replace(/^Replace:\s*/, '').replace(/^\d+\s*×\s*/, ''), type: x.type || 'Other', occasion: 'Office', cond: 'good', cost: x.paid, bought: U.today(), wears: 0, lastWorn: null, notes: x.notes || '', updatedAt: Date.now() });
     if (x.replaces) { const o = item(x.replaces); if (o) { o.cond = 'discard'; o.updatedAt = Date.now(); } }
+  };
+  /* not bought after all (1.15): the clothes added for it go again, unless you have worn them since */
+  WD.unBuy = x => {
+    x.done = false; x.doneOn = null; x.updatedAt = Date.now();
+    if (x.itemId) {
+      const it = item(x.itemId);
+      if (it && !(it.wears > 0)) W().items = W().items.filter(y => y !== it);
+      delete x.itemId;
+    }
+    if (x.replaces) { const o = item(x.replaces); if (o && o.cond === 'discard') { o.cond = 'worn'; o.updatedAt = Date.now(); } }
   };
   CHG['wd-f'] = el => { st()[el.dataset.k] = el.value; ED.app.render(); };
   CHG['wd-plan'] = el => { const P = W().plan, k = el.dataset.date; const p = P[k] || (P[k] = {}); if (el.value) p[el.dataset.slot] = el.value; else delete p[el.dataset.slot]; if (!Object.keys(p).length) delete P[k]; ED.store.commit(); };
