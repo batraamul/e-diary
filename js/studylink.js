@@ -1,0 +1,161 @@
+/* E-Diary — Exam and Interview preparation ↔ Study planner and Daily planner (added in 1.16).
+   • Automatic (switch on the Exam / Interview pages): the topics of your exams (by subject) and the categories of
+     your interview questions are kept in the Study planner's topic lists, for subjects that are in the study plan.
+     Topics added, renamed or deleted in Exam preparation follow; your own study topics are never touched.
+   • "Add to my plans…" (one click for an exam or an interview): the exam / interview day as a task, its key dates
+     (last date to apply, admit card, result), a daily preparation task until the day, and all its subjects and
+     topics into the Study plan (missing subjects are added).
+   Tasks have fixed ids (tk-xe-…, tk-xp-…, tk-xi-…, tk-xq-…) so two synced devices never make two; they follow when
+   the dates change. Data: settings.studyLink = { exam: true, iv: true } */
+(function () {
+  'use strict';
+  const ED = window.ED, U = ED.util, M = ED.model, e = U.esc;
+  const D = () => ED.store.data;
+  const A = (ED.actions = ED.actions || {});
+  const CH = (ED.changes = ED.changes || {});
+  const SL = (ED.studyLink = {});
+  const cfg = () => { const s = D().settings; if (!s.studyLink || typeof s.studyLink !== 'object') s.studyLink = { exam: true, iv: true }; return s.studyLink; };
+  const ST = () => ED.study;
+  const low = s => String(s || '').trim().toLowerCase();
+  const IVSUBJ = 'Interview preparation';
+  const examTopics = id => ((D().exam && D().exam.topics) || []).filter(t => !id || t.examId === id);
+  const examOf = id => ((D().exam && D().exam.list) || []).find(x => x.id === id) || null;
+  const subjOf = t => (t.subj || '').trim() || ((examOf(t.examId) || {}).name || 'Exam');
+
+  /* ---------------- topics kept in step ---------------- */
+  let busy = false;
+  SL.reconcile = () => {
+    if (busy || !D() || !ST() || !ST().plan()) return false;
+    busy = true; let ch = false;
+    try {
+      const p = ST().plan(), c = cfg();
+      if (!Array.isArray(p.topics)) p.topics = [];
+      const track = name => p.tracks.find(t => low(t.name) === low(name)) || null;
+      const want = new Map();
+      if (c.exam) examTopics().forEach(t => { const tr = track(subjOf(t)); if (tr && t.name) want.set('tp-ex-' + t.id, { trackId: tr.id, name: t.name }); });
+      if (c.iv && D().interview) {
+        const tr = track(IVSUBJ);
+        if (tr) Array.from(new Set((D().interview.qs || []).map(q => q.cat).filter(Boolean))).forEach(cat => want.set('tp-iv-' + low(cat).replace(/[^a-z0-9]+/g, '-'), { trackId: tr.id, name: cat }));
+      }
+      want.forEach((v, id) => {
+        const old = p.topics.find(x => x.id === id);
+        if (!old) { if (!p.topics.some(x => x.trackId === v.trackId && low(x.name) === low(v.name))) { p.topics.push({ id, trackId: v.trackId, name: v.name, auto: true }); ch = true; } }
+        else if (old.name !== v.name || old.trackId !== v.trackId) { old.name = v.name; old.trackId = v.trackId; ch = true; }
+      });
+      const n = p.topics.length;
+      p.topics = p.topics.filter(x => !/^tp-(ex|iv)-/.test(x.id || '') || want.has(x.id));
+      if (p.topics.length !== n) ch = true;
+      // tasks added with "Add to my plans…" follow the exam / interview
+      const d = D();
+      d.tasks.forEach(t => {
+        if (!t.link || (t.link.k !== 'exam' && t.link.k !== 'iv')) return;
+        const key = t.link.part || 'day';
+        if (t.link.k === 'exam') {
+          const x = examOf(t.link.id); if (!x) { t.gone = true; return; }
+          const date = key === 'day' ? x.date : key === 'apply' ? x.apply : key === 'admit' ? x.admit : key === 'result' ? x.result : null;
+          if (key === 'prep') { if (x.date && t.repeat && t.repeat.until !== U.addDays(x.date, -1)) { t.repeat = Object.assign({}, t.repeat, { until: U.addDays(x.date, -1) }); ch = true; } return; }
+          if (U.isKey(date) && t.date !== date && !M.isClosed(t.status)) { t.date = date; ch = true; }
+          if (key === 'day' && (x.time || null) !== (t.time || null) && !M.isClosed(t.status)) { t.time = x.time || null; ch = true; }
+        } else {
+          const x = ((d.interview && d.interview.list) || []).find(y => y.id === t.link.id); if (!x) { t.gone = true; return; }
+          if (key === 'prep') { if (x.date && t.repeat && t.repeat.until !== U.addDays(x.date, -1)) { t.repeat = Object.assign({}, t.repeat, { until: U.addDays(x.date, -1) }); ch = true; } return; }
+          if (U.isKey(x.date) && t.date !== x.date && !M.isClosed(t.status)) { t.date = x.date; ch = true; }
+          if ((x.time || null) !== (t.time || null) && !M.isClosed(t.status)) { t.time = x.time || null; ch = true; }
+        }
+      });
+      if (d.tasks.some(t => t.gone)) { d.tasks = d.tasks.filter(t => !t.gone || M.isClosed(t.status)); d.tasks.forEach(t => { delete t.gone; }); ch = true; }
+    } catch (err) { console.warn('[e-diary] study link', err); }
+    finally { busy = false; }
+    return ch;
+  };
+  ED.store.on((type, detail) => { if (type !== 'change' || (detail && detail.reason === 'studylink')) return; if (SL.reconcile()) ED.store.commit({ reason: 'studylink' }); });
+  const open0 = A['task-open'];
+  A['task-open'] = (el, ev) => {
+    if (ev && ev.target && ev.target.closest && ev.target.closest('.tstat, .tmore')) return;
+    const o = ED.tasksUI && ED.tasksUI.occFrom ? ED.tasksUI.occFrom(el) : null;
+    if (o && o.t.link && o.t.link.k === 'exam' && examOf(o.t.link.id)) { (ED.state.ex = ED.state.ex || {}).sel = o.t.link.id; ED.go.tab('exam'); return; }
+    if (o && o.t.link && o.t.link.k === 'iv') { ED.go.tab('interview'); return; }
+    return open0 && open0(el, ev);
+  };
+
+  /* ---------------- subjects and topics into the study plan (one click) ---------------- */
+  SL.toStudy = (subjects) => {      // subjects: [{ name, topics: [{ id, name }] }]
+    const p = ST().plan(); if (!p) return null;
+    if (!Array.isArray(p.topics)) p.topics = [];
+    let ns = 0, nt = 0;
+    subjects.forEach(sb => {
+      let tr = p.tracks.find(t => low(t.name) === low(sb.name));
+      if (!tr) { tr = ST().addTrack(sb.name); ns++; }
+      sb.topics.forEach(t => {
+        if (p.topics.some(x => x.trackId === tr.id && low(x.name) === low(t.name))) return;
+        p.topics.push({ id: t.id || U.uid('tp'), trackId: tr.id, name: t.name, auto: !!t.id }); nt++;
+      });
+    });
+    p.updatedAt = Date.now();
+    return { ns, nt };
+  };
+
+  /* ---------------- "Add to my plans…" ---------------- */
+  const role = () => (D().roles.find(r => /learn|study|career|exam|scien|profession|work/i.test(r.name)) || {}).id || null;
+  const add = (id, o) => { const d = D(); if (d.tasks.some(t => t.id === id)) return 0; const t = M.newTask(Object.assign({ id, prio: 'A', roleId: role() }, o)); if (!t.repeat) t.num = M.nextNum(t.prio, t.date); d.tasks.push(t); return 1; };
+  const dialog = (title, rows, onGo, plan) => {
+    const body = '<form class="st-form sl-form"><p class="hint">Choose what to add. Nothing is added twice — click again later to add what is new.</p>' +
+      rows.map(r => '<label class="switch sl-row"><input type="checkbox" data-sl="' + r[0] + '"' + (r[2] === false ? '' : ' checked') + (r[3] ? ' disabled' : '') + '><span class="track"></span><span>' + r[1] + '</span></label>').join('') +
+      '<label class="sl-time">Daily preparation at <input type="time" class="field" id="sl-time" value="18:30"></label>' +
+      (plan ? '' : '<p class="notice warn">' + ED.icon('info') + '<span>No study plan yet: make one in <b>Study → Plan ▾ → Make a new plan</b>, then come back to add the subjects and topics.</span></p>') + '</form>';
+    ED.ui.modal({ title, cls: 'st-modal', body, footer: '<button type="button" class="btn" data-mclose>Cancel</button><button type="button" class="btn primary" data-x="go">Add</button>', onMount(el, api) {
+      el.querySelector('[data-x="go"]').addEventListener('click', () => {
+        const on = {}; U.$$('[data-sl]', el).forEach(c => { on[c.dataset.sl] = c.checked && !c.disabled; });
+        const time = el.querySelector('#sl-time').value || null;
+        ED.store.checkpoint('Add to my plans');
+        const msg = onGo(on, time);
+        ED.store.commit(); api.close(); ED.ui.undoToast(msg || 'Nothing new to add');
+      });
+    } });
+  };
+  SL.exam = id => {
+    const x = examOf(id); if (!x) return;
+    const tops = examTopics(id), today = U.today(), plan = ST() && ST().plan();
+    const subs = {}; tops.forEach(t => { const n = subjOf(t); (subs[n] = subs[n] || []).push({ id: 'tp-ex-' + t.id, name: t.name }); });
+    const keyd = [['apply', x.apply, 'Last date to apply'], ['admit', x.admit, 'Admit card'], ['result', x.result, 'Result']].filter(k => U.isKey(k[1]) && k[1] >= today);
+    dialog('Add “' + (x.name || 'exam') + '” to my plans', [
+      ['day', 'The exam day as a task' + (x.date ? ' (' + e(U.fmtShort(x.date)) + (x.time ? ', ' + e(ED.fx.time(x.time)) : '') + ')' : ' — add the exam date first'), !!x.date, !x.date],
+      ['keys', keyd.length ? 'Key dates as tasks: ' + keyd.map(k => e(k[2]) + ' ' + e(U.fmtDM(k[1]))).join(', ') : 'Key dates as tasks — none ahead', !!keyd.length, !keyd.length],
+      ['prep', 'A daily preparation task until the exam', !!(x.date && x.date > today), !(x.date && x.date > today)],
+      ['study', 'All its subjects and topics into the Study plan (' + U.plural(Object.keys(subs).length, 'subject') + ', ' + U.plural(tops.length, 'topic') + ')', !!(plan && tops.length), !(plan && tops.length)],
+    ], (on, time) => {
+      const out = [];
+      if (on.day && x.date) out.push(add('tk-xe-' + x.id, { title: '📝 Exam: ' + (x.name || 'exam') + (x.centre ? ' — ' + x.centre : ''), date: x.date, time: x.time || null, link: { k: 'exam', id: x.id, part: 'day' } }) ? 'exam day' : '');
+      if (on.keys) keyd.forEach(k => { if (add('tk-xe-' + x.id + '-' + k[0], { title: '📝 ' + k[2] + ': ' + (x.name || 'exam'), date: k[1], link: { k: 'exam', id: x.id, part: k[0] } })) out.push(k[2].toLowerCase()); });
+      if (on.prep) {
+        const left = tops.filter(t => (t.st || 0) < 2).length, n = Math.max(1, U.diffDays(today, x.date));
+        if (add('tk-xp-' + x.id, { title: '📚 Prepare: ' + (x.name || 'exam') + (left ? ' — about ' + Math.max(1, Math.ceil(left / n)) + ' topic(s) a day' : ''), date: today, time, dur: 60, repeat: { freq: 'daily', interval: 1, until: U.addDays(x.date, -1) }, link: { k: 'exam', id: x.id, part: 'prep' } })) out.push('daily preparation');
+      }
+      if (on.study && plan) { const r = SL.toStudy(Object.keys(subs).map(n => ({ name: n, topics: subs[n] }))); if (r && (r.ns || r.nt)) out.push(U.plural(r.ns, 'subject') + ' and ' + U.plural(r.nt, 'topic') + ' in the Study plan'); }
+      const o = out.filter(Boolean);
+      return o.length ? 'Added: ' + o.join(', ') : '';
+    }, plan);
+  };
+  SL.interview = id => {
+    const d = D(), x = ((d.interview && d.interview.list) || []).find(y => y.id === id); if (!x) return;
+    const today = U.today(), plan = ST() && ST().plan();
+    const cats = Array.from(new Set((d.interview.qs || []).filter(q => !q.forId || q.forId === id).map(q => q.cat).filter(Boolean)));
+    dialog('Add the interview to my plans', [
+      ['day', 'The interview as a task' + (x.date ? ' (' + e(U.fmtShort(x.date)) + (x.time ? ', ' + e(ED.fx.time(x.time)) : '') + ')' : ' — add its date first'), !!x.date, !x.date],
+      ['prep', 'A daily practice task until the interview', !!(x.date && x.date > today), !(x.date && x.date > today)],
+      ['study', 'The question categories as topics of “' + IVSUBJ + '” in the Study plan (' + U.plural(cats.length, 'category', 'categories') + ')', !!(plan && cats.length), !(plan && cats.length)],
+    ], (on, time) => {
+      const out = [], name = [x.role, x.org].filter(Boolean).join(', ') || 'interview';
+      if (on.day && x.date && add('tk-xi-' + x.id, { title: '🎤 Interview: ' + name + (x.venue ? ' — ' + x.venue : ''), date: x.date, time: x.time || null, link: { k: 'iv', id: x.id, part: 'day' } })) out.push('interview day');
+      if (on.prep && add('tk-xq-' + x.id, { title: '🎤 Practise for the interview: ' + name + ' (Interview → Practise)', date: today, time, dur: 45, repeat: { freq: 'daily', interval: 1, until: U.addDays(x.date, -1) }, link: { k: 'iv', id: x.id, part: 'prep' } })) out.push('daily practice');
+      if (on.study && plan) { const r = SL.toStudy([{ name: IVSUBJ, topics: cats.map(c => ({ id: 'tp-iv-' + low(c).replace(/[^a-z0-9]+/g, '-'), name: c })) }]); if (r && (r.ns || r.nt)) out.push(U.plural(r.nt, 'topic') + ' in the Study plan'); }
+      return out.length ? 'Added: ' + out.join(', ') : '';
+    }, plan);
+  };
+  /* the switch shown on the Exam / Interview pages */
+  SL.switchHtml = kind => '<label class="switch sl-auto"><input type="checkbox" data-change="sl-auto" data-k="' + kind + '"' + (cfg()[kind] ? ' checked' : '') + '><span class="track"></span><span>' +
+    (kind === 'exam' ? 'Keep exam topics in the Study planner’s topic lists (for subjects in the study plan)' : 'Keep question categories as topics of “' + IVSUBJ + '” in the Study planner') + '</span></label>';
+  A['sl-exam'] = el => SL.exam(el.dataset.id);
+  A['sl-iv'] = el => SL.interview(el.dataset.id);
+  CH['sl-auto'] = el => { cfg()[el.dataset.k] = el.checked; ED.store.commit(); ED.ui.toast(el.checked ? 'Topics are kept in the Study planner' : 'Topics are no longer copied (the ones there are removed)'); };
+})();

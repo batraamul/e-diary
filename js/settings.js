@@ -284,7 +284,7 @@
     /* ---------------- See my data ---------------- */
     viewData() {
       const d = D();
-      const NAMES = { meta: 'About this diary', settings: 'Settings', tasks: 'Tasks', events: 'Events', categories: 'Categories', roles: 'Roles', goals: 'Goals', values: 'Values', dayNotes: 'Daily notes (by date)', mission: 'Mission statement', notebooks: 'Notebooks', notes: 'Notes', quotes: 'Your quotes', study: 'Study planner', finance: 'Finance and financial plan', sites: 'Important websites', vault: 'Password log (encrypted)', gcal: 'Google Calendar links', habits: 'Habits', interview: 'Interview preparation', health: 'Health', meetings: 'Meeting plans' };
+      const NAMES = { pooja: 'Pooja & Vrat (poojas, vrats, settings)', exercise: 'Exercise plan, workouts and steps', welfare: 'Welfare & Help', meta: 'About this diary', settings: 'Settings', tasks: 'Tasks', events: 'Events', categories: 'Categories', roles: 'Roles', goals: 'Goals', values: 'Values', dayNotes: 'Daily notes (by date)', mission: 'Mission statement', notebooks: 'Notebooks', notes: 'Notes', quotes: 'Your quotes', study: 'Study planner', finance: 'Finance and financial plan', sites: 'Important websites', vault: 'Password log (encrypted)', gcal: 'Google Calendar links', habits: 'Habits', interview: 'Interview preparation', health: 'Health', meetings: 'Meeting plans' };
       const count = v => Array.isArray(v) ? U.plural(v.length, 'item') : v && typeof v === 'object' ? U.plural(Object.keys(v).length, 'entry', 'entries') : '';
       const size = v => { try { return new Blob([JSON.stringify(v)]).size; } catch (err) { return 0; } };
       const keys = Object.keys(d).sort((a, b) => size(d[b]) - size(d[a]));

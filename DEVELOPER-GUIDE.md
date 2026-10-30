@@ -545,3 +545,20 @@ There is no automated test runner in the package; test by hand in the browser:
 - **One PC at a time** (sync.js): the file payload carries `owner: { id, name, at }` (device from localStorage `e-diary-device`). `file.acquire(force)` reads the file; a fresh owner (< 6 min) on another device → `goReadOnly()` (file data applied, `roSnap` kept, any non-silent commit reverted, red `#ed-ro-bar`, `checkFree()` every minute). Otherwise the file is master: applied as is, unless `store.loadedStamp` > `e-diary-file-stamp` (unsaved edits from the last session on this PC) → `reconcile()` merge. Holder heartbeats every 2 min; `stillMine()` before each write notices a take-over; `release()` on pagehide, unlink, or Settings → Release.
 - **Weekly / Yearly** (js/horizons.js; views `weekly`, `yearly`): undated tasks with `lvl: 'year'|'week'` (+ `planY` / `planW`); month tasks are ordinary master tasks with `planM`. `HZ.schedule(t, lvl, key)` adds the copy (`fromPlan`) and sets `t.schedTo = { lvl, key, id }`; `HZ.eff()` follows copies down for status; `HZ.unschedule()` removes copies; `HZ.tidy()` frees items whose copy was deleted. `M.idx()` puts year/week items and scheduled undated tasks in `plan` (not `master`); `M.goalTasks` skips scheduled items; the Eisenhower matrix skips them.
 - **Wardrobe** (js/wardrobe.js, Notes & Life mode `wardrobe`): `data.wardrobe = { items, wish, plan, budget }`; sync `nested('wardrobe', ['items','wish'], { plan: 1 })`.
+
+## 1.16 — new modules
+
+| File | What it does | Data |
+|---|---|---|
+| `js/panchang.js` | Hindu calendar on the device: Sun/Moon longitudes (Meeus ch. 25/47), Lahiri ayanamsha, sunrise (NOAA), tithi/nakshatra/yoga, amanta + purnimanta month with adhik, samvat, festivals (`FEST` table: amanta month, tithi, time of day), vrat keys. `ED.panchang.day(k)`, `.next(key, from, days)`. | none (cached per day and city) |
+| `js/pooja.js` | Notes & Life → Pooja & Vrat page; `ED.pooja.dailyStrip(k)` on the Daily page; `ED.lifeRole(re, name, icon, colour, store)` finds or makes a role. Tasks: `tk-pj-<id>` (repeating), `tk-vr-<key>-<date>` and `tk-fs-<date>` (with `noCarry`). | `pooja: { daily[], vrats[], fest, strip, ahead, roleId, skip{} }` |
+| `js/exercise.js` | Exercise page: library `LIB`, plans `TPL`, weekly tasks `tk-exd-<0–6>`, phone backup import (`format: 'cycling-app-backup'`), Google Drive read (scope `drive.readonly`). | `exercise: { plan, log[], steps{}, ticks{}, watch{}, stepGoal }` |
+| `js/welfare.js` | Welfare & Help page; follow-up tasks `tk-wf-<id>`; optional Money record `fr-wf-<id>`. | `welfare: { list[] }` |
+| `js/studylink.js` | Exam/Interview → Study topics (`tp-ex-<topic>`, `tp-iv-<cat>`), “Add to my daily & study plan…” tasks `tk-xe-…`, `tk-xp-…`, `tk-xi-…`, `tk-xq-…`. | `settings.studyLink` |
+| `css/life.css` | Styles for the above and the Weekly meals nutrition view. | |
+
+- These scripts load **after `js/app.js`** (like `purchases.js`) because they wrap `ED.actions['task-open']` and `ED.model.deleteTask`.
+- `model.js`: a task with `noCarry: true` does not roll forward to today.
+- `purchases.js`: medicines with ≤ 5 days of stock → `health.meds[].reorder = { at, bought, boughtOn, price, skip }`, task `tk-med-<id>-<at>`, bill `med:<id>` (amount 0 unless a price is given), record `fr-pu-med-<id>`; deleting the medicine removes all of them.
+- `lists.js`: foods carry `kcal`, `fat`, `carb` per serving (`NUT` table); `LI.targets()` gives the day's calorie/macro targets from `lists.weight, goalWeight, height, age, sex, act, pace, perKg`. The meal planner is drawn by `LI.mealMonthLeft`; Grocery's right page is `LI.grocRight`.
+- `sync.js` merges `pooja`, `exercise` and `welfare` like the other sections.

@@ -130,7 +130,7 @@
       if (t.repeat && t.repeat.freq) { idx.rep.push(t); return; }
       if (!idx.byDate.has(t.date)) idx.byDate.set(t.date, []);
       idx.byDate.get(t.date).push(t);
-      if (M.isPending(t.status)) idx.pending.push(t);
+      if (M.isPending(t.status) && !t.noCarry) idx.pending.push(t);   // noCarry (1.16): a vrat or festival day does not roll forward
     });
     idxVer = ED.store.version;
     return idx;

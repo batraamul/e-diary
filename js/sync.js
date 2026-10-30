@@ -95,6 +95,10 @@
     out.exam = nested('exam', ['list', 'topics', 'mocks'], { log: 1 }) || undefined;
     out.maps = nested('maps', ['list']) || undefined;
     out.jobs = nested('jobs', ['items', 'sites']) || undefined;
+    // 1.16: Pooja & Vrat, Exercise, Welfare & Help
+    out.pooja = nested('pooja', ['daily'], { skip: 1 }) || undefined;
+    out.exercise = nested('exercise', ['log'], { steps: 1, ticks: 2, watch: 1 }) || undefined;
+    out.welfare = nested('welfare', ['list']) || undefined;
     // deletion markers from both sides (js/store.js markGone): an item deleted anywhere stays deleted, unless it was
     // changed again after it was deleted
     const gone = Object.assign({}, (remote.meta && remote.meta.gone) || {});

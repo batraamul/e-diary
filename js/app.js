@@ -19,6 +19,9 @@
     { id: 'goals', label: 'Goals' },
     { id: 'mission', label: 'Mis\u00adsion' },
     { id: 'career', label: 'Notes & Life', title: 'Notes & Life Planner: notes, progress, travel, grocery, meals, wardrobe' },
+    { id: 'exercise', label: 'Exercise', title: 'Exercise plan, steps and workouts — with your phone / watch data' },
+    { id: 'welfare', label: 'Welfare & Help', title: 'Welfare & Help: whom you helped and how' },
+    { id: 'pooja', label: 'Pooja & Vrat', title: 'Hindu calendar (Panchang), everyday poojas and vrats' },
     { id: 'studyYear', label: 'Study Year', title: 'Study planner · Yearly' },
     { id: 'studyMonth', label: 'Study Month', title: 'Study planner · Monthly' },
     { id: 'studyWeek', label: 'Study Week & Day', title: 'Study planner · Weekly & Daily' },
@@ -37,7 +40,7 @@
   const GROUPS = [
     { id: 'planner', label: 'Planner', title: 'Daily & monthly tasks, events and meetings', views: ['daily', 'weekly', 'monthly', 'yearly', 'events', 'matrix', 'bucket'], names: ['Daily', 'Weekly', 'Monthly', 'Yearly', 'Events', 'Eisenhower', 'Bucket List'] },
     { id: 'purpose', label: 'Purpose', title: 'Roles, goals and mission', views: ['roles', 'goals', 'mission'], names: ['Roles', 'Goals', 'Mission'] },
-    { id: 'life', label: 'Notes & Life', title: 'Notes & Life Planner: notes, progress, travel, grocery, meals, wardrobe', views: ['career'] },
+    { id: 'life', label: 'Notes & Life', title: 'Notes & Life Planner: notes, progress, travel, grocery, meals, wardrobe, exercise, welfare, pooja', views: ['career', 'exercise', 'welfare', 'pooja'], names: ['Notes & Life', 'Exercise', 'Welfare & Help', 'Pooja & Vrat'] },
     { id: 'study', label: 'Study', title: 'Study planner', views: ['studyYear', 'studyMonth', 'studyWeek', 'mindmap', 'jobs'], names: ['Year', 'Month', 'Week & Day', 'Mind Maps', 'Govt Jobs'] },
     { id: 'money', label: 'Fi\u00adnance', title: 'Money records and the financial plan', views: ['finance', 'finplan'], names: ['Money', 'Financial Plan'] },
     { id: 'interview', label: 'Inter\u00adview & Exams', title: 'Interview and exam preparation', views: ['interview', 'exam'], names: ['Interviews', 'Exam Preparation'] },

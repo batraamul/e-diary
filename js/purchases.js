@@ -19,6 +19,10 @@
   const r2 = v => Math.round(v * 100) / 100;
   const groc = () => (D().lists && Array.isArray(D().lists.groc)) ? D().lists.groc : [];
   const wish = () => (D().wardrobe && Array.isArray(D().wardrobe.wish)) ? D().wardrobe.wish : [];
+  const meds = () => (D().health && Array.isArray(D().health.meds)) ? D().health.meds : [];
+  const MTID = (m, r) => 'tk-med-' + m.id + '-' + r.at;
+  /* 1.16: a medicine with 5 days of stock or less (Health) needs buying: a task and a bill (amount 0 until you say) */
+  PU.medLow = m => { const today = U.today(); if (m.end && m.end < today) return false; const dl = ED.health && ED.health.daysLeft ? ED.health.daysLeft(m) : null; return dl != null && dl <= 5; };
   const TID = id => 'tk-groc-' + id;
   const WTID = id => 'tk-ward-' + id;
   const wTitle = x => 'Buy: ' + String(x.name || 'clothes').trim();
@@ -36,9 +40,9 @@
   const gTotal = g => r2(items(g).reduce((a, i) => a + num(i.price), 0));
   const gDone = g => items(g).length > 0 && items(g).every(i => i.done);
   const catId = kind => {
-    const F = D().finance, want = kind === 'groc' ? 'fc-grocery' : 'fc-shop';
+    const F = D().finance, want = kind === 'groc' ? 'fc-grocery' : kind === 'med' ? 'fc-health' : 'fc-shop';
     if (F && F.cats.some(c => c.id === want)) return want;
-    return (ED.finance && ED.finance.guess(kind === 'groc' ? 'groceries' : 'clothes shopping', 'expense')) || 'fc-other';
+    return (ED.finance && ED.finance.guess(kind === 'groc' ? 'groceries' : kind === 'med' ? 'medicines pharmacy' : 'clothes shopping', 'expense')) || 'fc-other';
   };
 
   /* everything planned, as bill rows */
@@ -57,6 +61,12 @@
       out.push({ key: 'ward:' + x.id, kind: 'ward', id: x.id, name: 'Wardrobe: ' + x.name, amount: num(x.cost), date: x.by || null,
         paid: !!x.done, paidOn: x.done ? (x.doneOn || null) : null, paidAmount: x.done ? (num(x.paid) || num(x.cost)) : 0,
         sub: [x.type, x.prio === 'need' ? 'must have' : 'nice to have', x.where].filter(Boolean).join(' · '), src: 'Wardrobe' });
+    });
+    meds().forEach(m => {
+      const r = m.reorder; if (!r || r.skip) return;
+      const dl = ED.health && ED.health.daysLeft ? ED.health.daysLeft(m) : null;
+      out.push({ key: 'med:' + m.id, kind: 'med', id: m.id, name: 'Medicine: ' + m.name, amount: num(r.price), date: r.at, paid: !!r.bought, paidOn: r.bought ? (r.boughtOn || r.at) : null, paidAmount: r.bought ? num(r.price) : 0,
+        sub: r.bought ? 'bought — update the stock on the Health page' : (dl != null ? U.plural(dl, 'day') + ' of stock left' : 'stock running out'), src: 'Health' });
     });
     return out;
   };
@@ -149,9 +159,39 @@
         const st = M.isClosed(t.status) ? 'done' : 'open';
         if (t.linkSt !== st) { t.linkSt = st; ch = true; }
       });
+      // 1.16: medicines running out (5 days of stock or less) — "Buy medicine: …" today, and a bill with amount 0
+      const role = meds().some(m => PU.medLow(m)) && ED.lifeRole ? ED.lifeRole(/health|fitness|medic/i, 'Health & Fitness', '💪', '#16a34a', null) : null;
+      meds().forEach(m => {
+        const low = PU.on() && PU.medLow(m);
+        let r = m.reorder;
+        if (!low) {                                   // stock is fine again (or the medicine has ended): the round is over
+          if (r) { if (!r.bought) d.tasks = d.tasks.filter(t => t.id !== MTID(m, r) || M.isClosed(t.status)); delete m.reorder; ch = true; }
+          return;
+        }
+        if (!r) { r = m.reorder = { at: today }; ch = true; }
+        if (r.skip) return;
+        const id = MTID(m, r); live.add(id);
+        const dl = ED.health.daysLeft(m), title = '💊 Buy medicine: ' + m.name + (dl != null ? ' (' + U.plural(dl, 'day') + ' left)' : '');
+        let t = d.tasks.find(x => x.id === id);
+        if (!t) {
+          t = M.newTask({ id, title, date: r.at, prio: 'A', roleId: role, link: { k: 'med', id: m.id }, linkTitle: title, linkSt: r.bought ? 'done' : 'open', notes: [m.dose, m.purpose ? 'For: ' + m.purpose : '', m.doctor ? 'Prescribed by: ' + m.doctor : ''].filter(Boolean).join('\n') });
+          t.num = M.nextNum(t.prio, t.date); if (r.bought) M.setStatus(t, t.date, 'done');
+          d.tasks.push(t); ch = true; return;
+        }
+        if (t.linkTitle !== title && !M.isClosed(t.status)) { if (t.title === t.linkTitle) t.title = title; t.linkTitle = title; ch = true; }
+        const tDone = M.isClosed(t.status);
+        if (t.linkSt != null && tDone !== (t.linkSt === 'done')) {
+          r.bought = tDone; r.boughtOn = tDone ? today : null; ch = true;
+          if (tDone) { const mid = m.id; setTimeout(() => ED.ui.toast('Bought ' + m.name + '? Enter the new stock so the count is right.', { action: 'Update stock', timeout: 10000, onAction: () => { ED.go.tab('health'); setTimeout(() => ED.health.editMed(mid), 80); } }), 50); }
+        } else if (!!r.bought !== tDone) { M.setStatus(t, t.date, r.bought ? 'done' : 'open'); ch = true; }
+        const stt = M.isClosed(t.status) ? 'done' : 'open';
+        if (t.linkSt !== stt) { t.linkSt = stt; ch = true; }
+      });
       // grocery and wardrobe tasks whose list / item is gone or taken out: open ones go; done ones stay as history (no longer linked)
       const before = d.tasks.length;
+      const medIds = new Set(meds().map(m => m.id));
       d.tasks = d.tasks.filter(t => {
+        if (t.link && t.link.k === 'med' && !live.has(t.id)) return medIds.has(t.link.id) && M.isClosed(t.status);   // a deleted medicine takes all its tasks with it
         if (!t.link || (t.link.k !== 'groc' && t.link.k !== 'ward') || live.has(t.id)) return true;
         if (M.isClosed(t.status)) { delete t.link; ch = true; return true; }
         return false;
@@ -163,7 +203,7 @@
       if (F && Array.isArray(F.records)) {
         const all = PU.items();
         all.forEach(x => {
-          const rid = RID(x.kind, x.id), src = x.kind === 'groc' ? groc().find(g => g.id === x.id) : wish().find(w => w.id === x.id);
+          const rid = RID(x.kind, x.id), src = x.kind === 'groc' ? groc().find(g => g.id === x.id) : x.kind === 'med' ? (meds().find(m => m.id === x.id) || {}).reorder : wish().find(w => w.id === x.id);
           if (!src) return;
           const r = F.records.find(y => y.id === rid);
           const want = recOn() && x.paid && x.paidAmount > 0;
@@ -171,7 +211,7 @@
             if (!r && src.recMade) { if (!src.recOff) { src.recOff = true; ch = true; } return; }   // you deleted it in Money: leave it out
             if (!r) {
               ED.finance.addRecord({ id: rid, date: x.paidOn || today, type: 'expense', amount: x.paidAmount, categoryId: catId(x.kind), accountId: null,
-                desc: x.name, notes: 'From ' + (x.kind === 'groc' ? 'the Grocery list' : 'the Wardrobe “To buy” list'), src: x.key });
+                desc: x.name, notes: 'From ' + (x.kind === 'groc' ? 'the Grocery list' : x.kind === 'med' ? 'Health → medicines' : 'the Wardrobe “To buy” list'), src: x.key });
               src.recMade = true; ch = true;
             } else if (!r.fixed && (r.amount !== x.paidAmount || r.date !== (x.paidOn || r.date) || r.desc !== x.name)) {
               r.amount = x.paidAmount; if (x.paidOn) r.date = x.paidOn; r.desc = x.name; r.updatedAt = Date.now(); ch = true;
@@ -181,6 +221,10 @@
             if (!x.paid && (src.recMade || src.recOff)) { delete src.recMade; delete src.recOff; ch = true; }
           }
         });
+        // a medicine that was deleted: its purchase records go with it
+        const mids = new Set(meds().map(m => m.id)), nb = F.records.length;
+        F.records = F.records.filter(y => !/^fr-pu-med-/.test(y.id) || mids.has(y.id.slice(10)));
+        if (F.records.length !== nb) ch = true;
       }
     } catch (err) { console.warn('[e-diary] purchases', err); }
     finally { busy = false; }
@@ -201,6 +245,8 @@
       const g = groc().find(x => x.id === t.link.id);
       if (g) { g.noPlan = true; g.updatedAt = Date.now(); }
     }
+    // deleting a "Buy medicine" task takes this round out of the planner and Bills
+    if (t && t.link && t.link.k === 'med' && !quiet) { const m = meds().find(x => x.id === t.link.id); if (m && m.reorder) m.reorder.skip = true; }
     // deleting a wardrobe task takes the item out of the planner and Bills (it stays on the Wardrobe list)
     if (t && t.link && t.link.k === 'ward' && !quiet) {
       const w = wish().find(x => x.id === t.link.id);
@@ -218,6 +264,8 @@
     } else if (k === 'ward') {
       (ED.state.wd = ED.state.wd || { tab: 'clothes', type: '', occ: '' }).tab = 'buy';
       ED.state.career.mode = 'wardrobe';
+    } else if (k === 'med') {
+      ED.go.tab('health'); return true;
     } else return false;
     ED.go.tab('career');
     return true;
@@ -229,6 +277,7 @@
     const o = ED.tasksUI.occFrom(el);
     if (o && o.t.link && o.t.link.k === 'groc' && groc().some(g => g.id === o.t.link.id)) { PU.open('groc:' + o.t.link.id); return; }
     if (o && o.t.link && o.t.link.k === 'ward' && wish().some(w => w.id === o.t.link.id)) { PU.open('ward:' + o.t.link.id); return; }
+    if (o && o.t.link && o.t.link.k === 'med' && meds().some(m => m.id === o.t.link.id)) { PU.open('med:' + o.t.link.id); return; }
     return open0 && open0(el, ev);
   };
 
@@ -245,8 +294,8 @@
       const late = !x.paid && x.date && x.date < today, dd = x.date ? U.diffDays(today, x.date) : null;
       const when = x.paid ? 'bought ' + U.fmtShort(x.paidOn) : x.date ? (late ? U.plural(-dd, 'day') + ' late' : dd === 0 ? 'today' : dd === 1 ? 'tomorrow' : 'on ' + U.fmtShort(x.date)) : 'no date set';
       return '<li class="pu-row' + (x.paid ? ' paid' : '') + (late ? ' late' : '') + '"><button type="button" class="stick' + (x.paid ? ' on' : '') + '" data-act="pu-pay" data-key="' + e(x.key) + '" aria-pressed="' + x.paid + '" aria-label="' + (x.paid ? 'Bought — click to undo' : 'Mark as bought and paid') + '">' + ED.tasksUI.statusIcon(x.paid ? 'done' : 'open') + '</button>' +
-        '<button type="button" class="plain-btn grow fin-bn" data-act="pu-open" data-key="' + e(x.key) + '" title="Open the ' + (x.kind === 'groc' ? 'grocery list' : 'Wardrobe “To buy” list') + '"><b>' + e(x.name) + '</b><span class="hint">' + e(when + (x.sub ? ' · ' + x.sub : '')) + (late ? ' ⚠' : '') + '</span></button>' +
-        '<span class="chip pu-src pu-' + x.kind + '">' + ED.icon(x.kind === 'groc' ? 'cart' : 'user') + e(x.src) + '</span>' +
+        '<button type="button" class="plain-btn grow fin-bn" data-act="pu-open" data-key="' + e(x.key) + '" title="Open the ' + (x.kind === 'groc' ? 'grocery list' : x.kind === 'med' ? 'Health page' : 'Wardrobe “To buy” list') + '"><b>' + e(x.name) + '</b><span class="hint">' + e(when + (x.sub ? ' · ' + x.sub : '')) + (late ? ' ⚠' : '') + '</span></button>' +
+        '<span class="chip pu-src pu-' + x.kind + '">' + ED.icon(x.kind === 'groc' ? 'cart' : x.kind === 'med' ? 'heart' : 'user') + e(x.src) + '</span>' +
         '<span class="num">' + (x.paid ? money(x.paidAmount) : x.amount ? money(x.amount) : '—') + '</span>' +
         (x.paid ? '' : '<button type="button" class="icon-btn sm" data-act="pu-hide" data-key="' + e(x.key) + '" aria-label="Take ' + e(x.name) + ' out of Bills" title="Take out of Bills and the planner">' + ED.icon('x') + '</button>') + '</li>';
     };
@@ -285,6 +334,15 @@
       ED.ui.undoToast(x.paid ? x.name + ' — marked as not bought' : x.name + ' — bought' + (x.amount && recOn() ? ' · ' + money(x.amount) + ' recorded' : ''));
       return;
     }
+    if (x.kind === 'med') {
+      const m = meds().find(y => y.id === x.id); if (!m || !m.reorder) return;
+      if (x.paid) { ED.store.checkpoint('Not bought'); m.reorder.bought = false; m.reorder.boughtOn = null; ED.store.commit(); ED.ui.undoToast(m.name + ' — marked as not bought'); return; }
+      const v = await ED.ui.prompt({ title: 'Bought: ' + m.name, label: 'What did it cost (₹)? Leave empty for 0.', type: 'number', value: m.reorder.price || '', ok: 'Bought' });
+      if (v == null) return;
+      ED.store.checkpoint('Bought'); m.reorder.bought = true; m.reorder.boughtOn = U.today(); m.reorder.price = +v || 0; ED.store.commit();
+      ED.ui.toast(m.name + ' — bought. Enter the new stock so the count is right.', { action: 'Update stock', timeout: 10000, onAction: () => { ED.go.tab('health'); setTimeout(() => ED.health.editMed(m.id), 80); } });
+      return;
+    }
     const w = wish().find(y => y.id === x.id); if (!w) return;
     if (x.paid) { ED.store.checkpoint('To buy'); if (ED.wardrobe && ED.wardrobe.unBuy) ED.wardrobe.unBuy(w); else { w.done = false; w.doneOn = null; w.updatedAt = Date.now(); } ED.store.commit(); ED.ui.undoToast(w.name + ' — marked as not bought'); return; }
     const paid = await ED.ui.prompt({ title: 'Bought: ' + w.name, label: 'What did it cost (₹)?', type: 'number', value: w.cost || '', ok: 'Bought' });
@@ -306,6 +364,7 @@
   };
   A['pu-hide'] = el => {
     const [k, id] = String(el.dataset.key).split(':');
+    if (k === 'med') { const m = meds().find(x => x.id === id); if (!m || !m.reorder) return; ED.store.checkpoint('Take out of Bills'); m.reorder.skip = true; ED.store.commit(); ED.ui.undoToast('Taken out of Bills and the planner for now'); return; }
     const src = k === 'groc' ? groc().find(g => g.id === id) : wish().find(w => w.id === id); if (!src) return;
     ED.store.checkpoint('Take out of Bills');
     if (k === 'groc') src.noPlan = true; else src.noBill = true;

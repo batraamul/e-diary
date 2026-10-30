@@ -21,6 +21,13 @@
   const CHG = (ED.changes = ED.changes || {});
   const st = () => ED.state.iv || (ED.state.iv = {});
   const I = (ED.interview = {});
+  A['sl-iv-pick'] = el => {
+    const list = IV().list.slice().sort((a, b) => String(a.date || '9999').localeCompare(String(b.date || '9999')));
+    const up = list.filter(x => !x.date || x.date >= U.today());
+    const use = up.length ? up : list;
+    if (use.length === 1) { ED.studyLink.interview(use[0].id); return; }
+    ED.ui.menu(el, use.map(x => ({ label: (x.role || 'Interview') + (x.org ? ', ' + x.org : '') + (x.date ? ' — ' + U.fmtShort(x.date) : ''), icon: 'calendar', onClick: () => ED.studyLink.interview(x.id) })));
+  };
 
   const CATS = ['About me & motivation', 'My field (technical)', 'Projects & achievements', 'Organisation & domain', 'Management & leadership', 'Situations & behaviour', 'Rules, finance & administration', 'Current affairs & policy'];
   const STAGES = ['Preparing', 'Applied', 'Shortlisted', 'Interview scheduled', 'Interview done', 'Selected', 'Not selected', 'Withdrawn'];
@@ -87,7 +94,9 @@
       const mocks = d.mocks.slice().sort((a, b) => String(b.date).localeCompare(String(a.date))).map(m => '<li><button type="button" class="plain-btn xp-li" data-act="iv-mock" data-id="' + e(m.id) + '"><span class="num">' + e(FX.dm(m.date)) + '</span><span class="grow">' + e(m.with || 'Mock interview') + (m.focus ? ' <span class="hint">· ' + e(m.focus) + '</span>' : '') + '</span><b class="num">' + (m.score != null ? e(m.score) + '/10' : '') + '</b></button></li>').join('');
       const body = tiles +
         '<h3 class="gh">Interviews</h3>' + (cards ? '<div class="xp-cards">' + cards + '</div>' : '<p class="hint">No interviews yet. Add one to count down to it, keep its details and put it in your calendar.</p>') +
-        '<div class="row-btns"><button type="button" class="btn small primary" data-act="iv-new">' + ED.icon('plus') + 'Add an interview</button></div>' +
+        '<div class="row-btns"><button type="button" class="btn small primary" data-act="iv-new">' + ED.icon('plus') + 'Add an interview</button>' +
+        (ED.studyLink && d.list.length ? '<button type="button" class="btn small" data-act="sl-iv-pick" title="The interview day and a daily practice task in the Daily planner; question categories as topics in the Study plan">' + ED.icon('calendar') + 'Add to my daily &amp; study plan…</button>' : '') + '</div>' +
+        (ED.studyLink ? ED.studyLink.switchHtml('iv') : '') +
         '<h3 class="gh fin-gap">Documents to carry <span class="hint num">· ' + docsDone + '/' + d.docs.length + '</span></h3>' + docs +
         '<h3 class="gh fin-gap">Mock interviews</h3>' + (mocks ? '<ul class="xp-list">' + mocks + '</ul>' : '<p class="hint">Practise with a colleague or a friend acting as the panel, and note what went well and what to improve.</p>') +
         '<div class="row-btns"><button type="button" class="btn small" data-act="iv-mock">' + ED.icon('plus') + 'Add a mock interview</button></div>';

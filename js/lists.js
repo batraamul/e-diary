@@ -4,7 +4,7 @@
                 items: [ { id, text, qty, cat, done } ], createdAt, updatedAt } ]
      groc:  [ { id, name, date, budget, notes, items: [ { id, text, qty, unit, cat, price, done } ], createdAt, updatedAt } ]
      meals: { 0..6: { b|l|s|d: [ { f, q } ] } }   this week's meal plan by weekday (0 = Sunday), with protein
-     foods: [ { id, name, serving, p, cat } ] your own foods; weight (kg), perKg (protein goal, g per kg)
+     foods: [ { id, name, serving, p, kcal, fat, carb, cat } ] your own foods; weight, goalWeight (kg), height (cm), age, sex, act, pace, perKg
    Every list is editable in place: add, change, tick, delete; categories are free text (pick one or type a new one). */
 (function () {
   'use strict';
@@ -167,7 +167,20 @@
     'Fruits': [['Banana', '1', 1.3], ['Apple', '1', 0.5], ['Orange', '1', 1], ['Papaya', '1 bowl', 1], ['Guava', '1', 2.5], ['Mango', '1', 1.5], ['Seasonal fruit bowl', '1 bowl', 1]],
     'Drinks & sweets': [['Tea with milk', '1 cup', 1.5], ['Coffee with milk', '1 cup', 2], ['Coconut water', '1', 1], ['Kheer', '1 katori', 6], ['Halwa', '1 katori', 4], ['Gulab jamun', '1', 1.5]],
   };
-  const DEFAULT_FOODS = Object.keys(FOODS).flatMap(c => FOODS[c].map(x => ({ name: x[0], serving: x[1], p: x[2], cat: c })));
+  /* 1.16: calories, fat and carbohydrate in one serving — [kcal, fat g, carbs g], approximate for usual home cooking (IFCT 2017 / NIN, rounded) */
+  const NUT = {
+    'Roti / chapati': [110, 3, 18], 'Phulka': [80, 1, 15], 'Paratha (plain)': [230, 9, 32], 'Aloo paratha': [290, 11, 40], 'Paneer paratha': [330, 15, 35], 'Methi thepla': [140, 5, 20], 'Puri': [100, 6, 10], 'Naan': [260, 5, 45], 'Missi roti': [150, 5, 20], 'Makki roti': [150, 5, 25], 'Bajra roti': [130, 4, 22], 'Jowar bhakri': [120, 2, 23], 'Bread slice (brown)': [70, 1, 12],
+    'Rice (cooked)': [195, 0.5, 43], 'Jeera rice': [230, 5, 42], 'Veg pulao': [330, 9, 55], 'Veg biryani': [420, 14, 60], 'Chicken biryani': [500, 18, 55], 'Khichdi': [210, 5, 33], 'Curd rice': [220, 6, 33], 'Lemon rice': [250, 8, 40], 'Quinoa (cooked)': [180, 3, 32],
+    'Dal (toor / arhar)': [150, 4, 20], 'Moong dal': [140, 3, 19], 'Masoor dal': [150, 4, 20], 'Chana dal': [180, 5, 24], 'Dal makhani': [260, 15, 22], 'Rajma': [210, 7, 28], 'Chole / chana masala': [240, 9, 30], 'Kadhi': [160, 9, 13], 'Sambar': [130, 4, 18], 'Sprouts salad': [110, 1, 18], 'Lobia': [190, 5, 26],
+    'Aloo sabzi': [170, 8, 22], 'Aloo gobi': [150, 8, 16], 'Bhindi': [120, 8, 10], 'Baingan bharta': [130, 9, 11], 'Palak sabzi': [100, 7, 7], 'Mixed veg': [130, 7, 13], 'Lauki / tori': [80, 5, 8], 'Cabbage / patta gobi': [90, 5, 9], 'Matar mushroom': [150, 8, 13], 'Aloo matar': [180, 8, 22], 'Soya chunks curry': [210, 8, 15], 'Green salad': [40, 0.3, 8],
+    'Paneer (raw)': [265, 20, 4], 'Palak paneer': [270, 20, 10], 'Paneer bhurji': [300, 22, 8], 'Matar paneer': [290, 20, 14], 'Curd / dahi': [90, 4.5, 7], 'Greek yogurt / hung curd': [75, 3, 5], 'Raita': [80, 3, 8], 'Milk': [150, 8, 12], 'Buttermilk / chaas': [40, 1, 5], 'Lassi': [220, 6, 35], 'Cheese slice': [60, 4.5, 1], 'Tofu': [80, 4.5, 2],
+    'Egg (boiled)': [75, 5, 0.6], 'Omelette (2 eggs)': [190, 14, 2], 'Egg bhurji (2 eggs)': [220, 16, 4], 'Egg curry (2 eggs)': [250, 18, 8], 'Chicken curry': [250, 14, 6], 'Chicken breast (cooked)': [165, 3.6, 0], 'Tandoori chicken': [260, 13, 4], 'Fish curry': [220, 12, 6], 'Mutton curry': [300, 20, 6], 'Prawns': [105, 1.5, 1],
+    'Poha': [250, 8, 40], 'Upma': [250, 9, 36], 'Idli': [60, 0.4, 12], 'Dosa (plain)': [130, 4, 20], 'Masala dosa': [330, 13, 45], 'Uttapam': [200, 6, 30], 'Besan chilla': [150, 6, 17], 'Moong dal chilla': [140, 4, 18], 'Oats (with milk)': [250, 7, 35], 'Daliya (with milk)': [230, 6, 38], 'Cornflakes with milk': [230, 4, 40], 'Sandwich (veg)': [250, 9, 33], 'Medu vada': [130, 8, 12],
+    'Roasted chana': [110, 2, 18], 'Peanuts': [170, 14, 5], 'Almonds': [70, 6, 2.5], 'Makhana (roasted)': [100, 1, 20], 'Dhokla': [150, 6, 20], 'Samosa': [260, 17, 24], 'Pakora': [200, 13, 16], 'Bhel puri': [250, 8, 40], 'Biscuits': [140, 6, 20], 'Peanut butter': [95, 8, 3], 'Protein / whey shake': [120, 1.5, 3], 'Soya chunks (dry)': [105, 0.2, 10],
+    'Banana': [105, 0.4, 27], 'Apple': [95, 0.3, 25], 'Orange': [60, 0.2, 15], 'Papaya': [60, 0.4, 15], 'Guava': [70, 1, 15], 'Mango': [200, 1, 50], 'Seasonal fruit bowl': [90, 0.4, 22],
+    'Tea with milk': [60, 2, 9], 'Coffee with milk': [80, 3, 10], 'Coconut water': [45, 0.5, 9], 'Kheer': [220, 7, 33], 'Halwa': [300, 15, 38], 'Gulab jamun': [150, 7, 20],
+  };
+  const DEFAULT_FOODS = Object.keys(FOODS).flatMap(c => FOODS[c].map(x => { const n = NUT[x[0]] || []; return { name: x[0], serving: x[1], p: x[2], kcal: n[0], fat: n[1], carb: n[2], cat: c }; }));
   const allFoods = () => {
     const mine = (LS().foods || []).map(f => Object.assign({ mine: true }, f));
     const names = new Set(mine.map(f => f.name.toLowerCase()));
@@ -176,42 +189,53 @@
   const food = name => { const n = String(name || '').toLowerCase(); return allFoods().find(f => f.name.toLowerCase() === n) || null; };
   const mealItems = (d, k) => { const v = (LS().meals[d] || {})[k]; return Array.isArray(v) ? v : v ? [{ f: String(v), q: 1 }] : []; };
   const prot = list => list.reduce((a, x) => { const f = food(x.f); return a + (f ? f.p * (+x.q || 0) : 0); }, 0);
+  /* totals of a list of foods: kcal, protein, fat, carbs, and how many foods have no calories yet */
+  const tot = list => list.reduce((a, x) => {
+    const f = food(x.f), q = +x.q || 0;
+    if (!f) { a.unk++; return a; }
+    a.p += (+f.p || 0) * q;
+    if (f.kcal == null || f.kcal === '') a.unk++; else { a.kcal += +f.kcal * q; a.fat += (+f.fat || 0) * q; a.carb += (+f.carb || 0) * q; }
+    return a;
+  }, { kcal: 0, p: 0, fat: 0, carb: 0, unk: 0 });
+  const dayTot = d => { const out = { kcal: 0, p: 0, fat: 0, carb: 0, unk: 0 }; MEALS.forEach(m => { const t = tot(mealItems(d, m[0])); Object.keys(out).forEach(k => { out[k] += t[k]; }); }); return out; };
   const g1 = n => Math.round(n * 10) / 10;
-  const need = () => { const l = LS(); return l.weight ? Math.round(l.weight * (l.perKg || 0.83)) : 0; };
-  const PERKG = [[0.83, '0.83 g/kg — adult RDA (ICMR-NIN), little activity'], [1.0, '1.0 g/kg — moderately active'], [1.2, '1.2 g/kg — active / walking, yoga'], [1.6, '1.6 g/kg — strength training, building muscle']];
+  const need = () => { const t = LI.targets(); return t ? t.p : 0; };
+  /* 1.16: calorie, protein, fat and carb targets from your body and your goal
+     BMR: Mifflin-St Jeor; × activity; a deficit of (kg a week × 7700) ÷ 7 to lose (at most 25 %), a small surplus to gain */
+  const ACT = [[1.2, 'Mostly sitting (desk work, little walking)'], [1.375, 'Lightly active (walks, 1–3 workouts a week)'], [1.55, 'Moderately active (3–5 workouts a week)'], [1.725, 'Very active (6–7 hard workouts a week)'], [1.9, 'Extra active (physical job + training)']];
+  const PACE = [[0.25, '0.25 kg a week (gentle)'], [0.5, '0.5 kg a week (recommended)'], [0.75, '0.75 kg a week (fast)'], [1, '1 kg a week (only with a doctor)']];
+  LI.targets = () => {
+    const l = LS(), w = +l.weight || 0, h = +l.height || 0, age = +l.age || 0, sex = l.sex || 'm', act = +l.act || 1.375, gw = +l.goalWeight || 0, pace = +l.pace || 0.5;
+    if (!w) return null;
+    const bmi = h ? w / Math.pow(h / 100, 2) : null;
+    const bmr = h && age ? 10 * w + 6.25 * h - 5 * age + (sex === 'f' ? -161 : 5) : null;
+    const tdee = bmr ? bmr * act : w * 30 * act / 1.375;          // without height and age: about 30 kcal per kg, lightly active
+    const mode = gw && gw < w - 0.4 ? 'lose' : gw && gw > w + 0.4 ? 'gain' : 'keep';
+    let kcal = tdee, note = '';
+    if (mode === 'lose') { const def = Math.min(pace * 7700 / 7, tdee * 0.25); kcal = Math.max(tdee - def, bmr || 0, sex === 'f' ? 1200 : 1500); note = 'a deficit of about ' + Math.round(tdee - kcal) + ' kcal a day'; }
+    else if (mode === 'gain') { kcal = tdee + Math.min(pace * 7700 / 7, 400); note = 'a surplus of about ' + Math.round(kcal - tdee) + ' kcal a day for lean gain'; }
+    const perKg = +l.perKg || (mode === 'gain' ? 1.6 : mode === 'lose' ? 1.2 : 0.83);
+    const p = Math.round(w * perKg);
+    const fat = Math.max(Math.round(w * 0.6), Math.round(kcal * 0.27 / 9));
+    const carb = Math.max(0, Math.round((kcal - p * 4 - fat * 9) / 4));
+    const weeks = mode !== 'keep' ? Math.ceil(Math.abs(w - gw) / pace) : 0;
+    return { w, h, bmi, bmr, tdee: Math.round(tdee), kcal: Math.round(kcal / 10) * 10, p, fat, carb, satfat: Math.round(kcal * 0.1 / 9), fibre: Math.round(kcal / 1000 * 14), mode, note, weeks, gw, pace,
+      healthy: h ? [Math.round(18.5 * Math.pow(h / 100, 2)), Math.round(22.9 * Math.pow(h / 100, 2))] : null, exact: !!bmr };
+  };
+  const bmiWord = b => b < 18.5 ? 'underweight' : b < 23 ? 'healthy' : b < 25 ? 'overweight (Asian cut-off 23)' : b < 30 ? 'obese class I (Asian cut-off 25)' : 'obese';
+  const PERKG = [[0.83, '0.83 g/kg — adult RDA (ICMR-NIN), little activity'], [1.0, '1.0 g/kg — moderately active'], [1.2, '1.2 g/kg — active / walking, yoga'], [1.6, '1.6 g/kg — strength training, building muscle'], [2.0, '2.0 g/kg — heavy training, keeping muscle while losing fat']];
 
+  /* Grocery → right page (1.16): the list's notes and a summary; the meal plan moved to Weekly meals */
   LI.grocRight = () => {
-    const l = LS(), g = glist(), s = st(), today = new Date().getDay();
-    const order = [1, 2, 3, 4, 5, 6, 0];
-    const day = s.mday != null ? +s.mday : today;
-    const req = need();
-    const cats = {}; allFoods().forEach(f => { const c = f.mine ? 'My foods' : f.cat; (cats[c] = cats[c] || []).push(f); });
-    const picker = (d, k) => '<select class="field ls-fpick" data-change="ls-fadd" data-d="' + d + '" data-m="' + k + '" aria-label="Add a food"><option value="">＋ Add food…</option>' +
-      Object.keys(cats).map(c => '<optgroup label="' + e(c) + '">' + cats[c].map(f => opt(f.name, f.name + ' — ' + f.serving + ' · ' + g1(f.p) + ' g protein', false)).join('') + '</optgroup>').join('') +
-      '<option value="__new">✎ A food not in the list…</option></select>';
-    const meter = (have, want) => want ? '<div class="ls-bar pr' + (have >= want ? ' ok' : '') + '"><i style="width:' + Math.min(100, Math.round(have / want * 100)) + '%"></i></div>' : '';
-    const dayP = order.map(d => ({ d, p: MEALS.reduce((a, x) => a + prot(mealItems(d, x[0])), 0) }));
-    const dp = dayP.find(x => x.d === day).p;
-    const body = '<div class="ls-prof">' +
-      '<label>Body weight <span class="ls-wt"><input type="number" class="field num" min="20" max="250" step="0.5" value="' + e(l.weight || '') + '" data-change="ls-weight" placeholder="kg" aria-label="Body weight in kg"> kg</span></label>' +
-      '<label>Protein goal <select class="field" data-change="ls-perkg" aria-label="Protein per kg">' + PERKG.map(x => opt(x[0], x[1], +(l.perKg || 0.83) === x[0])).join('') + '</select></label>' +
-      '<div class="ls-need">' + (req ? 'You need about <b>' + req + ' g</b> protein a day' : '<span class="hint">Enter your weight to see how much protein you need.</span>') + '</div></div>' +
-      '<div class="ls-week" role="group" aria-label="Day">' + dayP.map(x => '<button type="button" class="ls-wd' + (x.d === day ? ' sel' : '') + (x.d === today ? ' today' : '') + (req && x.p >= req ? ' ok' : '') + '" data-act="ls-mday" data-d="' + x.d + '" aria-pressed="' + (x.d === day) + '"><b>' + U.DAY3[x.d] + '</b><span class="num">' + Math.round(x.p) + (req ? '/' + req : '') + ' g</span></button>').join('') + '</div>' +
-      '<div class="ls-dtot"><b>' + U.DAYS[day] + ':</b> <span class="num">' + g1(dp) + ' g</span> protein planned' + (req ? ' of <span class="num">' + req + ' g</span> needed — ' + (dp >= req ? '<span class="ok-text">goal met</span>' : '<b class="num">' + g1(req - dp) + ' g</b> short') : '') + meter(dp, req) + '</div>' +
-      MEALS.map(x => {
-        const items = mealItems(day, x[0]), mp = prot(items);
-        return '<section class="ls-meal"><h4 class="ls-gh">' + x[1] + ' <span class="hint num">' + g1(mp) + ' g protein</span></h4>' +
-          '<ul class="ls-list">' + items.map((it, i) => { const f = food(it.f); return '<li class="ls-row' + (f ? '' : ' unk') + '"><input type="number" class="ls-in ls-q num" min="0" step="0.5" value="' + e(it.q) + '" data-change="ls-fq" data-d="' + day + '" data-m="' + x[0] + '" data-i="' + i + '" aria-label="Servings">' +
-            '<span class="ls-text">× ' + e(it.f) + (f ? ' <span class="hint">(' + e(f.serving) + ')</span>' : ' <button type="button" class="link-btn" data-act="ls-food-new" data-name="' + e(it.f) + '">add its protein</button>') + '</span>' +
-            '<span class="num ls-p">' + (f ? g1(f.p * (+it.q || 0)) + ' g' : '—') + '</span>' +
-            '<button type="button" class="icon-btn sm" data-act="ls-fdel" data-d="' + day + '" data-m="' + x[0] + '" data-i="' + i + '" aria-label="Remove ' + e(it.f) + '">' + ED.icon('x') + '</button></li>'; }).join('') + '</ul>' + picker(day, x[0]) + '</section>';
-      }).join('') +
-      '<div class="ls-tools"><button type="button" class="btn small ghost" data-act="ls-food-new">' + ED.icon('plus') + 'Add a new food</button>' + ((l.foods || []).length ? '<button type="button" class="btn small ghost" data-act="ls-foods">My foods (' + l.foods.length + ')</button>' : '') +
-      '<button type="button" class="btn small ghost" data-act="ls-mcopy">' + ED.icon('copy') + 'Copy ' + U.DAY3[day] + ' to every day</button></div>' +
-      '<p class="hint">Protein values are approximate for usual home portions; change any food with “Add a new food” using the same name. A general guide, not medical advice.</p>' +
-      (g ? '<h4 class="ls-gh">Notes for “' + e(g.name || 'this list') + '”</h4><textarea class="field ls-notes" rows="3" data-change="ls-groc-notes" placeholder="Shop, offers, things to check at home…">' + e(g.notes || '') + '</textarea>' : '');
-    return '<div class="career ls"><div class="pg-head"><h2 class="pg-title">Meal plan &amp; protein</h2><button type="button" class="btn small ghost" data-act="ls-meals-clear">Clear week</button></div>' +
-      '<div class="ls-scroll scroll" data-keep-scroll="ls-groc-r">' + body + '</div></div>';
+    const g = glist(), dt = dayTot(new Date().getDay()), t = LI.targets();
+    const cats = {}; (g ? g.items : []).forEach(i => { const c = i.cat || 'Other'; cats[c] = cats[c] || { n: 0, done: 0, amt: 0 }; cats[c].n++; if (i.done) cats[c].done++; cats[c].amt += num(i.price); });
+    const total = g ? g.items.reduce((a, i) => a + num(i.price), 0) : 0;
+    const body = (g ? '<div class="tiles xp-tiles">' + FX().tile('Items', String(g.items.length), g.items.filter(i => i.done).length + ' bought') + FX().tile('Total', total ? '₹' + Math.round(total).toLocaleString('en-IN') : '—', g.budget ? 'budget ₹' + Math.round(g.budget).toLocaleString('en-IN') : 'add prices to see it', g.budget && total > g.budget ? 'warn' : '') + '</div>' +
+      (Object.keys(cats).length ? '<table class="mm-table"><thead><tr><th>Group</th><th>Items</th><th>Bought</th><th>₹</th></tr></thead><tbody>' + Object.keys(cats).map(c => '<tr><td>' + e(c) + '</td><td class="num">' + cats[c].n + '</td><td class="num">' + cats[c].done + '</td><td class="num">' + (cats[c].amt ? Math.round(cats[c].amt).toLocaleString('en-IN') : '—') + '</td></tr>').join('') + '</tbody></table>' : '') +
+      '<h4 class="ls-gh">Notes for “' + e(g.name || 'this list') + '”</h4><textarea class="field ls-notes" rows="5" data-change="ls-groc-notes" placeholder="Shop, offers, things to check at home…">' + e(g.notes || '') + '</textarea>' : '<p class="hint">Make a grocery list on the left.</p>') +
+      '<div class="ml-moved"><span class="ml-moved-i" aria-hidden="true">🥗</span><div><b>Meal plan, protein and calories</b><span class="hint">Today: ' + Math.round(dt.kcal) + (t ? ' / ' + t.kcal : '') + ' kcal · ' + Math.round(dt.p) + (t ? ' / ' + t.p : '') + ' g protein</span></div>' +
+      '<button type="button" class="btn small primary" data-act="career-mode" data-mode="meals">Open Weekly meals ' + ED.icon('chevR') + '</button></div>';
+    return '<div class="career ls"><div class="pg-head"><h2 class="pg-title">List summary &amp; notes</h2></div><div class="ls-scroll scroll" data-keep-scroll="ls-groc-r">' + body + '</div></div>';
   };
   LI.editFood = (name, then) => {
     const l = LS(); l.foods = l.foods || [];
@@ -219,9 +243,11 @@
     const base = x || food(name) || { name: name || '', serving: '1 katori', p: null, cat: 'My foods' };
     FX().form({
       title: x ? 'My food' : 'Add a food',
-      data: { name: base.name, serving: base.serving, p: base.p, cat: base.cat && base.cat !== 'My foods' ? base.cat : '' },
+      data: { name: base.name, serving: base.serving, p: base.p, kcal: base.kcal, fat: base.fat, carb: base.carb, cat: base.cat && base.cat !== 'My foods' ? base.cat : '' },
       fields: [{ k: 'name', label: 'Food', req: true, ph: 'e.g. Rajma chawal, Besan ladoo' }, { k: 'serving', label: 'One serving is', ph: '1 katori, 1 piece, 100 g' },
         { k: 'p', label: 'Protein in one serving (g)', type: 'number', min: 0, step: 0.5, req: true, hint: 'From the pack label, or roughly: dal katori 7 g, roti 3 g, egg 6 g, 100 g paneer 18 g' },
+        { k: 'kcal', label: 'Calories in one serving (kcal)', type: 'number', min: 0, step: 5, hint: 'Roti ≈ 110, katori dal ≈ 150, katori rice ≈ 195, egg ≈ 75, glass of milk ≈ 150, 100 g paneer ≈ 265' },
+        { k: 'fat', label: 'Fat in one serving (g)', type: 'number', min: 0, step: 0.5 }, { k: 'carb', label: 'Carbohydrate in one serving (g)', type: 'number', min: 0, step: 0.5 },
         { k: 'cat', label: 'Group (optional)', list: Object.keys(FOODS) }],
       del: x ? async () => { l.foods = l.foods.filter(f => f !== x); ED.store.commit(); ED.ui.toast('Removed from my foods'); } : null, delLabel: 'Remove',
       save(v, api) {
@@ -314,7 +340,7 @@
   A['ls-fdel'] = el => { const d = el.dataset.d, k = el.dataset.m, list = mealItems(d, k); list.splice(+el.dataset.i, 1); setMeal(d, k, list); ED.store.commit(); };
   A['ls-mday'] = el => { st().mday = +el.dataset.d; ED.app.render(); };
   A['ls-food-new'] = el => LI.editFood(el && el.dataset && el.dataset.name || '');
-  A['ls-foods'] = el => ED.ui.menu(el, (LS().foods || []).map(f => ({ label: f.name + ' — ' + g1(+f.p || 0) + ' g', icon: 'pencil', onClick: () => LI.editFood(f.name) })));
+  A['ls-foods'] = el => ED.ui.menu(el, (LS().foods || []).map(f => ({ label: f.name + ' — ' + g1(+f.p || 0) + ' g protein' + (f.kcal != null && f.kcal !== '' ? ' · ' + Math.round(f.kcal) + ' kcal' : ' · no calories yet'), icon: 'pencil', onClick: () => LI.editFood(f.name) })));
   A['ls-mcopy'] = async () => {
     const s = st(), day = s.mday != null ? +s.mday : new Date().getDay();
     if (!await ED.ui.confirm({ title: 'Copy to every day', message: 'Use ' + U.DAYS[day] + '’s meals for every day of the week?', ok: 'Copy' })) return;
@@ -323,7 +349,8 @@
     ED.store.commit(); ED.ui.undoToast('Copied to every day');
   };
   CH['ls-weight'] = el => { const v = parseFloat(el.value); LS().weight = v > 0 ? v : null; ED.store.commit(); };
-  CH['ls-perkg'] = el => { LS().perKg = +el.value; ED.store.commit(); };
+  CH['ls-perkg'] = el => { LS().perKg = el.value === '' ? null : +el.value; ED.store.commit(); };
+  CH['ls-prof'] = el => { const k = el.dataset.k, v = el.value; LS()[k] = k === 'sex' ? v : v === '' ? null : parseFloat(v); ED.store.commit(); };
   A['ls-meals-clear'] = async () => { if (!await ED.ui.confirm({ title: 'Clear the meal plan', message: 'Empty all the meals for the week?', ok: 'Clear' })) return; ED.store.checkpoint('Clear meals'); LS().meals = {}; ED.store.commit(); ED.ui.undoToast('Meal plan cleared'); };
   /* ---------------- Weekly meals: the meal plan as a chart for one week (read only) ---------------- */
   const wstart = () => st().mw || (st().mw = U.startOfWeek(U.today(), ED.store.data.settings.weekStart || 0));
@@ -333,33 +360,81 @@
   const wlabel = () => { const d = wdays(); return U.fmtShort(d[0]) + ' – ' + U.fmtShort(d[6]); };
   const nav = () => '<div class="ls-mnav"><button type="button" class="icon-btn" data-act="ls-mm" data-dir="-1" aria-label="Previous week">' + ED.icon('chevL') + '</button><b>' + e(wlabel()) + '</b>' +
     '<button type="button" class="icon-btn" data-act="ls-mm" data-dir="1" aria-label="Next week">' + ED.icon('chevR') + '</button><button type="button" class="btn small ghost" data-act="ls-mm" data-dir="0">This week</button></div>';
+  /* ---------------- Weekly meals (1.16): plan the week's meals with calories, protein, fat and carbs ---------------- */
+  const pct = (have, want) => want ? Math.min(100, Math.round(have / want * 100)) : 0;
+  const meterRow = (label, have, want, unit, cls) => '<div class="ml-meter ' + (cls || '') + '"><span class="ml-ml">' + label + '</span><span class="ml-bar' + (want && have > want * 1.08 && cls !== 'p' ? ' over' : want && have >= want * 0.92 ? ' ok' : '') + '"><i style="width:' + pct(have, want) + '%"></i></span><span class="num ml-mv">' + Math.round(have) + (want ? ' / ' + want : '') + ' ' + unit + '</span></div>';
+  const fmtq = q => (+q === 0.5 ? '½' : +q === 1.5 ? '1½' : String(+q));
   LI.mealMonthLeft = head => {
-    const today = U.today(), req = need();
-    const cols = wdays().map(k => {
-      const d = U.dow(k), p = dayProt(d);
-      return '<div class="wk-col' + (k === today ? ' today' : '') + '"><div class="wk-h"><b>' + U.DAY3[d] + '</b><span class="num">' + +k.slice(8) + '</span></div>' +
-        MEALS.map(x => { const it = mealItems(d, x[0]); return '<div class="wk-m"><i>' + x[1] + '</i>' + (it.length ? e(short(it)) : '<span class="hint">—</span>') + '</div>'; }).join('') +
-        '<div class="wk-p num' + (req ? (p >= req ? ' ok' : ' short') : '') + '">' + Math.round(p) + (req ? '/' + req : '') + ' g</div>' + (req ? '<div class="ls-bar pr' + (p >= req ? ' ok' : '') + '"><i style="width:' + Math.min(100, Math.round(p / req * 100)) + '%"></i></div>' : '') + '</div>';
+    const l = LS(), s = st(), today = new Date().getDay(), t = LI.targets();
+    const wk = wdays(), order = wk.map(k => U.dow(k));
+    const day = s.mday != null ? +s.mday : today;
+    const cats = {}; allFoods().forEach(f => { const c = f.mine ? 'My foods' : f.cat; (cats[c] = cats[c] || []).push(f); });
+    const picker = (d, k) => '<select class="field ls-fpick" data-change="ls-fadd" data-d="' + d + '" data-m="' + k + '" aria-label="Add a food"><option value="">＋ Add food…</option>' +
+      Object.keys(cats).map(c => '<optgroup label="' + e(c) + '">' + cats[c].map(f => opt(f.name, f.name + ' — ' + f.serving + ' · ' + (f.kcal != null && f.kcal !== '' ? Math.round(f.kcal) + ' kcal · ' : '') + g1(f.p) + ' g protein', false)).join('') + '</optgroup>').join('') +
+      '<option value="__new">✎ A food not in the list…</option></select>';
+    const strip = '<div class="ml-week" role="group" aria-label="Day">' + order.map(d => {
+      const x = dayTot(d), k = wk.find(z => U.dow(z) === d);
+      return '<button type="button" class="ml-wd' + (d === day ? ' sel' : '') + (d === today ? ' today' : '') + (t && x.p >= t.p * 0.95 ? ' pok' : '') + '" data-act="ls-mday" data-d="' + d + '" aria-pressed="' + (d === day) + '"><b>' + U.DAY3[d] + ' <span class="hint num">' + (k ? +k.slice(8) : '') + '</span></b>' +
+        '<span class="num ml-k">' + Math.round(x.kcal) + '<small> kcal</small></span><span class="num ml-p">' + Math.round(x.p) + ' g P</span>' +
+        (t ? '<span class="ml-mini"><i class="k" style="width:' + pct(x.kcal, t.kcal) + '%"></i></span><span class="ml-mini"><i class="p" style="width:' + pct(x.p, t.p) + '%"></i></span>' : '') + '</button>';
+    }).join('') + '</div>';
+    const dt = dayTot(day);
+    const sum = '<div class="ml-daysum"><div class="ml-dsh"><b>' + U.DAYS[day] + '</b>' + (t ? '<span class="hint">targets from your numbers on the right</span>' : '<span class="hint">enter your weight on the right for targets</span>') + '</div>' +
+      meterRow('Calories', dt.kcal, t && t.kcal, 'kcal', 'k') + meterRow('Protein', dt.p, t && t.p, 'g', 'p') + meterRow('Fat', dt.fat, t && t.fat, 'g', 'f') + meterRow('Carbs', dt.carb, t && t.carb, 'g', 'c') +
+      (dt.unk ? '<p class="hint">' + U.plural(dt.unk, 'food') + ' without calories yet — click “add calories” beside it.</p>' : '') + '</div>';
+    const meals = MEALS.map(x => {
+      const items = mealItems(day, x[0]), mt = tot(items);
+      return '<section class="ls-meal ml-meal m-' + x[0] + '"><h4 class="ls-gh">' + x[1] + ' <span class="hint num">' + Math.round(mt.kcal) + ' kcal · ' + g1(mt.p) + ' g protein · ' + g1(mt.fat) + ' g fat</span></h4>' +
+        '<ul class="ls-list">' + items.map((it, i) => { const f = food(it.f), q = +it.q || 0; const nk = f && f.kcal != null && f.kcal !== ''; return '<li class="ls-row' + (f ? '' : ' unk') + '"><input type="number" class="ls-in ls-q num" min="0" step="0.5" value="' + e(it.q) + '" data-change="ls-fq" data-d="' + day + '" data-m="' + x[0] + '" data-i="' + i + '" aria-label="Servings">' +
+          '<span class="ls-text">× ' + e(it.f) + (f ? ' <span class="hint">(' + e(f.serving) + ')</span>' : '') + (!f || !nk ? ' <button type="button" class="link-btn" data-act="ls-food-new" data-name="' + e(it.f) + '">' + (f ? 'add calories' : 'add its nutrition') + '</button>' : '') + '</span>' +
+          '<span class="num ls-p">' + (nk ? Math.round(f.kcal * q) + ' kcal' : '—') + '</span><span class="num ls-p">' + (f ? g1(f.p * q) + ' g' : '—') + '</span>' +
+          '<button type="button" class="icon-btn sm" data-act="ls-fdel" data-d="' + day + '" data-m="' + x[0] + '" data-i="' + i + '" aria-label="Remove ' + e(it.f) + '">' + ED.icon('x') + '</button></li>'; }).join('') + '</ul>' + picker(day, x[0]) + '</section>';
     }).join('');
-    return wrap(head, nav() +
-      '<p class="hint">The week’s meals, as chosen in <b>Grocery → Meal plan &amp; protein</b>. Change the plan there.</p>' +
-      '<div class="wk-grid">' + cols + '</div>', 'ls-mm-l');
+    const tools = '<div class="ls-tools"><button type="button" class="btn small ghost" data-act="ls-food-new">' + ED.icon('plus') + 'Add a new food</button>' + ((l.foods || []).length ? '<button type="button" class="btn small ghost" data-act="ls-foods">My foods (' + l.foods.length + ')</button>' : '') +
+      '<button type="button" class="btn small ghost" data-act="ls-mcopy">' + ED.icon('copy') + 'Copy ' + U.DAY3[day] + ' to every day</button><button type="button" class="btn small ghost" data-act="ls-meals-clear">Clear week</button></div>' +
+      '<p class="hint">Values are approximate for usual home portions (IFCT / NIN); change any food with “Add a new food” using the same name. A general guide, not medical advice.</p>';
+    return wrap(head, '<div class="ml-head"><h3 class="ml-title">Meal plan · nutrition</h3><span class="hint">Pick a day, add foods to each meal — calories, protein, fat and carbs add up.</span></div>' + strip + sum + meals + tools, 'ls-mm-l');
   };
   LI.mealMonthRight = () => {
-    const req = need(), days = wdays();
-    const tot = days.reduce((a, k) => a + dayProt(U.dow(k)), 0), met = req ? days.filter(k => dayProt(U.dow(k)) >= req).length : 0;
-    const planned = days.filter(k => dayProt(U.dow(k)) > 0).length;
-    return '<div class="career ls"><div class="pg-head"><h2 class="pg-title">Weekly meal chart</h2><button type="button" class="btn small ghost" data-act="ls-mm-copy">' + ED.icon('copy') + 'Copy</button></div>' +
-      '<div class="tiles xp-tiles">' + FX().tile('Days planned', planned + '/7', '') + FX().tile('Average protein', Math.round(tot / 7) + ' g', req ? 'need ' + req + ' g a day' : 'enter your weight in Grocery') +
-      FX().tile('Days goal met', req ? met + '/7' : '—', req ? '' : 'needs your weight', req && met < 7 ? 'warn' : '') + FX().tile('Week total', Math.round(tot) + ' g', 'protein planned') + '</div>' +
-      '<div class="ls-scroll scroll" data-keep-scroll="ls-mm-r"><table class="mm-table"><thead><tr><th>Day</th>' + MEALS.map(x => '<th>' + x[1] + '</th>').join('') + '<th>Protein</th></tr></thead><tbody>' +
-      days.map(k => { const d = U.dow(k), p = dayProt(d); return '<tr' + (k === U.today() ? ' class="today"' : '') + '><th class="num">' + U.DAY3[d] + ' ' + +k.slice(8) + '</th>' + MEALS.map(x => '<td>' + e(short(mealItems(d, x[0]))) + '</td>').join('') +
-        '<td class="num' + (req ? (p >= req ? ' ok-text' : ' short') : '') + '">' + Math.round(p) + (req ? '/' + req : '') + ' g</td></tr>'; }).join('') + '</tbody></table></div></div>';
+    const l = LS(), t = LI.targets(), days = wdays();
+    const f = (k, label, input) => '<label class="ml-f"><span>' + label + '</span>' + input + '</label>';
+    const numIn = (k, ph, min, max, step) => '<input type="number" class="field num" min="' + min + '" max="' + max + '" step="' + (step || 1) + '" value="' + e(l[k] || '') + '" data-change="ls-prof" data-k="' + k + '" placeholder="' + ph + '">';
+    const ex = ED.exercise, burnT = ex && ex.burnOn ? ex.burnOn(U.today()) : 0;
+    const prof = '<div class="ml-prof">' +
+      f('weight', 'Weight now (kg)', numIn('weight', 'kg', 20, 250, 0.5)) + f('goalWeight', 'Weight I want (kg)', numIn('goalWeight', 'kg', 30, 250, 0.5)) +
+      f('height', 'Height (cm)', numIn('height', 'cm', 100, 230)) + f('age', 'Age', numIn('age', 'years', 14, 100)) +
+      f('sex', 'Sex', '<select class="field" data-change="ls-prof" data-k="sex">' + opt('m', 'Male', (l.sex || 'm') === 'm') + opt('f', 'Female', l.sex === 'f') + '</select>') +
+      f('act', 'Activity', '<select class="field" data-change="ls-prof" data-k="act">' + ACT.map(a => opt(a[0], a[1], +(l.act || 1.375) === a[0])).join('') + '</select>') +
+      f('pace', 'Change per week', '<select class="field" data-change="ls-prof" data-k="pace">' + PACE.map(a => opt(a[0], a[1], +(l.pace || 0.5) === a[0])).join('') + '</select>') +
+      f('perKg', 'Protein', '<select class="field" data-change="ls-perkg">' + opt('', 'Suggested for my goal', !l.perKg) + PERKG.map(x => opt(x[0], x[1], +l.perKg === x[0])).join('') + '</select>') + '</div>';
+    let targ;
+    if (!t) targ = '<p class="hint">Enter your weight (and height and age for an exact figure) to see how many calories, and how much protein, fat and carbohydrate, you need.</p>';
+    else {
+      const goalLine = t.mode === 'lose' ? 'To go from <b>' + t.w + ' kg</b> to <b>' + t.gw + ' kg</b> at ' + t.pace + ' kg a week: about <b>' + t.weeks + ' weeks</b> (' + e(U.fmtShort(U.addDays(U.today(), t.weeks * 7))) + '), with ' + e(t.note) + '.'
+        : t.mode === 'gain' ? 'To go from <b>' + t.w + ' kg</b> to <b>' + t.gw + ' kg</b>: about <b>' + t.weeks + ' weeks</b> with ' + e(t.note) + ' and strength training (see Exercise).'
+        : 'Calories to keep your weight' + (t.gw ? '' : ' (enter the weight you want to plan a change)') + '.';
+      targ = '<div class="ml-targets"><div class="ml-tg k"><span>Calories</span><b class="num">' + t.kcal.toLocaleString('en-IN') + '</b><i>kcal a day</i></div><div class="ml-tg p"><span>Protein</span><b class="num">' + t.p + ' g</b><i>' + Math.round(t.p * 4 / t.kcal * 100) + '% of kcal</i></div>' +
+        '<div class="ml-tg f"><span>Fat</span><b class="num">' + t.fat + ' g</b><i>saturated under ' + t.satfat + ' g</i></div><div class="ml-tg c"><span>Carbs</span><b class="num">' + t.carb + ' g</b><i>fibre ' + t.fibre + ' g+</i></div></div>' +
+        '<p class="ml-goal">' + goalLine + '</p>' +
+        '<ul class="ml-facts">' + (t.bmr ? '<li>Your body burns about <b>' + Math.round(t.bmr) + ' kcal</b> at rest (BMR) and <b>' + t.tdee + ' kcal</b> with your activity.</li>' : '<li>Add your height and age for an exact figure; this one assumes about 30 kcal per kg.</li>') +
+        (t.bmi ? '<li>BMI <b>' + (Math.round(t.bmi * 10) / 10) + '</b> — ' + e(bmiWord(t.bmi)) + (t.healthy ? '; a healthy weight for your height is about <b>' + t.healthy[0] + '–' + t.healthy[1] + ' kg</b> (Asian cut-offs).' : '') + '</li>' : '') +
+        (burnT ? '<li>Burned in exercise and steps today: <b>' + burnT + ' kcal</b> (from Exercise). Your activity level already counts usual exercise — eat to the target, not back the burn.</li>' : '') +
+        '<li>Never go below ' + (l.sex === 'f' ? '1,200' : '1,500') + ' kcal a day without a doctor. Fat about 25–30% of calories, mostly from nuts, seeds, mustard / groundnut oil, curd; little ghee, butter and fried food.</li></ul>';
+    }
+    const rows = days.map(k => { const d = U.dow(k), x = dayTot(d); const cell = (v, w, u, cls) => '<td class="num' + (w ? (cls === 'p' ? (v >= w * 0.95 ? ' ok-text' : ' short') : (v > w * 1.08 ? ' short' : v >= w * 0.9 ? ' ok-text' : '')) : '') + '">' + Math.round(v) + (u || '') + '</td>';
+      return '<tr' + (k === U.today() ? ' class="today"' : '') + '><th class="num">' + U.DAY3[d] + ' ' + +k.slice(8) + '</th>' + MEALS.map(m => '<td>' + e(short(mealItems(d, m[0]))) + '</td>').join('') + cell(x.kcal, t && t.kcal, '', 'k') + cell(x.p, t && t.p, ' g', 'p') + cell(x.fat, t && t.fat, ' g', 'f') + cell(x.carb, t && t.carb, ' g', 'c') + '</tr>'; }).join('');
+    const avg = days.reduce((a, k) => { const x = dayTot(U.dow(k)); a.k += x.kcal / 7; a.p += x.p / 7; return a; }, { k: 0, p: 0 });
+    const body = '<h3 class="gh">My numbers</h3>' + prof + '<h3 class="gh fin-gap">What I need each day</h3>' + targ +
+      '<h3 class="gh fin-gap">The week at a glance <span class="hint">· average ' + Math.round(avg.k) + ' kcal and ' + Math.round(avg.p) + ' g protein a day</span></h3>' +
+      '<div class="ml-tablewrap"><table class="mm-table ml-table"><thead><tr><th>Day</th>' + MEALS.map(x => '<th>' + x[1] + '</th>').join('') + '<th>kcal</th><th>Protein</th><th>Fat</th><th>Carbs</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<p class="hint">Green: on target · red: short of protein, or more than 8% over calories or fat.</p>';
+    return '<div class="career ls"><div class="pg-head"><h2 class="pg-title">Targets &amp; weekly chart</h2><button type="button" class="btn small ghost" data-act="ls-mm-copy">' + ED.icon('copy') + 'Copy chart</button></div>' +
+      '<div class="ls-scroll scroll" data-keep-scroll="ls-mm-r">' + body + '</div></div>';
   };
   A['ls-mm'] = el => { const d = +el.dataset.dir; st().mw = d ? U.addDays(wstart(), 7 * d) : null; ED.app.render(); };
   A['ls-mm-copy'] = async () => {
     const lines = ['Meal chart — week of ' + wlabel()];
-    wdays().forEach(k => { const d = U.dow(k); lines.push('', U.DAY3[d] + ' ' + +k.slice(8) + ' (' + Math.round(dayProt(d)) + ' g protein)'); MEALS.forEach(x => { const t = short(mealItems(d, x[0])); if (t) lines.push('  ' + x[1] + ': ' + t); }); });
+    wdays().forEach(k => { const d = U.dow(k); const x = dayTot(d); lines.push('', U.DAY3[d] + ' ' + +k.slice(8) + ' (' + Math.round(x.kcal) + ' kcal, ' + Math.round(x.p) + ' g protein, ' + Math.round(x.fat) + ' g fat, ' + Math.round(x.carb) + ' g carbs)'); MEALS.forEach(x => { const t = short(mealItems(d, x[0])); if (t) lines.push('  ' + x[1] + ': ' + t); }); });
     ED.ui.toast(await U.copy(lines.join('\n')) ? 'Meal chart copied' : 'Could not copy');
   };
 })();

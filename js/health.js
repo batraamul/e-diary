@@ -197,16 +197,19 @@
         { k: 'end', label: 'Until', type: 'date', hint: 'Leave empty for ongoing medicines.' },
         { k: 'purpose', label: 'What it is for', ph: 'optional' },
         { k: 'doctor', label: 'Prescribed by', ph: 'optional' },
-        { k: 'stock', label: 'How many you have', type: 'number', min: 0, hint: 'Counts down as you tick Taken; warns when about 5 days are left.' },
+        { k: 'stock', label: 'How many you have', type: 'number', min: 0, hint: 'Counts down as you tick Taken. When 5 days or less are left, “Buy medicine” goes into the Daily planner and Finance → Bills.' },
         { k: 'perDose', label: 'Used per dose', type: 'number', min: 0, step: 0.5 },
         { k: 'remind', label: 'Remind me at these times (while the diary is open)', type: 'check' },
         { k: 'notes', label: 'Notes', type: 'textarea', rows: 2, ph: 'Side effects to watch, how to take it…' },
       ],
       check: v => !v.times.length ? 'Add at least one time' : v.end && v.start && v.end < v.start ? '“Until” is before “From”' : '',
       del: x ? async () => {
-        const ok = await ED.ui.confirm({ title: 'Delete medicine', message: 'Delete “' + x.name + '” and its ticks? To keep its history, set an “Until” date instead.', ok: 'Delete', danger: true });
+        const ok = await ED.ui.confirm({ title: 'Delete medicine', message: 'Delete “' + x.name + '” and everything that belongs to it — its ticks, its “Buy medicine” tasks, its bill and its purchase records? To keep its history, set an “Until” date instead.', ok: 'Delete', danger: true });
         if (!ok) return false;
         ED.store.checkpoint('Delete medicine'); h.meds = h.meds.filter(m => m.id !== x.id);
+        // 1.16: every entry made from this medicine goes with it (tasks in the planner, the bill, Money records)
+        D().tasks = D().tasks.filter(t => !(t.link && t.link.k === 'med' && t.link.id === x.id));
+        if (D().finance && Array.isArray(D().finance.records)) D().finance.records = D().finance.records.filter(r => r.id !== 'fr-pu-med-' + x.id && r.src !== 'med:' + x.id);
         Object.keys(h.taken).forEach(k => { Object.keys(h.taken[k]).forEach(key => { if (key.split('@')[0] === x.id) delete h.taken[k][key]; }); if (!Object.keys(h.taken[k]).length) delete h.taken[k]; });
         ED.store.commit(); ED.ui.undoToast('Medicine deleted');
       } : null,

@@ -5,7 +5,7 @@
      • Monthly Tasks: a summary line on the left page and small dots on the month calendar; the "Habit tracker"
        side shows the month's grid (click a square to change it), how each habit did, streaks and a day-by-day chart.
    Data: ED.store.data.habits = {
-     list: [{ id, name, icon, days: [0–6] | null (every day), start: 'YYYY-MM-DD', stop: 'YYYY-MM-DD' | null, notes, order }],
+     list: [{ id, name, icon, days: [0–6] | null (every day), every (1 = each day, n = once in n days from start), start: 'YYYY-MM-DD', stop: 'YYYY-MM-DD' | null, notes, order }],
      log:  { 'YYYY-MM-DD': { habitId: 'full' | 'part' } } }         (no entry = not yet done)
    The score of a day or month counts fully = 1 and partly = ½ over the habits due, up to today. */
 (function () {
@@ -22,7 +22,12 @@
   /* ---------------- data ---------------- */
   H.list = () => HB().list.slice().sort((a, b) => (a.order || 0) - (b.order || 0));
   H.habit = id => HB().list.find(h => h.id === id) || null;
-  H.due = (h, k) => (!h.start || k >= h.start) && (!h.stop || k < h.stop) && (!h.days || !h.days.length || h.days.indexOf(U.dow(k)) >= 0);
+  /* 1.16: how often — every: 1 = every day, 2 = alternate days, n = once in n days, counted from "Track from" (like medicines) */
+  const EVERY = [['1', 'Every day (on the days ticked)'], ['2', 'Alternate days (once in 2 days)']].concat([3, 4, 5, 6, 7, 10, 14, 15, 21, 30].map(n => [String(n), 'Once in ' + n + ' days']));
+  const every = h => Math.max(1, Math.round(+h.every || 1));
+  H.everyText = h => every(h) === 1 ? '' : every(h) === 2 ? 'alternate days' : 'once in ' + every(h) + ' days';
+  const onCycle = (h, k) => { const n = every(h); if (n === 1) return true; const d = U.diffDays(h.start || k, k); return d >= 0 && d % n === 0; };
+  H.due = (h, k) => (!h.start || k >= h.start) && (!h.stop || k < h.stop) && (!h.days || !h.days.length || h.days.indexOf(U.dow(k)) >= 0) && onCycle(h, k);
   H.dueOn = k => H.list().filter(h => H.due(h, k));
   H.get = (id, k) => { const d = HB().log[k]; return d && (d[id] === 'full' || d[id] === 'part') ? d[id] : ''; };
   H.set = (id, k, v) => {
@@ -131,7 +136,7 @@
     const head = '<div class="hb-gh"></div>' + x.days.map(k => '<div class="hb-dh' + (k === today ? ' today' : '') + (U.dow(k) === 0 ? ' sun' : '') + '" title="' + e(U.fmtLong(k)) + '"><span>' + U.DAYS[U.dow(k)][0] + '</span><b class="num">' + (+k.slice(8)) + '</b></div>').join('') + '<div class="hb-gh num">%</div>';
     const rows = x.habits.map(r => {
       const h = r.h;
-      return '<button type="button" class="plain-btn hb-gname" data-act="hb-edit" data-id="' + e(h.id) + '" title="' + e(h.name) + (h.days && h.days.length && h.days.length < 7 ? ' · ' + h.days.map(d => U.DAY3[d]).join(', ') : ' · every day') + '"><span aria-hidden="true">' + e(h.icon || '•') + '</span><span class="hb-gn">' + e(h.name) + '</span></button>' +
+      return '<button type="button" class="plain-btn hb-gname" data-act="hb-edit" data-id="' + e(h.id) + '" title="' + e(h.name) + (h.days && h.days.length && h.days.length < 7 ? ' · ' + h.days.map(d => U.DAY3[d]).join(', ') : ' · every day') + (H.everyText(h) ? ' · ' + H.everyText(h) : '') + '"><span aria-hidden="true">' + e(h.icon || '•') + '</span><span class="hb-gn">' + e(h.name) + '</span></button>' +
         x.days.map(k => {
           const due = H.due(h, k), v = H.get(h.id, k), fut = k > today;
           if (!due && !v) return '<span class="hb-c off" aria-hidden="true"></span>';
@@ -161,13 +166,14 @@
   H.edit = id => {
     const x = id ? H.habit(id) : null;
     const d = x ? U.clone(x) : { id: U.uid('hb'), name: '', icon: '🚶', days: null, start: U.today(), stop: null, notes: '', order: HB().list.length };
-    const every = !d.days || !d.days.length || d.days.length === 7;
+    const allDays = !d.days || !d.days.length || d.days.length === 7;
     const ws = D().settings.weekStart || 0;
     const order = U.range(U.startOfWeek(U.today(), ws), 7).map(k => U.dow(k));
     const body = '<form class="st-form hb-form"><div class="st-grid">' +
       '<label class="lbl" for="hb-name">Habit</label><input id="hb-name" class="field" value="' + e(d.name) + '" placeholder="e.g. Walk 30 minutes, Read 20 pages, 8 glasses of water" maxlength="80">' +
       '<label class="lbl" for="hb-icon">Symbol</label><div class="hb-icons"><input id="hb-icon" class="field hb-iconin" value="' + e(d.icon || '') + '" maxlength="4" aria-label="Symbol">' + ICONS.map(c => '<button type="button" class="hb-pick" data-ic="' + c + '" aria-label="Use ' + c + '">' + c + '</button>').join('') + '</div>' +
-      '<span class="lbl">Days</span><div class="hb-days" role="group" aria-label="Days">' + order.map(i => '<label class="chip-check"><input type="checkbox" value="' + i + '"' + (every || d.days.indexOf(i) >= 0 ? ' checked' : '') + '><span>' + U.DAY3[i] + '</span></label>').join('') + '</div>' +
+      '<span class="lbl">Days</span><div class="hb-days" role="group" aria-label="Days">' + order.map(i => '<label class="chip-check"><input type="checkbox" value="' + i + '"' + (allDays || d.days.indexOf(i) >= 0 ? ' checked' : '') + '><span>' + U.DAY3[i] + '</span></label>').join('') + '</div>' +
+      '<label class="lbl" for="hb-every">How often</label><select id="hb-every" class="field">' + EVERY.map(o => '<option value="' + o[0] + '"' + (String(every(d)) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select>' +
       '<label class="lbl" for="hb-start">Track from</label><input id="hb-start" class="field" type="date" value="' + e(d.start || U.today()) + '">' +
       '<label class="lbl" for="hb-notes">Notes</label><textarea id="hb-notes" class="field" rows="2" placeholder="What counts as partly? Why it matters…">' + e(d.notes || '') + '</textarea>' +
       '</div>' + (x && x.stop ? '<p class="hint">Stopped from ' + e(U.fmtLong(x.stop)) + '. Save to keep it stopped, or click “Track again”.</p>' : '') + '</form>';
@@ -184,7 +190,7 @@
           if (!name) { ED.ui.toast('Name the habit'); $('#hb-name').focus(); return; }
           const days = U.$$('.hb-days input', el).filter(c => c.checked).map(c => +c.value).sort();
           if (!days.length) { ED.ui.toast('Pick at least one day'); return; }
-          const v = Object.assign({ name, icon: $('#hb-icon').value.trim(), days: days.length === 7 ? null : days, start: U.isKey($('#hb-start').value) ? $('#hb-start').value : U.today(), notes: $('#hb-notes').value.trim() }, extra || {});
+          const v = Object.assign({ name, icon: $('#hb-icon').value.trim(), days: days.length === 7 ? null : days, start: U.isKey($('#hb-start').value) ? $('#hb-start').value : U.today(), every: Math.max(1, +$('#hb-every').value || 1), notes: $('#hb-notes').value.trim() }, extra || {});
           ED.store.checkpoint(x ? 'Habit' : 'New habit');
           if (x) { Object.assign(x, v); delete x.sample; } else HB().list.push(Object.assign(d, v));
           ED.store.commit(); api.close(); ED.ui.toast(x ? 'Habit saved' : 'Habit added — mark it on the Daily Tasks page');

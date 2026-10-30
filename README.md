@@ -367,3 +367,32 @@ Then:
 - Marking the item bought on the Wardrobe list ticks the task. Moving the task to another day changes Buy by, and changing Buy by moves the task.
 - **Deleting the task** takes the item out of the planner and Finance → Bills; it stays on the To-buy list with **Add back to planner**. Deleting the item removes its task.
 - Items bought before 1.15 do not get tasks.
+
+### v1.16 — Pooja & Vrat with the Hindu calendar, Exercise with phone data, Welfare & Help, calories in Weekly meals
+
+Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · Welfare & Help · Pooja & Vrat**.
+
+**Pooja & Vrat**
+- **Hindu calendar (Panchang), worked out on your device, no internet needed:** tithi with its end time, paksha, Hindu month (purnimanta, as used in North India, and amanta), Vikram and Shaka samvat, nakshatra, yoga, vaar, ritu, sunrise and sunset for your city (Settings → Weather), a month calendar with tithis, festivals and Ekadashis, and the festivals and vrats coming up.
+- **The Daily page shows a Panchang line** under the date (switch it off in Pooja & Vrat → Settings).
+- **My poojas:** pick everyday rituals (morning pooja, Surya arghya, Gayatri jaap, Hanuman Chalisa on Tue/Sat, Shiv abhishek on Mondays…) or add your own with its time and days. Each one is a repeating task in the Daily planner under the new role **Spiritual & Pooja**; switching one off stops it from today and keeps the days you ticked.
+- **Vrats:** tick the ones you keep (Ekadashi, Pradosh, Purnima, Amavasya, Sankashti and Vinayaka Chaturthi, Masik Shivaratri, the weekday vrats, Navratri, Karva Chauth, Janmashtami, Maha Shivaratri…). Each falls on its day as a task, named (e.g. *Vrat: Rama Ekadashi*), with the food rules and paran in its notes. These tasks do not roll forward. Deleting one skips that day only.
+- **Festivals** can be put in the planner too (on by default). Dates follow the tithi at sunrise (and at sunset, moonrise or midnight for Diwali, Karva Chauth and Janmashtami); your local almanac may differ by a day when a tithi changes close to those times.
+
+**Exercise**
+- Ready plans: *Lose weight, chest & belly fat (6 days)*, *Build muscle — Push/Pull/Legs*, *Chest focus + fat loss*, *Beginner full body*, *At home, no equipment*. Change any day or exercise. Each exercise shows sets × reps and how to do it; tick them off and **Log this workout**.
+- **Which exercises for…** chest, stomach / belly fat, weight loss and muscle mass — with the honest note that fat comes off the chest and belly only with overall fat loss.
+- Workout days go into the Daily planner (under Health & Fitness) at the time you choose.
+- **Phone / watch data:** **Read from Google Drive** reads the newest `Cycling-backup.json` the phone app saves (steps per day, cycling and exercise sessions with distance and calories, your height, weight and step goal); or **Choose the backup file…**. You can also log workouts and steps by hand. Steps against your goal for 14 days, active minutes and calories burned. Reading from Drive asks Google once for read-only Drive access and uses the same OAuth Client ID; turn on the Google Drive API for that project.
+
+**Welfare & Help** — whom you helped and how: date, person, kind of help, what you did, amount, status, follow-up date (a task in the planner) and, if you like, the amount in Money. Totals by kind and by person; export to Excel.
+
+**Weekly meals (moved from Grocery) — calories, protein, fat and carbs**
+- The meal planner is now on **Weekly meals**: choose a day, add foods; each meal and the day add up calories, protein, fat and carbohydrate against your targets. Every built-in food has calories, fat and carbs; your own foods ask for them (“add calories”).
+- **My numbers:** weight now, weight you want, height, age, sex, activity and pace. The diary works out your calories (Mifflin-St Jeor BMR × activity, less a deficit to lose or plus a little to gain), protein, fat, carbs, saturated fat and fibre, your BMI with Asian cut-offs, the healthy weight range for your height, and how many weeks to your goal. Height, weight and step goal are filled in from the phone app’s backup.
+- The week at a glance: every day’s meals with kcal, protein, fat and carbs, green when on target. Grocery’s right page now shows the list summary and notes.
+
+**Other changes**
+- **Habits → How often:** every day, alternate days, or once in 3 … 30 days, counted from “Track from” (as for medicines).
+- **Medicines:** when a medicine has 5 days of stock or less, *Buy medicine: …* goes into the Daily planner (Health & Fitness) and Finance → Bills with amount 0. Ticking it marks it bought (enter the price if you like; it then goes into Money under Health); entering the new stock ends the round. **Deleting a medicine deletes everything made from it** — its ticks, tasks, bill and purchase records.
+- **Exam & Interview → Study:** a switch keeps exam topics (by subject) and interview question categories in the Study planner’s topic lists. **Add to my daily & study plan…** adds the exam / interview day, key dates and a daily preparation task to the Daily planner, and all subjects and topics to the Study plan, in one click; the tasks follow when the dates change.

@@ -35,6 +35,7 @@
         '<span class="hint num">Week ' + U.weekNumber(k, S().weekStart) + '</span>' +
         (diff !== 0 ? '<button type="button" class="btn small" data-act="goto-today">' + ED.icon('today') + 'Today</button>' : '') + '</div>' +
         '</header>' +
+        (ED.pooja && ED.pooja.dailyStrip ? ED.pooja.dailyStrip(k) : '') +
         '<form class="addtask" data-form="quick-add">' +
         '<input class="addtask-in" id="quick-add" type="text" placeholder="Add Task" autocomplete="off" aria-label="Add a task. Start with A1, B2 or C3 to set its priority; end with @9:30 to set a time.">' +
         '<button type="button" class="add-btn" data-act="task-new" aria-label="New task with details" title="New task with details">' + ED.icon('plus') + '</button>' +
