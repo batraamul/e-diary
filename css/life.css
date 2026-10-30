@@ -155,3 +155,5 @@
   .pj-row { grid-template-columns: 104px 1fr; }
   .pj-vd { padding-left: 12px; }
 }
+.xr-fresh { margin: 8px 0 4px; font-size: 12.5px; }
+.xr-wtab th, .xr-wtab td, .xr-rtab th, .xr-rtab td { font-size: 12px; white-space: nowrap; }

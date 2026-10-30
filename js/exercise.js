@@ -219,7 +219,7 @@
   M.deleteTask = id => { const t = M.task(id); if (t && t.link && t.link.k === 'exercise' && XR.plan()) { XR.plan().inPlanner = false; } return del0(id); };
 
   /* ---------------- watch / phone data ---------------- */
-  const KIND = { CYCLING: 'Cycling', WALKING: 'Walk', WALK: 'Walk', RUNNING: 'Run', RUN: 'Run', EXERCISE: 'Workout', HIKING: 'Walk', SWIMMING: 'Swimming', YOGA: 'Yoga' };
+  const KIND = { CYCLING: 'Cycling', BIKING: 'Cycling', WALKING: 'Walk', WALK: 'Walk', RUNNING: 'Run', RUN: 'Run', JOGGING: 'Run', JOG: 'Run', TREADMILL: 'Run', EXERCISE: 'Workout', HIKING: 'Walk', SWIMMING: 'Swimming', YOGA: 'Yoga' };
   /* read a backup file: the cycling / steps app ("cycling-app-backup"), or a simple list of days or workouts */
   XR.importWatch = (data, fileName) => {
     const x = XD(); let days = 0, added = 0, updated = 0;
@@ -294,7 +294,7 @@
       const data = await c.json();
       ED.store.checkpoint('Watch data');
       const res = XR.importWatch(data, f.name);
-      XD().watch.modified = f.modifiedTime;
+      XD().watch.modified = f.modifiedTime; XD().watch.fileId = f.id;
       ED.store.commit();
       if (!quiet) ED.ui.toast('From Google Drive (' + f.name + ', saved ' + U.fmtStamp(Date.parse(f.modifiedTime)) + '): ' + U.plural(res.days, 'day') + ' of steps, ' + U.plural(res.added, 'new workout'));
       return res;
@@ -309,9 +309,20 @@
   XR.stepsOn = k => { const s = XD().steps[k]; return s ? s.n : 0; };
   XR.burnOn = k => {           // calories burned in workouts that day (watch kcal, or worked out from minutes)
     return XD().log.filter(r => r.date === k).reduce((a, r) => a + (r.kcal != null && r.kcal > 0 ? r.kcal : kcalOf(({ Walk: 4.3, Run: 8, Cycling: 7, Yoga: 3, HIIT: 8, Swimming: 7, Strength: 5, Workout: 5, Sport: 7 })[r.kind] || 5, r.mins || 0)), 0)
-      + Math.round(XR.stepsOn(k) * 0.04 * weight() / 70);                  // about 40 kcal per 1,000 steps for 70 kg
+      + Math.round(0.5 * weight() * XR.walkKm(k));                         // walking: about 0.5 kcal per kg per km (as the phone app)
   };
   XR.week = k => U.range(U.addDays(k, -6), 7);
+  /* walking distance that day: from the phone, or steps × your step length (0.7 m) */
+  XR.walkKm = k => { const s = XD().steps[k]; if (!s) return 0; return s.km != null && s.km > 0 ? +s.km : (s.n || 0) * 0.0007; };
+  const KM = { Walk: 'walk', Cycling: 'cycle', Run: 'run' };
+  /* distance by kind on a day: walking from the daily steps, cycling and running from the sessions */
+  XR.kmOn = k => {
+    const o = { walk: XR.walkKm(k), cycle: 0, run: 0 };
+    XD().log.forEach(r => { if (r.date !== k || !(+r.km > 0)) return; const t = KM[r.kind]; if (t && t !== 'walk') o[t] += +r.km; });
+    return o;
+  };
+  const r1 = v => Math.round(v * 10) / 10, r2 = v => Math.round(v * 100) / 100;
+  const hasDay = k => !!XD().steps[k] || XD().log.some(r => r.date === k);
 
   /* ---------------- left page: the plan ---------------- */
   const tplPicker = cur => '<div class="xr-tpls">' + Object.keys(TPL).map(k => '<button type="button" class="xr-tpl' + (cur === k ? ' sel' : '') + '" data-act="xr-tpl" data-k="' + k + '"><b>' + e(TPL[k].name) + '</b></button>').join('') + '</div>';
@@ -352,15 +363,47 @@
       '<p class="hint">A general guide, not medical advice. Warm up 5–10 minutes first; stop if you feel chest pain, dizziness or joint pain, and check with a doctor before starting if you have heart, BP, diabetes or joint problems.</p>';
   };
 
+  /* ---------------- analysis: distance by kind, weeks, rides ---------------- */
+  const analysis = days => {
+    const x = XD(), today = U.today();
+    const chart = ED.charts.groups({ title: 'Distance, last 14 days (km)', h: 170, left: 40, maxLabels: 7,
+      series: [{ name: 'Walking', color: 'var(--s3)' }, { name: 'Cycling', color: 'var(--s2)' }, { name: 'Running', color: 'var(--s6)' }],
+      legend: ED.charts.legend([{ kind: 'g', label: 'Walking', color: 'var(--s3)' }, { kind: 'g', label: 'Cycling', color: 'var(--s2)' }, { kind: 'g', label: 'Running', color: 'var(--s6)' }]),
+      data: days.map(k => { const o = XR.kmOn(k); return { label: String(+k.slice(8)), long: U.fmtLong(k), values: [r2(o.walk), r2(o.cycle), r2(o.run)], tip: 'walk ' + r2(o.walk) + ' · cycle ' + r2(o.cycle) + ' · run ' + r2(o.run) + ' km' }; }),
+      fmt: v => String(Math.round(v * 10) / 10) });
+    // weeks (Monday to Sunday), the last six
+    const wk0 = U.startOfWeek(today, 1), weeks = [0, 1, 2, 3, 4, 5].map(i => U.addDays(wk0, -7 * i));
+    const wrow = a => { const ds = U.range(a, 7).filter(k => k <= today); let st = 0, n = 0, wk = 0, cy = 0, rn = 0, kc = 0, mn = 0, hit = 0;
+      ds.forEach(k => { if (x.steps[k]) { n++; st += XR.stepsOn(k); if (XR.stepsOn(k) >= goal()) hit++; } const o = XR.kmOn(k); wk += o.walk; cy += o.cycle; rn += o.run; kc += XR.burnOn(k); });
+      x.log.forEach(r => { if (ds.indexOf(r.date) >= 0) mn += +r.mins || 0; });
+      return { a, st, n, wk, cy, rn, kc, mn, hit }; };
+    const wr = weeks.map(wrow).filter(r => r.n || r.cy || r.rn || r.mn);
+    const table = wr.length ? '<div class="ml-tablewrap"><table class="mm-table xr-wtab"><thead><tr><th>Week of</th><th>Steps / day</th><th>Goal met</th><th>Walk km</th><th>Cycle km</th><th>Run km</th><th>Active min</th><th>kcal</th></tr></thead><tbody>' +
+      wr.map(r => '<tr><th class="num">' + e(U.fmtDM(r.a)) + '</th><td class="num">' + (r.n ? Math.round(r.st / r.n).toLocaleString('en-IN') : '—') + '</td><td class="num">' + r.hit + '/' + r.n + '</td><td class="num">' + r1(r.wk) + '</td><td class="num">' + r1(r.cy) + '</td><td class="num">' + r1(r.rn) + '</td><td class="num">' + Math.round(r.mn) + '</td><td class="num">' + Math.round(r.kc).toLocaleString('en-IN') + '</td></tr>').join('') + '</tbody></table></div>' : '';
+    // rides and runs
+    const rides = x.log.filter(r => (r.kind === 'Cycling' || r.kind === 'Run' || r.kind === 'Walk') && +r.km > 0).sort((a, b) => (b.date + (b.time || '')).localeCompare(a.date + (a.time || ''))).slice(0, 12);
+    const rideTab = rides.length ? '<div class="ml-tablewrap"><table class="mm-table xr-rtab"><thead><tr><th>Date</th><th>Activity</th><th>km</th><th>Time</th><th>Avg km/h</th><th>Top km/h</th><th>kcal</th></tr></thead><tbody>' +
+      rides.map(r => '<tr><th class="num">' + e(U.fmtDM(r.date)) + (r.time ? ' <span class="hint">' + e(FX().time(r.time)) + '</span>' : '') + '</th><td>' + e(r.kind) + '</td><td class="num">' + r2(+r.km) + '</td><td class="num">' + Math.round(r.mins || 0) + ' min</td><td class="num">' + (r.mins ? r1(r.km / (r.mins / 60)) : '—') + '</td><td class="num">' + (r.top || '—') + '</td><td class="num">' + (r.kcal != null ? Math.round(r.kcal) : '—') + '</td></tr>').join('') + '</tbody></table></div>' : '<p class="hint">No rides or runs with distance yet.</p>';
+    const tot = x.log.filter(r => r.kind === 'Cycling' && +r.km > 0), totKm = tot.reduce((a, r) => a + +r.km, 0);
+    return '<h3 class="gh fin-gap">Analysis</h3>' + chart +
+      (wr.length ? '<h4 class="ls-gh">Week by week</h4>' + table : '') +
+      '<h4 class="ls-gh">Rides, runs and walks <span class="hint">· ' + U.plural(tot.length, 'ride') + ', ' + r1(totKm) + ' km cycled in all</span></h4>' + rideTab;
+  };
+  /* read the phone file again by itself when the page opens, if Google has already given access this session */
+  const autoRead = () => { const w = XD().watch; if (tok && Date.now() < tokExp - 60000 && (!w.at || Date.now() - w.at > 15 * 60e3)) XR.fetchDrive(true).catch(() => {}); };
+
   /* ---------------- right page: activity ---------------- */
   const right = () => {
     const x = XD(), today = U.today(), g = goal();
     const days = U.range(U.addDays(today, -13), 14);
     const stepsT = XR.stepsOn(today), wk = XR.week(today);
-    const wkSteps = wk.reduce((a, k) => a + XR.stepsOn(k), 0), wkLog = x.log.filter(r => wk.indexOf(r.date) >= 0);
+    const wkDays = wk.filter(k => x.steps[k]), wkSteps = wkDays.reduce((a, k) => a + XR.stepsOn(k), 0), wkLog = x.log.filter(r => wk.indexOf(r.date) >= 0);
+    const kmT = XR.kmOn(today), km7 = wk.reduce((a, k) => { const o = XR.kmOn(k); a.walk += o.walk; a.cycle += o.cycle; a.run += o.run; return a; }, { walk: 0, cycle: 0, run: 0 });
     const wkMin = Math.round(wkLog.reduce((a, r) => a + (+r.mins || 0), 0)), wkKcal = wk.reduce((a, k) => a + XR.burnOn(k), 0);
-    const tiles = '<div class="tiles xp-tiles">' + FX().tile('Steps today', stepsT.toLocaleString('en-IN'), 'goal ' + g.toLocaleString('en-IN') + (stepsT >= g ? ' — met ✓' : ' · ' + Math.max(0, g - stepsT).toLocaleString('en-IN') + ' to go'), stepsT >= g ? '' : '') +
-      FX().tile('Last 7 days', Math.round(wkSteps / 7).toLocaleString('en-IN'), 'steps a day on average') +
+    const tiles = '<div class="tiles xp-tiles">' + FX().tile('Steps today', stepsT.toLocaleString('en-IN'), 'goal ' + g.toLocaleString('en-IN') + (stepsT >= g ? ' — met ✓' : ' · ' + Math.max(0, g - stepsT).toLocaleString('en-IN') + ' to go') + ' · walking ' + r2(kmT.walk) + ' km') +
+      FX().tile('Last 7 days', wkDays.length ? Math.round(wkSteps / wkDays.length).toLocaleString('en-IN') : '—', wkDays.length ? 'steps a day on average (' + U.plural(wkDays.length, 'day') + ' with data)' : 'no steps yet') +
+      FX().tile('Cycling', r1(km7.cycle) + ' km', 'last 7 days · today ' + r1(kmT.cycle) + ' km') +
+      FX().tile('Walking · running', r1(km7.walk) + ' · ' + r1(km7.run) + ' km', 'last 7 days') +
       FX().tile('Active minutes', String(wkMin), 'in workouts, last 7 days (aim 150+)', wkMin < 150 ? 'warn' : '') +
       FX().tile('Calories burned', wkKcal.toLocaleString('en-IN'), 'kcal from steps and workouts, 7 days') + '</div>';
     const chart = ED.charts.columns({ title: 'Steps, last 14 days', h: 160, left: 44, maxLabels: 7, color: 'var(--s3)',
@@ -368,12 +411,16 @@
       cur: 13, sub: 'Bars: steps that day. Pale bar: your daily goal.',
       table: ED.charts.table(['Day', 'Steps', 'km', 'Burned (kcal)'], days.slice().reverse().map(k => [U.fmtDM(k), XR.stepsOn(k).toLocaleString('en-IN'), String((x.steps[k] || {}).km || ''), String(XR.burnOn(k))])) });
     const w = x.watch;
-    const watchBox = '<div class="xr-watch"><div class="xr-wh">' + ED.icon('cloud') + '<b>Phone / watch data</b><span class="hint">' + (w.at ? 'last read ' + e(U.fmtStamp(w.at)) + (w.file ? ' from ' + e(w.file) : '') + (w.device ? ' · ' + e(w.device) : '') : 'not read yet') + '</span></div>' +
+    const made = +w.made || (w.modified ? Date.parse(w.modified) : 0);
+    const stale = made && Date.now() - made > 2 * 3600e3;
+    const fresh = made ? '<div class="notice ' + (stale ? 'warn' : 'info') + ' xr-fresh">' + ED.icon(stale ? 'info' : 'cloudCheck') + '<span class="grow">The phone app’s backup in Google Drive was saved <b>' + e(U.fmtStamp(made)) + '</b>' +
+      (stale ? '. Steps, walks and rides after that are not in it, so the diary shows less than the app. In the phone app, make a new backup to Google Drive (Settings → Backup), then click <b>Read from Google Drive</b> here.' : ' — up to date.') + '</span></div>' : '';
+    const watchBox = '<div class="xr-watch"><div class="xr-wh">' + ED.icon('cloud') + '<b>Phone / watch data</b><span class="hint">' + (w.at ? 'last read ' + e(U.fmtStamp(w.at)) + (w.file ? ' from ' + e(w.file) : '') + (w.device ? ' · ' + e(w.device) : '') : 'not read yet') + '</span></div>' + fresh +
       '<div class="row-btns"><button type="button" class="btn small primary" data-act="xr-drive">' + ED.icon('cloud') + 'Read from Google Drive</button><button type="button" class="btn small" data-act="xr-file">' + ED.icon('upload') + 'Choose the backup file…</button><button type="button" class="btn small ghost" data-act="xr-wset">' + ED.icon('gear') + '</button></div>' +
       '<p class="hint">Reads the newest <b>' + e(w.driveName || 'Cycling-backup.json') + '</b> that the phone app saves to Google Drive: steps per day, cycling and exercise sessions with distance and calories, your height, weight and step goal. Days you typed in yourself are kept.</p></div>';
     const log = x.log.slice().sort((a, b) => (b.date + (b.time || '')).localeCompare(a.date + (a.time || ''))).slice(0, 30);
     const logHtml = log.length ? '<ul class="xp-list xr-log">' + log.map(r => '<li><button type="button" class="plain-btn xp-li" data-act="xr-log" data-id="' + e(r.id) + '"><span class="num">' + e(U.fmtDM(r.date)) + '</span><span class="grow"><b>' + e(r.title || r.kind) + '</b><span class="hint"> ' + e([r.mins ? Math.round(r.mins) + ' min' : '', r.km ? r.km + ' km' : '', r.kcal ? r.kcal + ' kcal' : '', r.top ? 'top ' + r.top + ' km/h' : ''].filter(Boolean).join(' · ')) + '</span></span><span class="chip xr-src ' + (r.src === 'watch' ? 'w' : 'm') + '">' + (r.src === 'watch' ? '⌚ phone' : '✍ added') + '</span></button></li>').join('') + '</ul>' : '<p class="hint">No workouts yet. Log one by hand or read the phone app’s backup.</p>';
-    const body = tiles + chart + watchBox +
+    const body = tiles + chart + watchBox + analysis(days) +
       '<h3 class="gh fin-gap">Workouts <span class="hint">· from the phone and added by hand</span></h3>' +
       '<div class="row-btns"><button type="button" class="btn small" data-act="xr-log">' + ED.icon('plus') + 'Log a workout</button><button type="button" class="btn small" data-act="xr-steps">' + ED.icon('plus') + 'Add steps for a day</button>' +
       '<label class="xr-goal">Step goal <input type="number" class="field num" min="1000" max="40000" step="500" value="' + g + '" data-change="xr-goal" aria-label="Daily step goal"></label></div>' + logHtml;
@@ -381,7 +428,7 @@
   };
 
   ED.views = ED.views || {};
-  ED.views.exercise = { id: 'exercise', label: 'Exercise', left, right, mount(L, R) { ED.charts.bind(R); } };
+  ED.views.exercise = { id: 'exercise', label: 'Exercise', left, right, mount(L, R) { ED.charts.bind(R); setTimeout(autoRead, 50); } };
 
   /* ---------------- editors ---------------- */
   const libOptions = () => {

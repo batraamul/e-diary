@@ -396,3 +396,9 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 - **Habits → How often:** every day, alternate days, or once in 3 … 30 days, counted from “Track from” (as for medicines).
 - **Medicines:** when a medicine has 5 days of stock or less, *Buy medicine: …* goes into the Daily planner (Health & Fitness) and Finance → Bills with amount 0. Ticking it marks it bought (enter the price if you like; it then goes into Money under Health); entering the new stock ends the round. **Deleting a medicine deletes everything made from it** — its ticks, tasks, bill and purchase records.
 - **Exam & Interview → Study:** a switch keeps exam topics (by subject) and interview question categories in the Study planner’s topic lists. **Add to my daily & study plan…** adds the exam / interview day, key dates and a daily preparation task to the Daily planner, and all subjects and topics to the Study plan, in one click; the tasks follow when the dates change.
+
+### v1.16.1 — Exercise: cycling, distances and analysis
+- The diary shows what is in the phone app's latest **backup file** in Google Drive. If that backup is more than 2 hours old, a note says when it was saved and that steps and rides after it are missing — make a new backup in the phone app, then **Read from Google Drive**.
+- New tiles: walking km today, **cycling km** and walking · running km for the last 7 days. The 7-day step average counts only days that have data.
+- **Analysis:** distance per day by walking, cycling and running (14 days), week by week (steps a day, goal met, km by kind, active minutes, calories), and a list of rides, runs and walks with average and top speed.
+- Calories from walking now follow the phone app (about 0.5 kcal per kg per km). Once Google has given access in a session, the page reads the phone file again by itself when opened.
