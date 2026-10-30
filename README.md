@@ -402,3 +402,8 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 - New tiles: walking km today, **cycling km** and walking · running km for the last 7 days. The 7-day step average counts only days that have data.
 - **Analysis:** distance per day by walking, cycling and running (14 days), week by week (steps a day, goal met, km by kind, active minutes, calories), and a list of rides, runs and walks with average and top speed.
 - Calories from walking now follow the phone app (about 0.5 kcal per kg per km). Once Google has given access in a session, the page reads the phone file again by itself when opened.
+
+### v1.16.2
+- **Pooja & Vrat → Vrats → My own vrats:** add your own vrat with a **start and stop date** — kept on chosen weekdays (e.g. 16 Somvar), every day (a 40-day sankalp), on a tithi every month, or once — with its deity, food rules and paran. Each day is a task under Spiritual & Pooja; switch it off or remove it to take the coming days out.
+- **Only poojas and vrats go into the Daily planner.** Festivals (Kartik Purnima, Guru Nanak Jayanti, Dev Deepawali…) stay on the Hindu calendar and the Panchang line, not in the task list; festival tasks not yet done were removed. Settings has a switch to put them back if you ever want them.
+- **Exams and interviews** added with “Add to my daily & study plan…” go under **FROG: To be tamed first** with the category **Career** (made if your diary has no Career category); earlier ones were moved there too.

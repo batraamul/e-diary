@@ -49,6 +49,7 @@
       const d = D();
       d.tasks.forEach(t => {
         if (!t.link || (t.link.k !== 'exam' && t.link.k !== 'iv')) return;
+        if (!t.slPlaced) { SL.place(t); ch = true; }
         const key = t.link.part || 'day';
         if (t.link.k === 'exam') {
           const x = examOf(t.link.id); if (!x) { t.gone = true; return; }
@@ -96,8 +97,15 @@
   };
 
   /* ---------------- "Add to my plans…" ---------------- */
-  const role = () => (D().roles.find(r => /learn|study|career|exam|scien|profession|work/i.test(r.name)) || {}).id || null;
-  const add = (id, o) => { const d = D(); if (d.tasks.some(t => t.id === id)) return 0; const t = M.newTask(Object.assign({ id, prio: 'A', roleId: role() }, o)); if (!t.repeat) t.num = M.nextNum(t.prio, t.date); d.tasks.push(t); return 1; };
+  /* 1.16.2: exams and interviews go under the FROG heading (the day's most important task) with the category Career */
+  const role = () => { const r = D().roles; return ((r.find(x => x.id === 'role-frog') || r.find(x => /^frog|frog: to be tamed/i.test(x.name)) || r.find(x => /frog/i.test(x.name))) || {}).id || null; };
+  const category = () => {
+    const c = D().categories; let x = c.find(y => /^car(ee|rie)r/i.test(y.name || ''));
+    if (!x) { x = { id: U.uid('cat'), name: 'Career', color: '#7b3fb8', icon: '🎯' }; c.push(x); }
+    return x.id;
+  };
+  SL.place = t => { t.roleId = role() || t.roleId; t.categoryId = category(); t.slPlaced = 1; };
+  const add = (id, o) => { const d = D(); if (d.tasks.some(t => t.id === id)) return 0; const t = M.newTask(Object.assign({ id, prio: 'A' }, o)); SL.place(t); if (!t.repeat) t.num = M.nextNum(t.prio, t.date); d.tasks.push(t); return 1; };
   const dialog = (title, rows, onGo, plan) => {
     const body = '<form class="st-form sl-form"><p class="hint">Choose what to add. Nothing is added twice — click again later to add what is new.</p>' +
       rows.map(r => '<label class="switch sl-row"><input type="checkbox" data-sl="' + r[0] + '"' + (r[2] === false ? '' : ' checked') + (r[3] ? ' disabled' : '') + '><span class="track"></span><span>' + r[1] + '</span></label>').join('') +

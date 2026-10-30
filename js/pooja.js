@@ -10,7 +10,8 @@
    Pooja" (made once, rename it as you like). Clicking one opens this page. The Daily page shows a Panchang line.
    Data: ED.store.data.pooja = {
      daily: [{ id, key (preset) | '', name, icon, time, days: [0–6] | null, every, start, notes, off }],
-     vrats: [key, …], fest: true, strip: true, ahead: 30, roleId, skip: { taskId: 1 } } */
+     vrats: [key, …], custom: [{ id, name, rule: daily|weekly|tithi|once, days, tithi, start, stop, deity, food, paran, notes }],
+     fest: false, strip: true, ahead: 30, roleId, skip: { taskId: 1 } } */
 (function () {
   'use strict';
   const ED = window.ED, U = ED.util, M = ED.model, e = U.esc;
@@ -23,9 +24,11 @@
   const st = () => ED.state.pj || (ED.state.pj = { tab: 'poojas' });
   const PD = () => {
     const d = D();
-    if (!d.pooja || typeof d.pooja !== 'object') d.pooja = ED.sample.pooja ? ED.sample.pooja() : { daily: [], vrats: [], fest: true, strip: true, ahead: 30, skip: {} };
+    if (!d.pooja || typeof d.pooja !== 'object') d.pooja = ED.sample.pooja ? ED.sample.pooja() : { daily: [], vrats: [], custom: [], fest: false, festV: 2, strip: true, ahead: 30, skip: {} };
     const p = d.pooja;
     if (!Array.isArray(p.daily)) p.daily = []; if (!Array.isArray(p.vrats)) p.vrats = []; if (!p.skip || typeof p.skip !== 'object') p.skip = {};
+    if (!Array.isArray(p.custom)) p.custom = [];
+    if (p.festV !== 2) { p.fest = false; p.festV = 2; }   // 1.16.2: festivals stay on the calendar, not in the task list (switch them on in Settings)
     return p;
   };
 
@@ -119,6 +122,18 @@
   const VKEYS = Object.keys(PJ.VRATS);
   const vname = (k, day) => k === 'ekadashi' && day && day.ekadashi ? day.ekadashi : k === 'navratri' && day && day.navratriDay ? 'Navratri day ' + day.navratriDay : (PJ.VRATS[k] || {}).name || k;
 
+  /* my own vrat: is it kept on day k? (between start and stop; every day, chosen weekdays, a tithi, or once) */
+  PJ.TITHIS = Array.from({ length: 30 }, (_, i) => [String(i + 1), (i < 15 ? 'Shukla ' : 'Krishna ') + (i === 14 ? 'Purnima' : i === 29 ? 'Amavasya' : P ? P.TITHI[i % 15] : String(i % 15 + 1))]);
+  PJ.customOn = (c, k, day) => {
+    if (!c || c.off || !U.isKey(c.start) || k < c.start || (c.stop && k > c.stop)) return false;
+    if (c.rule === 'once') return k === c.start;
+    if (c.rule === 'weekly') return (c.days || []).indexOf(U.dow(k)) >= 0;
+    if (c.rule === 'tithi') { day = day || P.day(k); return day.tithi === +c.tithi || day.kshaya && P.tithiShort(+c.tithi) === day.kshaya && (+c.tithi <= 15) === (day.tithi <= 15); }
+    return true;
+  };
+  const customWhen = c => (c.rule === 'once' ? 'on ' + U.fmtShort(c.start) : c.rule === 'weekly' ? 'every ' + (c.days || []).map(d => U.DAY3[d]).join(', ') : c.rule === 'tithi' ? 'on every ' + (PJ.TITHIS[(+c.tithi || 1) - 1] || [0, ''])[1] : 'every day') +
+    (c.rule === 'once' ? '' : ' from ' + U.fmtShort(c.start) + (c.stop ? ' to ' + U.fmtShort(c.stop) : ''));
+
   /* ---------------- planner tasks ---------------- */
   const PID = id => 'tk-pj-' + id, VID = (k, d) => 'tk-vr-' + k + '-' + d, FID = d => 'tk-fs-' + d;
   const BIG = /Navratri|Ram Navami|Hanuman Jayanti|Akshaya|Buddha|Rath|Guru Purnima|Raksha|Janmashtami|Ganesh|Dussehra|Karva|Ahoi|Dhanteras|Diwali|Govardhan|Bhai Dooj|Chhath|Dev Uthani|Kartik Purnima|Vasant|Shivaratri|Holi|Makar|Baisakhi|Lohri|Teej|Nag Panchami|Pitru|Mahalaya|Gita Jayanti|Vat |Ganga/;
@@ -128,7 +143,7 @@
     busy = true; let ch = false;
     try {
       const p = PD(), d = D(), today = U.today(), live = new Set();
-      const need = p.daily.some(x => !x.off) || p.vrats.length || p.fest;
+      const need = p.daily.some(x => !x.off) || p.vrats.length || p.custom.length || p.fest;
       const role = need ? ED.lifeRole(/spiritual|pooja|puja|devotion|religio|faith|prayer/i, 'Spiritual & Pooja', '🕉️', '#c2410c', p) : null;
       const find = id => d.tasks.find(t => t.id === id);
       // everyday poojas: one repeating task each
@@ -164,7 +179,7 @@
       });
       // vrats and festivals: one task on each day, for the days ahead
       const ahead = Math.max(7, Math.min(120, +p.ahead || 30));
-      if ((p.vrats.length || p.fest) && P) {
+      if ((p.vrats.length || p.custom.length || p.fest) && P) {
         for (let i = 0; i < ahead; i++) {
           const k = U.addDays(today, i), day = P.day(k);
           p.vrats.forEach(key => {
@@ -179,6 +194,19 @@
                 notes: [v.when, v.food ? 'Food: ' + v.food : '', v.paran ? 'Paran: ' + v.paran : ''].filter(Boolean).join('\n') });
               t.num = M.nextNum(t.prio, t.date);
               d.tasks.push(t); ch = true;
+            } else if (t.linkTitle !== title) { if (t.title === t.linkTitle) t.title = title; t.linkTitle = title; ch = true; }
+          });
+          // my own vrats, between their start and stop dates
+          p.custom.forEach(c => {
+            if (!PJ.customOn(c, k, day)) return;
+            const id = 'tk-vc-' + c.id + '-' + k; if (p.skip[id]) return;
+            live.add(id);
+            const title = '🙏 Vrat: ' + c.name;
+            let t = find(id);
+            if (!t) {
+              t = M.newTask({ id, title, date: k, allDay: true, prio: 'A', noCarry: true, roleId: role, link: { k: 'vrat', id: 'c:' + c.id, date: k }, linkTitle: title,
+                notes: [c.deity ? 'For: ' + c.deity : '', c.food ? 'Food: ' + c.food : '', c.paran ? 'Paran: ' + c.paran : '', c.notes || ''].filter(Boolean).join('\n') });
+              t.num = M.nextNum(t.prio, t.date); d.tasks.push(t); ch = true;
             } else if (t.linkTitle !== title) { if (t.title === t.linkTitle) t.title = title; t.linkTitle = title; ch = true; }
           });
           if (p.fest) {
@@ -237,7 +265,7 @@
     const o = ED.tasksUI && ED.tasksUI.occFrom ? ED.tasksUI.occFrom(el) : null;
     if (o && o.t.link && ['pooja', 'vrat', 'fest'].indexOf(o.t.link.k) >= 0) {
       const s = st(); s.day = o.k || o.t.link.date || U.today();
-      if (o.t.link.k === 'vrat') { s.tab = 'vrats'; s.open = o.t.link.id; } else if (o.t.link.k === 'pooja') s.tab = 'poojas';
+      if (o.t.link.k === 'vrat') { s.tab = 'vrats'; s.open = String(o.t.link.id).indexOf('c:') === 0 ? null : o.t.link.id; } else if (o.t.link.k === 'pooja') s.tab = 'poojas';
       ED.go.tab('pooja'); return;
     }
     return open0 && open0(el, ev);
@@ -267,7 +295,7 @@
       const kk = U.addDays(first, i), x = P.day(kk);
       const big = x.festivals.some(f => BIG.test(f)), mark = x.tithi === 15 ? '🌕' : x.tithi === 30 ? '🌑' : x.vrats.indexOf('ekadashi') >= 0 ? 'E' : '';
       cells += '<button type="button" class="pj-c' + (kk === today ? ' today' : '') + (kk === k ? ' sel' : '') + (big ? ' fest' : '') + '" data-act="pj-day" data-date="' + kk + '" title="' + e(x.label + (x.festivals.length ? ' — ' + x.festivals.join(', ') : '')) + '">' +
-        '<b class="num">' + (i + 1) + '</b><span class="pj-ct">' + e((x.tithi > 15 ? 'K' : 'S') + (x.tithi === 15 || x.tithi === 30 ? '' : ((x.tithi - 1) % 15) + 1)) + '</span>' + (mark ? '<i class="pj-mk">' + mark + '</i>' : '') + '</button>';
+        '<b class="num">' + (i + 1) + '</b><span class="pj-ct">' + e(x.tithi === 15 ? 'Purnima' : x.tithi === 30 ? 'Amavasya' : (x.tithi > 15 ? 'K' : 'S') + (((x.tithi - 1) % 15) + 1)) + '</span>' + (mark ? '<i class="pj-mk">' + mark + '</i>' : '') + '</button>';
     }
     return '<div class="pj-cal"><div class="pj-cal-h">' + U.DAY3.map(w => '<span>' + w + '</span>').join('') + '</div><div class="pj-cal-g">' + cells + '</div></div>';
   };
@@ -327,7 +355,12 @@
   const vratsTab = () => {
     const p = PD(), s = st(), today = U.today();
     const groups = {}; VKEYS.forEach(k => { const g = PJ.VRATS[k].group; (groups[g] = groups[g] || []).push(k); });
-    return '<p class="hint">Tick the vrats you keep. Each falls on its day as a task in the Daily planner (the next ' + (+p.ahead || 30) + ' days are filled in), with the food rules and paran in its notes.</p>' +
+    const own = p.custom.map(c => { const nx = []; for (let i = 0; i < 120 && nx.length < 3; i++) { const k = U.addDays(today, i); if (PJ.customOn(c, k)) nx.push(k); }
+      return '<li class="pj-v' + (c.off ? '' : ' on') + '"><div class="pj-vh"><label class="switch pj-sw"><input type="checkbox" data-change="pj-con" data-id="' + e(c.id) + '"' + (c.off ? '' : ' checked') + '><span class="track"></span></label>' +
+        '<button type="button" class="plain-btn grow pj-vb" data-act="pj-cedit" data-id="' + e(c.id) + '"><b>' + e(c.name) + '</b>' + (c.deity ? ' <span class="hint">· ' + e(c.deity) + '</span>' : '') + '<span class="hint pj-vn">' + e(customWhen(c)) + (nx.length ? ' · next: ' + nx.map(k => e(U.fmtDM(k))).join(', ') : c.stop && c.stop < today ? ' · finished' : '') + '</span></button>' + ED.icon('pencil') + '</div></li>'; }).join('');
+    const ownHtml = '<h4 class="ls-gh">My own vrats</h4>' + (own ? '<ul class="pj-vlist">' + own + '</ul>' : '<p class="hint">A vrat of your own — a sankalp for 40 days, 16 Somvar, Sawan Mondays, a Navratri you keep differently — with its start and stop dates.</p>') +
+      '<div class="row-btns"><button type="button" class="btn small primary" data-act="pj-cedit">' + ED.icon('plus') + 'Add my own vrat</button></div>';
+    return ownHtml + '<p class="hint">Tick the vrats you keep. Each falls on its day as a task in the Daily planner (the next ' + (+p.ahead || 30) + ' days are filled in), with the food rules and paran in its notes.</p>' +
       Object.keys(groups).map(g => '<h4 class="ls-gh">' + e(g) + '</h4><ul class="pj-vlist">' + groups[g].map(k => {
         const v = PJ.VRATS[k], on = p.vrats.indexOf(k) >= 0, open = s.open === k;
         const nx = P.next(k, today, k === 'navratri' || PJ.VRATS[k].group === 'Festivals' ? 400 : 60).slice(0, 3);
@@ -340,10 +373,10 @@
     const p = PD();
     return '<div class="pj-set">' +
       '<label class="switch"><input type="checkbox" data-change="pj-set" data-k="strip"' + (p.strip !== false ? ' checked' : '') + '><span class="track"></span><span>Show the Panchang line on the Daily page</span></label>' +
-      '<label class="switch"><input type="checkbox" data-change="pj-set" data-k="fest"' + (p.fest ? ' checked' : '') + '><span class="track"></span><span>Put the main festivals in the Daily planner</span></label>' +
+      '<label class="switch"><input type="checkbox" data-change="pj-set" data-k="fest"' + (p.fest ? ' checked' : '') + '><span class="track"></span><span>Also put the main festivals in the Daily planner as tasks (they are always on the calendar and the Panchang line)</span></label>' +
       '<label class="pj-ahead">Fill the planner ahead for <select class="field" data-change="pj-ahead">' + [14, 30, 45, 60, 90].map(n => FX().opt(n, n + ' days', (+p.ahead || 30) === n)).join('') + '</select></label>' +
       '<p class="hint">City for sunrise and the tithi: <b>' + e(P.place().name) + '</b> — change it in Settings → Weather &amp; Quotes.</p>' +
-      '<p class="hint">Tasks go under the role <b>' + e(((D().roles.find(r => r.id === p.roleId)) || {}).name || 'Spiritual & Pooja') + '</b> (rename it on the Roles page). Deleting a pooja’s task takes it out of the planner (switch it on again here); deleting a vrat or festival task skips that day only.</p></div>';
+      '<p class="hint">Only your poojas and the vrats you keep go into the Daily planner as tasks, under the role <b>' + e(((D().roles.find(r => r.id === p.roleId)) || {}).name || 'Spiritual & Pooja') + '</b> (rename it on the Roles page). Deleting a pooja’s task takes it out of the planner (switch it on again here); deleting a vrat or festival task skips that day only.</p></div>';
   };
   const right = () => {
     const s = st(), tab = s.tab || 'poojas';
@@ -381,6 +414,36 @@
       },
     });
   };
+  PJ.editCustom = id => {
+    const p = PD(), c = id ? p.custom.find(y => y.id === id) : null;
+    FX().form({
+      title: c ? 'My vrat' : 'Add my own vrat', wide: true,
+      data: c ? Object.assign({}, c, { tithi: String(c.tithi || 11) }) : { name: '', rule: 'weekly', days: [1], tithi: '11', start: U.today(), stop: '', deity: '', food: '', paran: '', notes: '' },
+      fields: [
+        { k: 'name', label: 'Vrat', req: true, ph: 'e.g. 16 Somvar, Sawan Somvar, 40-day sankalp' },
+        { k: 'rule', label: 'Kept', type: 'select', options: [['weekly', 'On chosen weekdays'], ['daily', 'Every day'], ['tithi', 'On a tithi (every month)'], ['once', 'Once (on the start date)']] },
+        { k: 'days', label: 'Weekdays', type: 'days', hint: 'Used for “On chosen weekdays”.' },
+        { k: 'tithi', label: 'Tithi', type: 'select', options: PJ.TITHIS, hint: 'Used for “On a tithi”.' },
+        { k: 'start', label: 'Start date', type: 'date', req: true },
+        { k: 'stop', label: 'Stop date', type: 'date', hint: 'Leave empty to keep it going.' },
+        { k: 'deity', label: 'For (deity / intention)', ph: 'optional' },
+        { k: 'food', label: 'Food rules', ph: 'phalahar, one meal, nirjala…' },
+        { k: 'paran', label: 'Breaking the fast', ph: 'after the evening puja, next morning…' },
+        { k: 'notes', label: 'Notes', type: 'textarea', rows: 2 },
+      ],
+      check: v => v.stop && v.stop < v.start ? 'The stop date is before the start date' : v.rule === 'weekly' && (!v.days || !v.days.length) && v.days !== null ? 'Pick at least one weekday' : '',
+      del: c ? async () => { if (!await ED.ui.confirm({ title: 'Remove vrat', message: 'Remove “' + c.name + '”? Its days from today are taken out of the planner; days already past stay.', ok: 'Remove', danger: true })) return false; ED.store.checkpoint('Remove vrat'); p.custom = p.custom.filter(y => y !== c); ED.store.commit(); ED.ui.undoToast('Vrat removed'); } : null,
+      save(v, api) {
+        ED.store.checkpoint(c ? 'Vrat' : 'New vrat');
+        if (v.rule === 'weekly' && !v.days) v.days = [0, 1, 2, 3, 4, 5, 6];
+        v.tithi = +v.tithi || 11;
+        if (c) Object.assign(c, v, { updatedAt: Date.now() }); else p.custom.push(Object.assign({ id: U.uid('vc'), updatedAt: Date.now() }, v));
+        ED.store.commit(); api.close(); ED.ui.toast(c ? 'Saved' : 'Added — its days are in the Daily planner under Spiritual & Pooja');
+      },
+    });
+  };
+  A['pj-cedit'] = el => PJ.editCustom(el.dataset.id || null);
+  CH['pj-con'] = el => { const c = PD().custom.find(y => y.id === el.dataset.id); if (!c) return; ED.store.checkpoint('Vrat'); c.off = !el.checked; c.updatedAt = Date.now(); ED.store.commit(); };
   A['pj-go'] = el => { st().day = el.dataset.date || U.today(); ED.go.tab('pooja'); };
   A['pj-day'] = el => { st().day = el.dataset.date; ED.app.render(); };
   A['pj-step'] = el => { const d = +el.dataset.dir; st().day = d ? U.addDays(day(), d) : U.today(); ED.app.render(); };
