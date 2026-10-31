@@ -562,3 +562,14 @@ There is no automated test runner in the package; test by hand in the browser:
 - `purchases.js`: medicines with ≤ 5 days of stock → `health.meds[].reorder = { at, bought, boughtOn, price, skip }`, task `tk-med-<id>-<at>`, bill `med:<id>` (amount 0 unless a price is given), record `fr-pu-med-<id>`; deleting the medicine removes all of them.
 - `lists.js`: foods carry `kcal`, `fat`, `carb` per serving (`NUT` table); `LI.targets()` gives the day's calorie/macro targets from `lists.weight, goalWeight, height, age, sex, act, pace, perKg`. The meal planner is drawn by `LI.mealMonthLeft`; Grocery's right page is `LI.grocRight`.
 - `sync.js` merges `pooja`, `exercise` and `welfare` like the other sections.
+
+## 1.17 — Research papers, health in the planner
+
+| File | What it does | Data |
+|---|---|---|
+| `js/research.js` | Study → Year → **Research papers** tab (`ytab: 'research'`; old `'notes'` maps to it; `yearly.notes()` now sits in a `<details>` under Subjects). Topics/subtopics (`parentId`), papers, search tabs (`RS.TABS`): Crossref (`latest`, `ieee` = prefix 10.1109), DataCite `client-id=arxiv.content` (`arxiv`), OpenAlex (`cited`, `india`; optional `research.key` → `&api_key=`; retries without `select` on 400), Wikipedia (`overview`), link-outs (`RS.sites(q)`). Fetches only from click handlers (`F['rs-search']`, `rs-tab`, `rs-load`, `rs-retry`, `rs-again`); results cached in `ED.state.rs.res['<tab>|<query>']` for the session. | `research: { topics[{ id, name, parentId, q, notes }], papers[{ id, topicId, title, authors, year, date, venue, doi, link, pdf, abstract, summary, status, cites, src }], key }` |
+| `js/healthplan.js` | One task a day `tk-md-<date>` (today + 6 days, `link.k = 'meddue'`, `noCarry`) synced both ways with `health.taken` (`linkSt`, `mdHold` for a hand-reopened task); appointment tasks `tk-ap-<visit>` (date/time, both-way date sync incl. the calendar event) and next-visit tasks `tk-apn-<visit>` (until a visit exists on that date). Wraps `task-open` (Health page on that day / `HL.editVisit(id)` / `HL.editVisit(null, prefill)`) and `M.deleteTask` (`health.dueOff[date]`, `visit.noTask`, `visit.noNextTask`). | `health.dueTask` (false = off), `health.dueOff{}`, `visits[].noTask`, `visits[].noNextTask` |
+| `css/research.css` | Styles for both. | |
+
+- `health.js`: `HL.editVisit(id, pre)` takes a prefill; the form has a “Put it in my daily tasks” switch; `ED.changes['hl-duetask']`.
+- `sync.js`: `research` merged with `nested('research', ['topics', 'papers'])`; `health.dueOff` merged as a map.

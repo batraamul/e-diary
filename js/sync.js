@@ -89,7 +89,7 @@
     out.gcal = nested('gcal', []) || { map: {} };
     out.habits = nested('habits', ['list'], { log: 2 }) || { list: [], log: {} };
     out.interview = nested('interview', ['list', 'qs', 'docs', 'mocks'], { log: 1 }) || undefined;
-    out.health = nested('health', ['meds', 'treats', 'visits', 'vitals', 'reports'], { taken: 2 }) || undefined;
+    out.health = nested('health', ['meds', 'treats', 'visits', 'vitals', 'reports'], { taken: 2, dueOff: 1 }) || undefined;
     out.meetings = nested('meetings', [], { calInfo: 1, notes: 1 }) || undefined;
     out.lists = nested('lists', ['trips', 'groc', 'foods'], { meals: 1 }) || undefined;
     out.exam = nested('exam', ['list', 'topics', 'mocks'], { log: 1 }) || undefined;
@@ -99,6 +99,8 @@
     out.pooja = nested('pooja', ['daily', 'custom'], { skip: 1 }) || undefined;
     out.exercise = nested('exercise', ['log'], { steps: 1, ticks: 2, watch: 1 }) || undefined;
     out.welfare = nested('welfare', ['list']) || undefined;
+    // 1.17: Research papers
+    out.research = nested('research', ['topics', 'papers']) || undefined;
     // deletion markers from both sides (js/store.js markGone): an item deleted anywhere stays deleted, unless it was
     // changed again after it was deleted
     const gone = Object.assign({}, (remote.meta && remote.meta.gone) || {});

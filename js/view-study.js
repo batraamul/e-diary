@@ -147,11 +147,12 @@
     },
     right() {
       const p = ST.plan();
-      const tab = st().ytab || 'subjects';
-      const seg = '<div class="seg st-seg" role="group" aria-label="Show">' + [['subjects', 'Subjects'], ['matrix', 'Track matrix'], ['sources', 'Books & lectures'], ['topics', 'Topics'], ['notes', 'Notes']].map(x =>
+      let tab = st().ytab || 'subjects';
+      if (tab === 'notes') tab = st().ytab = 'research';      // 1.17: Notes became Research papers (the plan's notes are under Subjects)
+      const seg = '<div class="seg st-seg" role="group" aria-label="Show">' + [['subjects', 'Subjects'], ['matrix', 'Track matrix'], ['sources', 'Books & lectures'], ['topics', 'Topics'], ['research', 'Research papers']].map(x =>
         '<button type="button" data-act="study-ytab" data-tab="' + x[0] + '" aria-pressed="' + (tab === x[0]) + '">' + e(x[1]) + '</button>').join('') + '</div>';
-      const body = (yearly[tab] || yearly.subjects)(p);
-      return '<div class="study st-year-r"><div class="pg-head"><h2 class="pg-title">Year at a glance</h2>' + seg + '</div><div class="st-scroll scroll" data-keep-scroll="st-yr-' + tab + '">' + body + '</div></div>';
+      const body = tab === 'research' ? (ED.research ? ED.research.html() : '') : (yearly[tab] || yearly.subjects)(p);
+      return '<div class="study st-year-r' + (tab === 'research' ? ' st-rs' : '') + '"><div class="pg-head"><h2 class="pg-title">' + (tab === 'research' ? 'Research papers' : 'Year at a glance') + '</h2>' + seg + '</div><div class="st-scroll scroll" data-keep-scroll="st-yr-' + tab + '">' + body + '</div></div>';
     },
     subjects(p) {
       const ts = ST.trackStats();
@@ -184,7 +185,8 @@
       ST.weekStats().forEach(x => { const k = x.w.phase || 'Plan'; if (!ph.has(k)) ph.set(k, { a: x.w.n, b: x.w.n, min: 0, doneMin: 0 }); const o = ph.get(k); o.b = x.w.n; o.min += x.min; o.doneMin += x.studied; });
       const phases = ph.size > 1 ? '<h3 class="gh">Phases</h3><table class="st-table"><thead><tr><th>Phase</th><th>Weeks</th><th class="num">Planned (h)</th><th class="num">Studied (h)</th><th>Progress</th></tr></thead><tbody>' +
         Array.from(ph.entries()).map(([k, o]) => '<tr><td>' + e(k) + '</td><td class="num">' + o.a + '–' + o.b + '</td><td class="num">' + h1(o.min) + '</td><td class="num">' + h1(o.doneMin) + '</td><td>' + bar(o.doneMin, o.min) + '</td></tr>').join('') + '</tbody></table>' : '';
-      return meters + last30 + pattern + slots + phases;
+      const about = yearly.notes(p);
+      return meters + last30 + pattern + slots + phases + '<details class="st-about"><summary>About this plan</summary>' + about + '</details>';
     },
     matrix(p) {
       const today = U.today();

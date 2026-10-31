@@ -109,6 +109,7 @@
         '<span class="hint hl-sub">' + e([t.doctor, t.place, t.start ? 'since ' + FX.dm(t.start) : ''].filter(Boolean).join(' · ')) + '</span></span><span class="xp-r"><span class="xp-stage">' + e((TSTATUS.find(x => x[0] === t.status) || TSTATUS[0])[1]) + '</span>' + (t.next && t.status !== 'completed' ? '<span class="hint num' + (t.next < today ? ' fin-bad' : '') + '">follow-up ' + e(FX.when(t.next)) + '</span>' : '') + '</span></button></li>').join('');
       const body = '<p class="hint hl-priv">' + ED.icon('lock') + ' Kept in your diary like your other entries — not in the encrypted password log. This page helps you keep track; it is not medical advice.</p>' + tiles +
         '<h3 class="gh">Medicines to take</h3>' + nav + doseList +
+        '<label class="switch hl-due-sw"><input type="checkbox" data-change="hl-duetask"' + (h.dueTask !== false ? ' checked' : '') + '><span class="track"></span><span>One “Medicines due” task in the Daily planner (click it to come here)</span></label>' +
         '<h3 class="gh fin-gap">My medicines <span class="hint num">· ' + h.meds.filter(m => !m.end || m.end >= today).length + ' current</span></h3>' + (meds ? '<ul class="xp-list">' + meds + '</ul>' : '') +
         '<div class="row-btns"><button type="button" class="btn small primary" data-act="hl-med">' + ED.icon('plus') + 'Add a medicine</button></div>' +
         '<h3 class="gh fin-gap">Treatments &amp; conditions</h3>' + (treats ? '<ul class="xp-list">' + treats + '</ul>' : '<p class="hint">Conditions being treated, courses of treatment, physiotherapy, surgery, vaccinations — with the doctor, status and next follow-up.</p>') +
@@ -131,7 +132,7 @@
     const past = h.visits.filter(v => v.date < today).sort((a, b) => b.date.localeCompare(a.date));
     const row = v => '<li><button type="button" class="plain-btn xp-card-b hl-visit" data-act="hl-visit" data-id="' + e(v.id) + '"><span class="xp-date"><b>' + (+v.date.slice(8)) + '</b><span>' + U.MON[+v.date.slice(5, 7) - 1] + '</span></span>' +
       '<span class="xp-m"><b>' + e(v.doctor || 'Appointment') + '</b><span class="hint">' + e([v.time ? FX.time(v.time) : '', v.place, v.purpose].filter(Boolean).join(' · ')) + '</span>' + (v.outcome ? '<span class="hint hl-out">' + e(v.outcome.slice(0, 140)) + '</span>' : '') + '</span>' +
-      '<span class="xp-r">' + (v.date >= today ? '<span class="hint num">' + e(FX.when(v.date)) + '</span>' : '') + (v.eventId ? '<span class="hint">' + ED.icon('calendar') + ' in calendar</span>' : '') + (v.next ? '<span class="hint">next ' + e(FX.dm(v.next)) + '</span>' : '') + '</span></button></li>';
+      '<span class="xp-r">' + (v.date >= today ? '<span class="hint num">' + e(FX.when(v.date)) + '</span>' : '') + (!v.noTask && v.date >= today ? '<span class="hint">' + ED.icon('check') + ' in daily tasks</span>' : '') + (v.eventId ? '<span class="hint">' + ED.icon('calendar') + ' in calendar</span>' : '') + (v.next ? '<span class="hint">next ' + e(FX.dm(v.next)) + '</span>' : '') + '</span></button></li>';
     return '<div class="row-btns"><button type="button" class="btn small primary" data-act="hl-visit">' + ED.icon('plus') + 'Add an appointment</button></div>' +
       '<h3 class="gh">Coming up</h3>' + (up.length ? '<ul class="xp-list hl-visits">' + up.map(row).join('') + '</ul>' : '<p class="hint">No appointments planned.</p>') +
       '<h3 class="gh fin-gap">Earlier visits</h3>' + (past.length ? '<ul class="xp-list hl-visits">' + past.map(row).join('') + '</ul>' : '<p class="hint">After a visit, note what the doctor said, tests ordered and the next date.</p>');
@@ -248,11 +249,12 @@
     });
   };
 
-  HL.editVisit = id => {
+  HL.editVisit = (id, pre) => {
     const h = H(); const x = id ? h.visits.find(t => t.id === id) : null;
     FX.form({
       title: x ? 'Appointment' : 'Add an appointment', wide: true,
-      data: x ? Object.assign({ cal: !!x.eventId }, x) : { date: U.today(), time: '10:00', doctor: '', place: '', purpose: '', outcome: '', next: '', cost: null, cal: true },
+      intro: x ? '' : pre && pre.from ? 'The next visit noted on your appointment of ' + e(FX.dm(pre.from)) + '. Check the date and time, then save — it goes into your daily tasks (and the calendar, if switched on).' : '',
+      data: x ? Object.assign({ cal: !!x.eventId, plan: !x.noTask }, x) : Object.assign({ date: U.today(), time: '10:00', doctor: '', place: '', purpose: '', outcome: '', next: '', cost: null, cal: true, plan: true }, pre || {}),
       fields: [
         { k: 'date', label: 'Date', type: 'date', req: true }, { k: 'time', label: 'Time', type: 'time' },
         { k: 'doctor', label: 'Doctor', req: true, ph: 'Dr …, speciality' }, { k: 'place', label: 'Hospital / clinic' },
@@ -260,6 +262,7 @@
         { k: 'outcome', label: 'What the doctor said', type: 'textarea', rows: 4, ph: 'Diagnosis, medicines changed, tests ordered, advice' },
         { k: 'next', label: 'Next visit', type: 'date' },
         { k: 'cost', label: 'Fee paid', type: 'number', min: 0 },
+        { k: 'plan', label: 'Put it in my daily tasks (the next visit too)', type: 'check' },
         { k: 'cal', label: 'Show it in my calendar, with a reminder an hour before', type: 'check' },
       ],
       del: x ? async () => { ED.store.checkpoint('Delete'); FX.dropEvent(x); h.visits = h.visits.filter(t => t.id !== x.id); ED.store.commit(); ED.ui.undoToast('Deleted'); } : null,
@@ -267,10 +270,13 @@
         ED.store.checkpoint('Appointment');
         const it = x || { id: U.uid('vs') };
         const cal = v.cal; delete v.cal;
+        const plan = v.plan; delete v.plan; delete v.from;
         Object.assign(it, v, { updatedAt: Date.now() });
+        if (plan) delete it.noTask; else it.noTask = true;
+        if (x && x.next !== it.next) delete it.noNextTask;
         FX.linkEvent(it, { on: cal, title: 'Doctor: ' + it.doctor, date: it.date, time: it.time, mins: 45, location: it.place, notes: it.purpose, reminder: 60, color: '#2e7d32' });
         if (!x) h.visits.push(it);
-        ED.store.commit(); api.close(); ED.ui.toast('Appointment saved' + (it.eventId ? ' — it is in your calendar too' : ''));
+        ED.store.commit(); api.close(); ED.ui.toast('Appointment saved' + (plan && it.eventId ? ' — in your daily tasks and calendar' : plan ? ' — in your daily tasks' : it.eventId ? ' — it is in your calendar too' : ''));
       },
     });
   };
@@ -361,6 +367,7 @@
   A['hl-med'] = el => HL.editMed(el.dataset.id || null);
   A['hl-treat'] = el => HL.editTreat(el.dataset.id || null);
   A['hl-visit'] = el => HL.editVisit(el.dataset.id || null);
+  (ED.changes = ED.changes || {})['hl-duetask'] = el => { ED.store.checkpoint('Medicines due task'); if (el.checked) delete H().dueTask; else H().dueTask = false; ED.store.commit(); };
   A['hl-vital'] = el => HL.editVital(el.dataset.id || null);
   A['hl-report'] = el => HL.editReport(el.dataset.id || null);
   A['hl-card'] = () => HL.editCard();
