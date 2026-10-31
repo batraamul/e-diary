@@ -3,7 +3,8 @@
    "Get latest bits" — never by itself — so the diary stays quick:
      • Top stories, ScienceDaily & science sites, World universities, Newspapers · science, India (gov.in, IITs, CSIR…)
        — Google News search limited to those sites, read through a public relay (the browser cannot read Google News
-       directly); the diary asks api.allorigins.win, api.rss2json.com and api.codetabs.com together, and once more if all fail
+       directly): your own reader if you set one up (⚙ — a Google Apps Script under your account), and api.allorigins.win,
+       api.rss2json.com and api.codetabs.com together, once more if all fail
      • Tech talk — Hacker News (hn.algolia.com, read directly)
      • Space — Spaceflight News API (read directly)
      • Open on the site — ScienceDaily, EurekAlert!, Nature News, university news pages, newspapers, already searched
@@ -61,14 +62,32 @@
     ['codetabs', async u => { const r = await timed('https://api.codetabs.com/v1/proxy/?quest=' + enc(u), 14000); if (!r.ok) throw new Error('relay ' + r.status); return feedText(await r.text()); }],
   ];
   SB.RELAYS = RELAYS;
+  /* 1.18.3: your own news reader — a small Google Apps Script under your Google account (free, used only by you, so it
+     is not busy or blocked like the shared relays). When it is set it is asked first, with the public relays as backup;
+     its answer — even "nothing found" — is trusted. */
+  SB.SCRIPT = [
+    '// E-Diary news reader — paste into a new Google Apps Script project, then Deploy → New deployment → Web app',
+    '// (Execute as: Me · Who has access: Anyone). It only reads Google News search feeds.',
+    'function doGet(e) {',
+    '  var u = (e && e.parameter && e.parameter.url) || "";',
+    '  if (!/^https:\\/\\/news\\.google\\.com\\/rss\\/search\\?/.test(u)) {',
+    '    return ContentService.createTextOutput("E-Diary news reader: give ?url= a Google News search feed").setMimeType(ContentService.MimeType.TEXT);',
+    '  }',
+    '  var r = UrlFetchApp.fetch(u, { muteHttpExceptions: true, followRedirects: true });',
+    '  return ContentService.createTextOutput(r.getContentText()).setMimeType(ContentService.MimeType.XML);',
+    '}',
+  ].join('\n');
+  const myUrl = () => { const v = String(R().relay || '').trim(); return /^https:\/\/script\.google(usercontent)?\.com\/.+/.test(v) ? v : ''; };
+  const MINE = async u => { const r = await timed(myUrl() + (myUrl().indexOf('?') >= 0 ? '&' : '?') + 'url=' + enc(u), 20000); if (!r.ok) throw new Error('my reader ' + r.status); return feedText(await r.text()); };
   /* one round: every relay at once; the first answer with bits wins; an empty answer counts only when no relay has
      anything better; all failing → a second round (these free relays fail now and then and work on the next try) */
   const round = u => new Promise((ok, bad) => {
-    let left = RELAYS.length, done = false, empty = null, last = null;
+    const list = (myUrl() ? [['my reader', MINE]] : []).concat(RELAYS);
+    let left = list.length, done = false, empty = null, last = null;
     const settle = () => { if (--left > 0 || done) return; done = true; if (empty) ok(empty); else bad(last || new Error('no relay')); };
-    RELAYS.forEach(([name, f]) => f(u).then(items => {
+    list.forEach(([name, f]) => f(u).then(items => {
       if (done) return;
-      if (items.length) { done = true; SB.lastRelay = name; ok(items); return; }
+      if (items.length || name === 'my reader') { done = true; SB.lastRelay = name; ok(items); return; }
       if (!empty) { empty = items; SB.lastRelay = name; }
       settle();
     }, err => { last = err; settle(); }));
@@ -187,7 +206,7 @@
       if (tab === 'sites') body = '<p class="hint">Each opens the site, or Google News limited to it, already searched for <b>' + e(shown) + '</b>.</p><div class="rs-sl">' + SB.sites(shown).map(x => ext(x[1], e(x[0]) + ED.icon('external'), 'rs-site')).join('') + '</div>';
       else if (!c) body = '<div class="rs-empty"><p>Not looked up yet.</p><button type="button" class="btn small primary" data-act="sb-load" data-k="' + tab + '">' + ED.icon('sparkle') + 'Get ' + e(TABS.find(x => x[0] === tab)[1]) + '</button></div>';
       else if (c.busy) body = '<div class="rs-empty rs-busy"><span class="rs-spin" aria-hidden="true"></span><p>Gathering the latest…</p><p class="hint">Usually a few seconds. If a relay is busy the diary asks again by itself.</p></div>';
-      else if (c.err) body = '<div class="rs-empty rs-err"><p>' + e(c.err) + '</p><button type="button" class="btn small" data-act="sb-retry" data-k="' + tab + '">Try again</button> <button type="button" class="btn small ghost" data-act="sb-tab" data-k="sites">Open on the site</button></div>';
+      else if (c.err) body = '<div class="rs-empty rs-err"><p>' + e(c.err) + '</p><button type="button" class="btn small" data-act="sb-retry" data-k="' + tab + '">Try again</button> <button type="button" class="btn small ghost" data-act="sb-tab" data-k="sites">Open on the site</button>' + (myUrl() ? '' : '<p class="hint sb-tip">' + ED.icon('info') + ' The shared free relays are often busy. <button type="button" class="link-btn" data-act="sb-settings">Set up your own news reader</button> — free, about 3 minutes, and it makes these searches dependable.</p>') + '</div>';
       else {
         const k = ck(shown, tab, s.span), oth = c.other || [];
         body = (c.items.length ? '<div class="sb-grid">' + c.items.map((x, i) => card(x, i, k)).join('') + '</div>' : '<p class="hint">Nothing on <b>' + e(shown) + '</b> in ' + e((SPANS.find(x => x[0] === +s.span) || SPANS[1])[1].toLowerCase()) + '. Try a longer period, or another tab.</p>') +
@@ -199,7 +218,7 @@
     const form = '<section class="rs-search sb-search"><form class="rs-form" data-form="sb-search" role="search"><span class="rs-sic" aria-hidden="true">' + ED.icon('sparkle') + '</span>' +
       '<input class="field" id="sb-q" type="search" value="' + e(q) + '" placeholder="A topic — e.g. stratospheric balloons, quantum sensing" aria-label="Topic">' +
       '<select class="field sb-span" id="sb-span" data-change="sb-span" aria-label="Period">' + SPANS.map(x => '<option value="' + x[0] + '"' + (+s.span === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select>' +
-      '<button type="submit" class="btn primary">' + ED.icon('sparkle') + 'Get latest bits</button>' + (shown ? '<button type="button" class="icon-btn sm" data-act="sb-again" title="Look again" aria-label="Look again">' + ED.icon('sync') + '</button>' : '') + '</form>' + chips +
+      '<button type="submit" class="btn primary">' + ED.icon('sparkle') + 'Get latest bits</button>' + (shown ? '<button type="button" class="icon-btn sm" data-act="sb-again" title="Look again" aria-label="Look again">' + ED.icon('sync') + '</button>' : '') + '<button type="button" class="icon-btn sm" data-act="sb-settings" title="News reader settings' + (myUrl() ? ' (your own reader is on)' : '') + '" aria-label="News reader settings">' + ED.icon('gear') + '</button></form>' + chips +
       (shown ? '' : '<p class="hint rs-how">Fresh news and short reads on your topic from ScienceDaily and other science sites, the world’s top universities, the science pages of leading newspapers, Indian government and institute sites, Hacker News and space news. Nothing is fetched until you click.</p>') + results + '</section>';
     const saved = r.bits.slice().sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
     const mine = '<section><h3 class="gh rs-h">Saved bits <span class="hint num">· ' + saved.length + '</span></h3>' + (saved.length ? '<ul class="sb-saved">' + saved.map(b => '<li><span class="grow">' + ext(b.url, e(b.title)) + '<span class="hint">' + e([b.source, b.date ? U.fmtShort(b.date) : '', b.q ? 'on “' + b.q + '”' : ''].filter(Boolean).join(' · ')) + '</span>' + (b.note ? '<span class="sb-note">' + e(b.note) + '</span>' : '') + '</span>' +
@@ -228,6 +247,39 @@
     const b = R().bits.find(x => x.id === el.dataset.id); if (!b) return;
     const v = await ED.ui.prompt({ title: 'Note', label: b.title, multiline: true, value: b.note || '', ok: 'Save' }); if (v == null) return;
     keep(); ED.store.checkpoint('Bit note'); b.note = v.trim(); b.updatedAt = Date.now(); ED.store.commit();
+  };
+  A['sb-settings'] = () => {
+    const r = R();
+    ED.ui.modal({
+      title: 'Your own news reader', cls: 'st-modal wide',
+      body: '<div class="sb-set"><p>Web pages are not allowed to read Google News directly, so Science bits goes through a reader. The free shared ones are often busy or blocked. Your own reader runs under your Google account — free, private to you, and dependable. It takes about 3 minutes once; the address is kept in the diary and works on all your devices.</p>' +
+        '<ol class="sb-steps"><li>Open <a href="https://script.google.com/home/projects/create" target="_blank" rel="noopener noreferrer">script.google.com → New project</a> (signed in to your Google account).</li>' +
+        '<li>Delete what is in the editor and paste the script below (<b>Copy the script</b>). Click 💾 Save.</li>' +
+        '<li><b>Deploy → New deployment</b> → ⚙ Select type: <b>Web app</b>. Execute as: <b>Me</b>. Who has access: <b>Anyone</b>. Click <b>Deploy</b>, then <b>Authorize access</b> and allow it (Google shows “unverified app” for your own scripts: Advanced → Go to … (unsafe) — it is your own script).</li>' +
+        '<li>Copy the <b>Web app URL</b> (it ends in <code>/exec</code>), paste it below and press <b>Test and save</b>.</li></ol>' +
+        '<pre class="sb-code">' + e(SB.SCRIPT) + '</pre><div class="row-btns"><button type="button" class="btn small" data-x="copy">' + ED.icon('copy') + 'Copy the script</button></div>' +
+        '<label class="lbl" for="sb-relay">Web app URL</label><input class="field" id="sb-relay" type="url" placeholder="https://script.google.com/macros/s/…/exec" value="' + e(r.relay || '') + '">' +
+        '<p class="hint sb-test" id="sb-test">' + (myUrl() ? 'Your own reader is on.' : 'Not set — the shared relays are used.') + '</p></div>',
+      footer: (r.relay ? '<button type="button" class="btn danger" data-x="off">Stop using it</button>' : '') + '<span class="grow"></span><button type="button" class="btn" data-mclose>Close</button><button type="button" class="btn primary" data-x="save">Test and save</button>',
+      onMount(el, api) {
+        el.querySelector('[data-x="copy"]').addEventListener('click', async () => { ED.ui.toast(await U.copy(SB.SCRIPT) ? 'Script copied — paste it into the Apps Script editor' : 'Could not copy — select the text and copy it'); });
+        const off = el.querySelector('[data-x="off"]');
+        if (off) off.addEventListener('click', () => { ED.store.checkpoint('News reader'); delete r.relay; ED.store.commit(); api.close(); ED.ui.toast('Back to the shared relays'); });
+        el.querySelector('[data-x="save"]').addEventListener('click', async () => {
+          const v = el.querySelector('#sb-relay').value.trim(), out = el.querySelector('#sb-test');
+          if (!/^https:\/\/script\.google(usercontent)?\.com\/.+/.test(v)) { out.textContent = 'That is not an Apps Script web app address — it starts with https://script.google.com/macros/s/ and ends in /exec.'; return; }
+          out.textContent = 'Testing…';
+          try {
+            const res = await timed(v + (v.indexOf('?') >= 0 ? '&' : '?') + 'url=' + enc(gnews('ISRO', null, 30)), 25000);
+            const items = feedText(await res.text());
+            ED.store.checkpoint('News reader'); r.relay = v; ED.store.commit();
+            Object.keys(st().res).forEach(k => { if (st().res[k].err) delete st().res[k]; });
+            out.textContent = 'Works — ' + U.plural(items.length, 'news item') + ' on ISRO in the last 30 days. Saved; Science bits now uses your own reader.';
+            setTimeout(() => api.close(), 1800);
+          } catch (err) { out.textContent = 'Did not work yet (' + (err.message || err) + '). Check that “Who has access” is Anyone and that you copied the /exec address of the deployment, then try again.'; }
+        });
+      },
+    });
   };
   A['sb-del'] = el => { keep(); ED.store.checkpoint('Remove bit'); R().bits = R().bits.filter(x => x.id !== el.dataset.id); ED.store.commit(); ED.ui.undoToast('Removed'); };
 })();

@@ -143,3 +143,9 @@
   .sb-span { flex: 1 1 auto; }
 }
 .sb-other { margin-top: 12px; } .sb-other summary { cursor: pointer; color: var(--ink-2); font-size: 13px; margin-bottom: 8px; }
+.sb-tip { margin: 10px 0 0; } .sb-tip svg { width: 13px; height: 13px; vertical-align: -2px; }
+.sb-set p { margin: 0 0 8px; line-height: 1.5; }
+.sb-steps { margin: 0 0 10px; padding-left: 20px; line-height: 1.55; font-size: 13.5px; }
+.sb-steps li { margin-bottom: 4px; }
+.sb-code { max-height: 180px; overflow: auto; padding: 10px; border-radius: 8px; background: var(--paper-3); border: 1px solid var(--card-border); font-size: 12px; line-height: 1.45; white-space: pre; }
+.sb-test { min-height: 1.4em; margin-top: 6px; }
