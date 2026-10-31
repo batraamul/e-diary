@@ -190,13 +190,25 @@
   const clean = q => q.replace(/[,:|"]/g, ' ').replace(/\s+/g, ' ').trim();
   const newest = l => l.slice().sort((a, b) => String(b.date || b.year || '').localeCompare(String(a.date || a.year || '')));
 
+  /* 1.18.2: several words are looked for as one phrase where the service allows it ("software defined radio"), and every
+     result is checked: all your words (with three or more, all but one) in its title or abstract — the rest are set aside */
+  const STOP = new Set(['a', 'an', 'the', 'of', 'in', 'on', 'for', 'and', 'or', 'to', 'with', 'by', 'at', 'from', 'is', 'are', 'about', 'using', 'based']);
+  RS.terms = q => String(q || '').toLowerCase().replace(/["()]/g, ' ').split(/[\s\-_/]+/).map(w => w.replace(/[^a-z0-9.+#]/g, '')).filter(w => w && !STOP.has(w));
+  const phrase = q => /["()]|\b(OR|AND)\b/.test(q) || RS.terms(q).length < 2 ? q : '"' + q.replace(/\s+/g, ' ').trim() + '"';
+  RS.match = (x, q) => {
+    const ws = RS.terms(q); if (!ws.length) return true;
+    const t = ((x.title || '') + ' ' + (x.abstract || '')).toLowerCase().replace(/[-_/]+/g, ' ');
+    const n = ws.filter(w => new RegExp('(^|[^a-z0-9])' + w.replace(/[.+#]/g, '\\$&') + '(s|es)?([^a-z0-9]|$)').test(t)).length;
+    return n >= ws.length;                       // every word; papers missing one come next, under “less closely related”
+  };
+  RS.near = (x, q) => { const ws = RS.terms(q); const t = ((x.title || '') + ' ' + (x.abstract || '')).toLowerCase().replace(/[-_/]+/g, ' '); return ws.filter(w => t.indexOf(w) >= 0).length >= ws.length - 1; };
   /* each tab of results: [label, how to fetch, what it is] */
   const TABS = {
-    latest: ['Latest papers', async q => newest((await getJSON('https://api.crossref.org/works?query=' + enc(q) + '&filter=from-pub-date:' + back(365) + ',until-pub-date:' + U.today() + ',type:journal-article,type:proceedings-article,type:posted-content&rows=25&select=DOI,title,author,container-title,issued,published-online,published-print,created,abstract,URL,publisher,type,is-referenced-by-count,link')).message.items.map(fromCrossref)), 'Journals and conferences of every publisher from the last 12 months (Crossref), the newest first.'],
-    arxiv: ['Preprints · arXiv', async q => (await getJSON('https://api.datacite.org/dois?query=' + enc('titles.title:(' + q + ') OR descriptions.description:(' + q + ')') + '&client-id=arxiv.content&sort=-created&page%5Bsize%5D=20')).data.map(fromDataCite), 'The newest preprints on arXiv (Cornell University), through DataCite — often months before a journal prints them.'],
-    ieee: ['IEEE', async q => newest((await getJSON('https://api.crossref.org/works?query=' + enc(q) + '&filter=prefix:10.1109,from-pub-date:' + back(730) + ',until-pub-date:' + U.today() + '&rows=25&select=DOI,title,author,container-title,issued,published-online,published-print,created,abstract,URL,publisher,type,is-referenced-by-count')).message.items.map(fromCrossref)), 'IEEE journals, magazines and conferences from the last two years (Crossref, IEEE DOIs). The title opens IEEE Xplore.'],
-    cited: ['Most cited', async q => (await oaGet('https://api.openalex.org/works?search=' + enc(q) + '&filter=from_publication_date:' + back(3 * 365) + '&sort=cited_by_count:desc&per-page=20')).results.map(fromOpenAlex), 'The most cited work of the last three years (OpenAlex) — the papers the field is building on.'],
-    india: ['From India', async q => newest((await oaGet('https://api.openalex.org/works?search=' + enc(q) + '&filter=authorships.institutions.country_code:IN,from_publication_date:' + back(730) + '&per-page=25')).results.map(fromOpenAlex)), 'Recent work with authors at Indian institutions — IITs, IISc, NITs, ISRO, DRDO, CSIR labs, universities (OpenAlex).'],
+    latest: ['Latest papers', async q => newest((await getJSON('https://api.crossref.org/works?query.bibliographic=' + enc(q) + '&filter=from-pub-date:' + back(365) + ',until-pub-date:' + U.today() + ',type:journal-article,type:proceedings-article,type:posted-content&rows=60&select=DOI,title,author,container-title,issued,published-online,published-print,created,abstract,URL,publisher,type,is-referenced-by-count,link')).message.items.map(fromCrossref)), 'Journals and conferences of every publisher from the last 12 months (Crossref), the newest first.'],
+    arxiv: ['Preprints · arXiv', async q => (await getJSON('https://api.datacite.org/dois?query=' + enc('titles.title:' + phrase(q) + ' OR descriptions.description:' + phrase(q)) + '&client-id=arxiv.content&sort=-created&page%5Bsize%5D=20')).data.map(fromDataCite), 'The newest preprints on arXiv (Cornell University), through DataCite — often months before a journal prints them.'],
+    ieee: ['IEEE', async q => newest((await getJSON('https://api.crossref.org/works?query.bibliographic=' + enc(q) + '&filter=prefix:10.1109,from-pub-date:' + back(730) + ',until-pub-date:' + U.today() + '&rows=60&select=DOI,title,author,container-title,issued,published-online,published-print,created,abstract,URL,publisher,type,is-referenced-by-count')).message.items.map(fromCrossref)), 'IEEE journals, magazines and conferences from the last two years (Crossref, IEEE DOIs). The title opens IEEE Xplore.'],
+    cited: ['Most cited', async q => (await oaGet('https://api.openalex.org/works?search=' + enc(phrase(q)) + '&filter=from_publication_date:' + back(3 * 365) + '&sort=cited_by_count:desc&per-page=20')).results.map(fromOpenAlex), 'The most cited work of the last three years (OpenAlex) — the papers the field is building on.'],
+    india: ['From India', async q => newest((await oaGet('https://api.openalex.org/works?search=' + enc(phrase(q)) + '&filter=authorships.institutions.country_code:IN,from_publication_date:' + back(730) + '&per-page=25')).results.map(fromOpenAlex)), 'Recent work with authors at Indian institutions — IITs, IISc, NITs, ISRO, DRDO, CSIR labs, universities (OpenAlex).'],
     overview: ['Overview', null, 'A short introduction from Wikipedia.'],
     sites: ['Other sites', null, ''],
   };
@@ -225,7 +237,11 @@
     s.res[k] = { busy: true };
     try {
       if (tab === 'overview') s.res[k] = { ov: await overview(q), at: Date.now() };
-      else s.res[k] = { items: (await TABS[tab][1](q)).filter(x => x.title), at: Date.now() };
+      else {
+        const l = (await TABS[tab][1](q)).filter(x => x.title), seen = new Set();
+        const u = l.filter(x => { const t = x.title.toLowerCase(); if (seen.has(t)) return false; seen.add(t); return true; });
+        s.res[k] = { items: u.filter(x => RS.match(x, q)).slice(0, 30), other: u.filter(x => !RS.match(x, q)).sort((a, b) => (RS.near(b, q) ? 1 : 0) - (RS.near(a, q) ? 1 : 0)).slice(0, 20), at: Date.now() };
+      }
     } catch (err) { console.warn('[e-diary] research', tab, err); s.res[k] = { err: why(err) }; }
     redraw();
   };
@@ -323,7 +339,9 @@
           '<article class="rs-card rs-ov"><h4 class="rs-t">' + extLink(o.url, e(o.title) + ED.icon('external')) + '</h4><p>' + e(o.text) + '</p>' + (o.more && o.more.length ? '<p class="hint">Also on Wikipedia: ' + o.more.map(t => extLink('https://en.wikipedia.org/wiki/' + enc(t.replace(/ /g, '_')), e(t))).join(' · ') + '</p>' : '') + '</article>';
       } else {
         const k = ckey(shown, tab);
-        body = c.items.length ? c.items.map((x, i) => resultCard(x, i, k)).join('') : '<p class="hint">Nothing found. Try other words, or another tab.</p>';
+        const oth = c.other || [];
+        body = (c.items.length ? c.items.map((x, i) => resultCard(x, i, k)).join('') : '<p class="hint">No paper with <b>' + e(shown) + '</b> in its title or abstract here. Try fewer or other words, or another tab.</p>') +
+          (oth.length ? '<details class="sb-other"><summary>' + U.plural(oth.length, 'less closely related paper') + ' (not every word of “' + e(shown) + '” in the title or abstract)</summary>' + oth.map((x, i) => resultCard(x, 'o' + i, k)).join('') + '</details>' : '');
       }
       results = tabsBar + '<p class="hint rs-what">' + e(TABS[tab][2]) + (c && c.at ? ' Looked up ' + e(U.fmtTime(new Date(c.at).toTimeString().slice(0, 5), D().settings.h12)) + '.' : '') + '</p><div class="rs-results">' + body + '</div>';
     }
@@ -365,7 +383,7 @@
   A['rs-again'] = () => { const i = document.getElementById('rs-q'); RS.search(i ? i.value : st().q, true); };
   F['rs-search'] = f => { const i = f.querySelector('#rs-q'); RS.search(i ? i.value : ''); };
   A['rs-save'] = el => {
-    const c = st().res[el.dataset.k], x = c && c.items && c.items[+el.dataset.i];
+    const c = st().res[el.dataset.k], i = String(el.dataset.i), x = c && (i[0] === 'o' ? (c.other || [])[+i.slice(1)] : c.items && c.items[+i]);
     if (!x || RS.saved(x)) return;
     ED.store.checkpoint('Save paper');
     const s = st();

@@ -431,5 +431,9 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 ### v1.18.1 — Science bits: on-topic and in the period you chose
 - Several words are searched as **one phrase** (“software defined radio”), not as separate words that can match anywhere.
 - Bits older than the period you chose (7 days, 30 days, a year) are dropped even when the news service sends them.
-- Bits whose title does not contain your words (all of them; with three or more words, all but one) are moved to a folded **“less closely related”** list under the results instead of being mixed in. They can still be opened and saved.
+- Bits whose title does not contain all your words are moved to a folded **“less closely related”** list under the results instead of being mixed in. They can still be opened and saved.
 - Changing the period looks again straight away.
+
+### v1.18.2 — Research papers on topic; Science bits no longer stuck
+- **Research papers:** several words are searched as one phrase on arXiv, Most cited and From India, and Latest papers / IEEE ask Crossref’s bibliographic search for 60 results. Every result is checked: papers with all your words in the title or abstract are listed; the others go to a folded **“less closely related”** list (those missing just one word first). Before, “software defined radio” on arXiv gave 2 papers on SDR out of 20; now 20 of 20.
+- **Science bits:** the free relays are asked all at once (the first good answer wins), with a fourth relay (rss2json), instead of one after another. A tab for particular sites (ScienceDaily & science, World universities, Newspapers, India) also asks for Top stories at the same time: if the site search does not get through, it shows the bits from those sources among Top stories, with a note, instead of an error. The longest wait is now about 15 seconds instead of about 45.
