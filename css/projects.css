@@ -142,3 +142,4 @@
   .pr-mv { display: none; }
   .sb-span { flex: 1 1 auto; }
 }
+.sb-other { margin-top: 12px; } .sb-other summary { cursor: pointer; color: var(--ink-2); font-size: 13px; margin-bottom: 8px; }

@@ -427,3 +427,9 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 - **Linked and kept in step:** tasks go under the role *Research & Projects* and count towards the goal you choose. Deleting a project, step, milestone or item takes its tasks, calendar entry, bill and Money record with it; a dropped project leaves the planner and calendar.
 - **Study → Year → Science bits:** type a topic (or pick one of your research topics or projects) and press **Get latest bits**. Tabs: Top stories, ScienceDaily & science sites, World universities (MIT, Stanford, Harvard, Caltech, Oxford, Cambridge, ETH…), Newspapers · science (NYT, Guardian, BBC, Reuters, The Hindu, Indian Express…), India (gov.in, IITs, CSIR…), Tech talk (Hacker News), Space, and **Open on the site** links. Choose the last 7 days, 30 days or year. Nothing is fetched until you click; **Save** keeps a bit with your note.
 - The news tabs read Google News through a free public relay (api.allorigins.win, then api.codetabs.com), because a web page cannot read Google News directly. If a relay is busy, press Try again or use Open on the site. Hacker News and Space are read directly.
+
+### v1.18.1 — Science bits: on-topic and in the period you chose
+- Several words are searched as **one phrase** (“software defined radio”), not as separate words that can match anywhere.
+- Bits older than the period you chose (7 days, 30 days, a year) are dropped even when the news service sends them.
+- Bits whose title does not contain your words (all of them; with three or more words, all but one) are moved to a folded **“less closely related”** list under the results instead of being mixed in. They can still be opened and saved.
+- Changing the period looks again straight away.

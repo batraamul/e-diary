@@ -63,7 +63,18 @@
       return { title, url: txt(it, 'link'), source, site: srcEl ? (srcEl.getAttribute('url') || '').replace(/^https?:\/\/(www\.)?/, '').replace(/\/.*$/, '') : '', at: isNaN(d) ? 0 : d.getTime(), text: '' };
     }).filter(x => x.title);
   };
-  const gnews = (q, sites, span) => 'https://news.google.com/rss/search?q=' + enc(q + (sites ? ' (' + sites.map(s => 'site:' + s).join(' OR ') + ')' : '') + ' when:' + (span >= 365 ? '1y' : span + 'd')) + '&hl=en-IN&gl=IN&ceid=IN:en';
+  /* 1.18.1: several words are searched as one phrase ("software defined radio"), not as separate words */
+  const STOP = new Set(['a', 'an', 'the', 'of', 'in', 'on', 'for', 'and', 'or', 'to', 'with', 'by', 'at', 'from', 'is', 'are', 'about']);
+  SB.words = q => String(q || '').toLowerCase().replace(/["()]/g, ' ').split(/[\s\-_/]+/).map(w => w.replace(/[^a-z0-9.+#]/g, '')).filter(w => w && !STOP.has(w));
+  const phrase = q => /["()]|\b(OR|AND)\b|site:/.test(q) || SB.words(q).length < 2 ? q : '"' + q.replace(/\s+/g, ' ').trim() + '"';
+  /* how well a bit matches: all the words in its title (or summary); with three words or more, all but one */
+  SB.match = (x, q) => {
+    const ws = SB.words(q); if (!ws.length) return true;
+    const t = ((x.title || '') + ' ' + (x.text || '')).toLowerCase().replace(/[-_/]+/g, ' ');
+    const n = ws.filter(w => new RegExp('(^|[^a-z0-9])' + w.replace(/[.+#]/g, '\\$&') + '(s|es)?([^a-z0-9]|$)').test(t)).length;
+    return n >= (ws.length >= 3 ? ws.length - 1 : ws.length);
+  };
+  const gnews = (q, sites, span) => 'https://news.google.com/rss/search?q=' + enc(phrase(q) + (sites ? ' (' + sites.map(s => 'site:' + s).join(' OR ') + ')' : '') + ' when:' + (span >= 365 ? '1y' : span + 'd')) + '&hl=en-IN&gl=IN&ceid=IN:en';
   SB.gnews = gnews;
   const getJSON = async u => { const r = await timed(u); if (!r.ok) { const er = new Error('HTTP ' + r.status); er.status = r.status; throw er; } return r.json(); };
   const LOAD = {
@@ -87,7 +98,10 @@
     try {
       const l = await (tab === 'tech' ? LOAD.tech : tab === 'space' ? LOAD.space : LOAD.rss)(q, tab, span);
       const seen = new Set();
-      s.res[k] = { items: l.filter(x => { const t = x.title.toLowerCase(); if (!x.title || seen.has(t)) return false; seen.add(t); return true; }).sort((a, b) => b.at - a.at).slice(0, 40), at: Date.now() };
+      const from = Date.now() - span * 864e5 - 36e5;     // the period you chose (the news service does not always keep to it)
+      const all = l.filter(x => { const t = x.title.toLowerCase(); if (!x.title || seen.has(t)) return false; seen.add(t); return !x.at || x.at >= from; });
+      const good = all.filter(x => SB.match(x, q)), other = all.filter(x => !SB.match(x, q));
+      s.res[k] = { items: good.sort((a, b) => b.at - a.at).slice(0, 40), other: other.sort((a, b) => b.at - a.at).slice(0, 20), old: l.length - all.length, at: Date.now() };
     } catch (err) { console.warn('[e-diary] science bits', tab, err); s.res[k] = { err: why(err, tab) }; }
     redraw();
   };
@@ -138,13 +152,17 @@
       else if (!c) body = '<div class="rs-empty"><p>Not looked up yet.</p><button type="button" class="btn small primary" data-act="sb-load" data-k="' + tab + '">' + ED.icon('sparkle') + 'Get ' + e(TABS.find(x => x[0] === tab)[1]) + '</button></div>';
       else if (c.busy) body = '<div class="rs-empty rs-busy"><span class="rs-spin" aria-hidden="true"></span><p>Gathering the latest…</p></div>';
       else if (c.err) body = '<div class="rs-empty rs-err"><p>' + e(c.err) + '</p><button type="button" class="btn small" data-act="sb-retry" data-k="' + tab + '">Try again</button> <button type="button" class="btn small ghost" data-act="sb-tab" data-k="sites">Open on the site</button></div>';
-      else { const k = ck(shown, tab, s.span); body = c.items.length ? '<div class="sb-grid">' + c.items.map((x, i) => card(x, i, k)).join('') + '</div>' : '<p class="hint">Nothing in this period. Try a longer period, other words, or another tab.</p>'; }
+      else {
+        const k = ck(shown, tab, s.span), oth = c.other || [];
+        body = (c.items.length ? '<div class="sb-grid">' + c.items.map((x, i) => card(x, i, k)).join('') + '</div>' : '<p class="hint">Nothing on <b>' + e(shown) + '</b> in ' + e((SPANS.find(x => x[0] === +s.span) || SPANS[1])[1].toLowerCase()) + '. Try a longer period, or another tab.</p>') +
+          (oth.length ? '<details class="sb-other"' + (s.showOther ? ' open' : '') + '><summary data-act="sb-other">' + U.plural(oth.length, 'less closely related bit') + ' (not every word of “' + e(shown) + '” in the title)</summary><div class="sb-grid">' + oth.map((x, i) => card(x, 'o' + i, k)).join('') + '</div></details>' : '');
+      }
       const info = (TABS.find(x => x[0] === tab) || [])[2];
       results = bar + (info ? '<p class="hint rs-what">' + e(info) + (c && c.at ? ' Looked up ' + e(ago(c.at)) + '.' : '') + '</p>' : '') + body;
     }
     const form = '<section class="rs-search sb-search"><form class="rs-form" data-form="sb-search" role="search"><span class="rs-sic" aria-hidden="true">' + ED.icon('sparkle') + '</span>' +
       '<input class="field" id="sb-q" type="search" value="' + e(q) + '" placeholder="A topic — e.g. stratospheric balloons, quantum sensing" aria-label="Topic">' +
-      '<select class="field sb-span" id="sb-span" aria-label="Period">' + SPANS.map(x => '<option value="' + x[0] + '"' + (+s.span === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select>' +
+      '<select class="field sb-span" id="sb-span" data-change="sb-span" aria-label="Period">' + SPANS.map(x => '<option value="' + x[0] + '"' + (+s.span === x[0] ? ' selected' : '') + '>' + x[1] + '</option>').join('') + '</select>' +
       '<button type="submit" class="btn primary">' + ED.icon('sparkle') + 'Get latest bits</button>' + (shown ? '<button type="button" class="icon-btn sm" data-act="sb-again" title="Look again" aria-label="Look again">' + ED.icon('sync') + '</button>' : '') + '</form>' + chips +
       (shown ? '' : '<p class="hint rs-how">Fresh news and short reads on your topic from ScienceDaily and other science sites, the world’s top universities, the science pages of leading newspapers, Indian government and institute sites, Hacker News and space news. Nothing is fetched until you click.</p>') + results + '</section>';
     const saved = r.bits.slice().sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
@@ -156,13 +174,16 @@
   /* ---------------- actions ---------------- */
   const keep = () => { const i = document.getElementById('sb-q'); if (i) st().q = i.value; const sp = document.getElementById('sb-span'); if (sp) st().span = +sp.value; };
   F['sb-search'] = f => { keep(); SB.search(f.querySelector('#sb-q').value); };
+  A['sb-other'] = () => { st().showOther = !st().showOther; };
+  // changing the period looks again at once (results are kept per period, so going back is instant)
+  (ED.changes = ED.changes || {})['sb-span'] = el => { keep(); const s = st(); s.span = +el.value; if (s.shown && s.tab !== 'sites') SB.load(s.shown, s.tab, s.span); ED.app.renderPage('right'); };
   A['sb-again'] = () => { keep(); SB.search(st().q, true); };
   A['sb-pick'] = el => { keep(); st().q = el.dataset.q; ED.app.renderPage('right'); const i = document.getElementById('sb-q'); if (i) i.focus(); };
   A['sb-tab'] = el => { keep(); const s = st(); s.tab = el.dataset.k; if (s.shown) SB.load(s.shown, s.tab, s.span); ED.app.renderPage('right'); };
   A['sb-load'] = el => { keep(); const s = st(); if (s.shown) SB.load(s.shown, el.dataset.k, s.span); ED.app.renderPage('right'); };
   A['sb-retry'] = el => { keep(); const s = st(); if (!s.shown) return; delete s.res[ck(s.shown, el.dataset.k, s.span)]; SB.load(s.shown, el.dataset.k, s.span); ED.app.renderPage('right'); };
   A['sb-save'] = el => {
-    const c = st().res[el.dataset.k], x = c && c.items && c.items[+el.dataset.i]; if (!x || savedOf(x)) return;
+    const c = st().res[el.dataset.k], i = String(el.dataset.i), x = c && (i[0] === 'o' ? (c.other || [])[+i.slice(1)] : c.items && c.items[+i]); if (!x || savedOf(x)) return;
     keep(); ED.store.checkpoint('Save bit');
     R().bits.push({ id: U.uid('sb'), title: x.title, url: x.url, source: x.source || x.site, date: x.at ? U.key(new Date(x.at)) : '', q: st().shown || '', note: '', savedAt: Date.now(), updatedAt: Date.now() });
     ED.store.commit(); ED.ui.toast('Saved — add a note with ✎ under Saved bits');
