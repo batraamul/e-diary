@@ -100,7 +100,9 @@
     out.exercise = nested('exercise', ['log'], { steps: 1, ticks: 2, watch: 1 }) || undefined;
     out.welfare = nested('welfare', ['list']) || undefined;
     // 1.17: Research papers
-    out.research = nested('research', ['topics', 'papers']) || undefined;
+    out.research = nested('research', ['topics', 'papers', 'bits']) || undefined;
+    // 1.18: Projects
+    out.projects = nested('projects', ['list']) || undefined;
     // deletion markers from both sides (js/store.js markGone): an item deleted anywhere stays deleted, unless it was
     // changed again after it was deleted
     const gone = Object.assign({}, (remote.meta && remote.meta.gone) || {});

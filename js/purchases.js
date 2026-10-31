@@ -40,9 +40,9 @@
   const gTotal = g => r2(items(g).reduce((a, i) => a + num(i.price), 0));
   const gDone = g => items(g).length > 0 && items(g).every(i => i.done);
   const catId = kind => {
-    const F = D().finance, want = kind === 'groc' ? 'fc-grocery' : kind === 'med' ? 'fc-health' : 'fc-shop';
+    const F = D().finance, want = kind === 'groc' ? 'fc-grocery' : kind === 'med' ? 'fc-health' : kind === 'proj' ? 'fc-project' : 'fc-shop';
     if (F && F.cats.some(c => c.id === want)) return want;
-    return (ED.finance && ED.finance.guess(kind === 'groc' ? 'groceries' : kind === 'med' ? 'medicines pharmacy' : 'clothes shopping', 'expense')) || 'fc-other';
+    return (ED.finance && ED.finance.guess(kind === 'groc' ? 'groceries' : kind === 'med' ? 'medicines pharmacy' : kind === 'proj' ? 'equipment electronics components' : 'clothes shopping', 'expense')) || 'fc-other';
   };
 
   /* everything planned, as bill rows */
@@ -68,6 +68,8 @@
       out.push({ key: 'med:' + m.id, kind: 'med', id: m.id, name: 'Medicine: ' + m.name, amount: num(r.price), date: r.at, paid: !!r.bought, paidOn: r.bought ? (r.boughtOn || r.at) : null, paidAmount: r.bought ? num(r.price) : 0,
         sub: r.bought ? 'bought — update the stock on the Health page' : (dl != null ? U.plural(dl, 'day') + ' of stock left' : 'stock running out'), src: 'Health' });
     });
+    // 1.18: items selected for purchase on Study → Projects
+    if (ED.projects && ED.projects.billRows) ED.projects.billRows().forEach(x => out.push(x));
     return out;
   };
   const find = key => PU.items().find(x => x.key === key) || null;
@@ -203,7 +205,7 @@
       if (F && Array.isArray(F.records)) {
         const all = PU.items();
         all.forEach(x => {
-          const rid = RID(x.kind, x.id), src = x.kind === 'groc' ? groc().find(g => g.id === x.id) : x.kind === 'med' ? (meds().find(m => m.id === x.id) || {}).reorder : wish().find(w => w.id === x.id);
+          const rid = RID(x.kind, x.id), src = x.kind === 'groc' ? groc().find(g => g.id === x.id) : x.kind === 'med' ? (meds().find(m => m.id === x.id) || {}).reorder : x.kind === 'proj' ? ED.projects.buyRef(x.id) : wish().find(w => w.id === x.id);
           if (!src) return;
           const r = F.records.find(y => y.id === rid);
           const want = recOn() && x.paid && x.paidAmount > 0;
@@ -211,7 +213,7 @@
             if (!r && src.recMade) { if (!src.recOff) { src.recOff = true; ch = true; } return; }   // you deleted it in Money: leave it out
             if (!r) {
               ED.finance.addRecord({ id: rid, date: x.paidOn || today, type: 'expense', amount: x.paidAmount, categoryId: catId(x.kind), accountId: null,
-                desc: x.name, notes: 'From ' + (x.kind === 'groc' ? 'the Grocery list' : x.kind === 'med' ? 'Health → medicines' : 'the Wardrobe “To buy” list'), src: x.key });
+                desc: x.name, notes: 'From ' + (x.kind === 'groc' ? 'the Grocery list' : x.kind === 'med' ? 'Health → medicines' : x.kind === 'proj' ? 'Study → Projects → To procure' : 'the Wardrobe “To buy” list'), src: x.key });
               src.recMade = true; ch = true;
             } else if (!r.fixed && (r.amount !== x.paidAmount || r.date !== (x.paidOn || r.date) || r.desc !== x.name)) {
               r.amount = x.paidAmount; if (x.paidOn) r.date = x.paidOn; r.desc = x.name; r.updatedAt = Date.now(); ch = true;
@@ -224,6 +226,8 @@
         // a medicine that was deleted: its purchase records go with it
         const mids = new Set(meds().map(m => m.id)), nb = F.records.length;
         F.records = F.records.filter(y => !/^fr-pu-med-/.test(y.id) || mids.has(y.id.slice(10)));
+        // 1.18: a deleted project or procurement item takes its purchase record with it
+        if (ED.projects) F.records = F.records.filter(y => !/^fr-pu-proj-/.test(y.id) || ED.projects.keyAlive(y.id.slice(11)));
         if (F.records.length !== nb) ch = true;
       }
     } catch (err) { console.warn('[e-diary] purchases', err); }
@@ -266,6 +270,8 @@
       ED.state.career.mode = 'wardrobe';
     } else if (k === 'med') {
       ED.go.tab('health'); return true;
+    } else if (k === 'proj' && ED.projects) {
+      ED.projects.open(String(id).split('.')[0], 'buy'); return true;
     } else return false;
     ED.go.tab('career');
     return true;
@@ -294,8 +300,8 @@
       const late = !x.paid && x.date && x.date < today, dd = x.date ? U.diffDays(today, x.date) : null;
       const when = x.paid ? 'bought ' + U.fmtShort(x.paidOn) : x.date ? (late ? U.plural(-dd, 'day') + ' late' : dd === 0 ? 'today' : dd === 1 ? 'tomorrow' : 'on ' + U.fmtShort(x.date)) : 'no date set';
       return '<li class="pu-row' + (x.paid ? ' paid' : '') + (late ? ' late' : '') + '"><button type="button" class="stick' + (x.paid ? ' on' : '') + '" data-act="pu-pay" data-key="' + e(x.key) + '" aria-pressed="' + x.paid + '" aria-label="' + (x.paid ? 'Bought — click to undo' : 'Mark as bought and paid') + '">' + ED.tasksUI.statusIcon(x.paid ? 'done' : 'open') + '</button>' +
-        '<button type="button" class="plain-btn grow fin-bn" data-act="pu-open" data-key="' + e(x.key) + '" title="Open the ' + (x.kind === 'groc' ? 'grocery list' : x.kind === 'med' ? 'Health page' : 'Wardrobe “To buy” list') + '"><b>' + e(x.name) + '</b><span class="hint">' + e(when + (x.sub ? ' · ' + x.sub : '')) + (late ? ' ⚠' : '') + '</span></button>' +
-        '<span class="chip pu-src pu-' + x.kind + '">' + ED.icon(x.kind === 'groc' ? 'cart' : x.kind === 'med' ? 'heart' : 'user') + e(x.src) + '</span>' +
+        '<button type="button" class="plain-btn grow fin-bn" data-act="pu-open" data-key="' + e(x.key) + '" title="Open the ' + (x.kind === 'groc' ? 'grocery list' : x.kind === 'med' ? 'Health page' : x.kind === 'proj' ? 'project' : 'Wardrobe “To buy” list') + '"><b>' + e(x.name) + '</b><span class="hint">' + e(when + (x.sub ? ' · ' + x.sub : '')) + (late ? ' ⚠' : '') + '</span></button>' +
+        '<span class="chip pu-src pu-' + x.kind + '">' + ED.icon(x.kind === 'groc' ? 'cart' : x.kind === 'med' ? 'heart' : x.kind === 'proj' ? 'flag' : 'user') + e(x.src) + '</span>' +
         '<span class="num">' + (x.paid ? money(x.paidAmount) : x.amount ? money(x.amount) : '—') + '</span>' +
         (x.paid ? '' : '<button type="button" class="icon-btn sm" data-act="pu-hide" data-key="' + e(x.key) + '" aria-label="Take ' + e(x.name) + ' out of Bills" title="Take out of Bills and the planner">' + ED.icon('x') + '</button>') + '</li>';
     };
@@ -334,6 +340,7 @@
       ED.ui.undoToast(x.paid ? x.name + ' — marked as not bought' : x.name + ' — bought' + (x.amount && recOn() ? ' · ' + money(x.amount) + ' recorded' : ''));
       return;
     }
+    if (x.kind === 'proj') { if (ED.projects) await ED.projects.payBill(x); return; }
     if (x.kind === 'med') {
       const m = meds().find(y => y.id === x.id); if (!m || !m.reorder) return;
       if (x.paid) { ED.store.checkpoint('Not bought'); m.reorder.bought = false; m.reorder.boughtOn = null; ED.store.commit(); ED.ui.undoToast(m.name + ' — marked as not bought'); return; }
@@ -364,6 +371,7 @@
   };
   A['pu-hide'] = el => {
     const [k, id] = String(el.dataset.key).split(':');
+    if (k === 'proj') { if (ED.projects) ED.projects.hideBill(id); return; }
     if (k === 'med') { const m = meds().find(x => x.id === id); if (!m || !m.reorder) return; ED.store.checkpoint('Take out of Bills'); m.reorder.skip = true; ED.store.commit(); ED.ui.undoToast('Taken out of Bills and the planner for now'); return; }
     const src = k === 'groc' ? groc().find(g => g.id === id) : wish().find(w => w.id === id); if (!src) return;
     ED.store.checkpoint('Take out of Bills');

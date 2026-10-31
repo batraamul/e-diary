@@ -1,6 +1,6 @@
 /* E-Diary — offline support. Serves the app from a local cache and refreshes it in the background.
    Change VERSION whenever you edit the app so installed copies pick up the new files. */
-const VERSION = 'e-diary-1.17.1';
+const VERSION = 'e-diary-1.18';
 const ASSETS = [
   './',
   './index.html',
@@ -17,6 +17,7 @@ const ASSETS = [
   './css/diary.css',
   './css/life.css',
   './css/research.css',
+  './css/projects.css',
   './css/mobile.css',
   './js/util.js',
   './js/xlsx.js',
@@ -72,6 +73,8 @@ const ASSETS = [
   './js/welfare.js',
   './js/healthplan.js',
   './js/research.js',
+  './js/scibits.js',
+  './js/projects.js',
   './js/studylink.js',
   './js/purchases.js',
   './js/mobile.js',

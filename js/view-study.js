@@ -149,10 +149,10 @@
       const p = ST.plan();
       let tab = st().ytab || 'subjects';
       if (tab === 'notes') tab = st().ytab = 'research';      // 1.17: Notes became Research papers (the plan's notes are under Subjects)
-      const seg = '<div class="seg st-seg" role="group" aria-label="Show">' + [['subjects', 'Subjects'], ['matrix', 'Track matrix'], ['sources', 'Books & lectures'], ['topics', 'Topics'], ['research', 'Research papers']].map(x =>
+      const seg = '<div class="seg st-seg" role="group" aria-label="Show">' + [['subjects', 'Subjects'], ['matrix', 'Track matrix'], ['sources', 'Books & lectures'], ['topics', 'Topics'], ['research', 'Research papers'], ['bits', 'Science bits']].map(x =>
         '<button type="button" data-act="study-ytab" data-tab="' + x[0] + '" aria-pressed="' + (tab === x[0]) + '">' + e(x[1]) + '</button>').join('') + '</div>';
-      const body = tab === 'research' ? (ED.research ? ED.research.html() : '') : (yearly[tab] || yearly.subjects)(p);
-      return '<div class="study st-year-r' + (tab === 'research' ? ' st-rs' : '') + '"><div class="pg-head"><h2 class="pg-title">' + (tab === 'research' ? 'Research papers' : 'Year at a glance') + '</h2>' + seg + '</div><div class="st-scroll scroll" data-keep-scroll="st-yr-' + tab + '">' + body + '</div></div>';
+      const body = tab === 'research' ? (ED.research ? ED.research.html() : '') : tab === 'bits' ? (ED.scibits ? ED.scibits.html() : '') : (yearly[tab] || yearly.subjects)(p);
+      return '<div class="study st-year-r' + (tab === 'research' || tab === 'bits' ? ' st-rs' : '') + '"><div class="pg-head"><h2 class="pg-title">' + (tab === 'research' ? 'Research papers' : tab === 'bits' ? 'Science bits' : 'Year at a glance') + '</h2>' + seg + '</div><div class="st-scroll scroll" data-keep-scroll="st-yr-' + tab + '">' + body + '</div></div>';
     },
     subjects(p) {
       const ts = ST.trackStats();

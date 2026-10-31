@@ -573,3 +573,13 @@ There is no automated test runner in the package; test by hand in the browser:
 
 - `health.js`: `HL.editVisit(id, pre)` takes a prefill; the form has a “Put it in my daily tasks” switch; `ED.changes['hl-duetask']`.
 - `sync.js`: `research` merged with `nested('research', ['topics', 'papers'])`; `health.dueOff` merged as a map.
+
+## 1.18 — Projects, Science bits
+
+| File | What it does | Data |
+|---|---|---|
+| `js/projects.js` | View `projects` (Study group). `PR.reconcile` keeps tasks in step with fixed ids: steps `tk-pjs-<p>-<s>` (`link.k projstep`), milestone deadline `tk-pjm-` (`projms`) and reminder `tk-pjr-` (`projrem`, due − `days`), purchases `tk-pjp-` (`projbuy`); both-way done/date sync via `linkSt`/`linkDate`; tasks carry `goalId`. Calendar: `PR.calSync(p, m)` → `FX.linkEvent` (on save, tick, move, drop, delete — not on every reconcile). Bills: `PR.billRows()` read by `PU.items()` (key `proj:<p>.<b>`), `PR.payBill`, `PR.hideBill`, `PR.keyAlive` (orphan `fr-pu-proj-*` records removed by purchases.js). Wraps `task-open` and `M.deleteTask`. | `projects: { list[{ id, name, …, goalId, topics[], steps[], milestones[{ inTask '', 'due', 'before', 'both', days, cal, eventId }], buys[{ status list|buy|ordered|received, paid, paidAmount, noPlan }], tools[], log[] }] }` |
+| `js/scibits.js` | Study → Year tab `bits`. Google News RSS search (`SB.gnews(q, sites, span)`) through `SB.RELAYS` (allorigins raw → allorigins get → codetabs), HN Algolia and Spaceflight News direct. Click-only (`F['sb-search']`, `sb-tab`, `sb-load`, `sb-retry`, `sb-again`); session cache `ED.state.sb.res['<tab>|<span>|<q>']`. | `research.bits[{ id, title, url, source, date, q, note, savedAt }]` |
+| `css/projects.css` | Styles for both. | |
+
+- `sync.js`: `projects` merged with `nested('projects', ['list'])` (a project is one item, newest `updatedAt` wins — every edit calls `touch(p)`); `research.bits` merged as a list.
