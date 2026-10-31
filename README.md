@@ -414,3 +414,7 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 - All these services are free. OpenAlex gives each internet connection about 100 searches a day; a free key from openalex.org (**Search settings**) gives ten times more. The other tabs need no key.
 - **One “💊 Medicines due” task a day** in the Daily planner (with the dose times). Click it to open the Health page on that day’s list. It ticks itself when every dose is marked Taken or Skipped; ticking the task marks the doses still open as Taken. Switch it off on the Health page.
 - **Doctor’s appointments are daily tasks** (on their date and time, under Health & Fitness) and, with the switch on, a **calendar entry with a reminder an hour before**. The **Next visit** date becomes a “Next visit due” task; click it and the appointment form opens filled in — save it to book the visit. Moving the task moves the appointment and its calendar entry; deleting the appointment removes its tasks.
+
+### v1.17.1
+- A doctor’s visit whose **Next visit** is the same day no longer makes a second “Next visit due” task (the extra one is removed). A next visit on a later date still gets its own task.
+- Tasks made from other pages show their own small icon — a heart for medicines and appointments, Om for poojas and vrats — instead of the grocery cart on every one.

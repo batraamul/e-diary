@@ -102,7 +102,7 @@
           if (t.linkNotes !== notes) { t.linkNotes = notes; ch = true; }
         }
         // the next visit, until an appointment is saved for that day
-        if (!U.isKey(v.next) || v.next < v.date || v.noNextTask) return;
+        if (!U.isKey(v.next) || v.next <= v.date || v.noNextTask) return;   // the same day as this visit is not a next visit
         const booked = visits.some(w => w !== v && w.date === v.next);
         if (booked) return;
         const nid = APNID(v); live.add(nid);

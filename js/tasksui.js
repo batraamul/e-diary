@@ -1,6 +1,9 @@
 /* E-Diary — shared task rendering (rows, groups, status marks, badges) */
 (function () {
   'use strict';
+  // the small icon before a task made from another page (1.17.1: each kind its own icon, not always the cart)
+  const LINKS = { groc: ['cart', 'Opens the grocery list'], ward: ['user', 'Opens the Wardrobe “To buy” list'], med: ['cart', 'Opens the Health page'], meddue: ['heart', 'Opens today’s medicines'],
+    visit: ['heart', 'Opens the appointment'], visitnext: ['heart', 'Opens a new appointment, filled in'], welfare: ['users', 'Opens Welfare & Help'], vrat: ['om', 'Opens Pooja & Vrat'], pooja: ['om', 'Opens Pooja & Vrat'] };
   const ED = window.ED, U = ED.util, M = ED.model, e = U.esc;
   const TU = (ED.tasksUI = {});
 
@@ -61,7 +64,7 @@
       '<button type="button" class="tstat" data-act="task-toggle" aria-label="' + e(M.statusLabel(st)) + ' — click to ' + (M.isClosed(st) ? 'reopen' : 'complete') + '" title="' + e(M.statusLabel(st)) + '">' + TU.statusIcon(st) + '</button>' +
       '<span class="tcode num">' + e(M.code(t)) + '</span>' +
       '<span class="tbody" data-act="task-open">' +
-      '<span class="ttitle' + (cat ? ' tinted' : '') + '"' + (cat ? ' style="--c:' + e(cat.color) + '"' : '') + '>' + (t.link ? '<span class="tlink" title="' + (t.link.k === 'ward' ? 'Opens the Wardrobe “To buy” list' : 'Opens the grocery list') + '">' + ED.icon(t.link.k === 'ward' ? 'user' : 'cart') + '</span>' : '') + e(t.title || 'Untitled task') + '</span>' +
+      '<span class="ttitle' + (cat ? ' tinted' : '') + '"' + (cat ? ' style="--c:' + e(cat.color) + '"' : '') + '>' + (t.link ? (L => '<span class="tlink" title="' + L[1] + '">' + ED.icon(L[0]) + '</span>')(LINKS[t.link.k] || ['link', 'Opens where this task came from']) : '') + e(t.title || 'Untitled task') + '</span>' +
       TU.meta(o) + '</span>' +
       '<span class="tbadges">' + TU.badges(t, 2) + '</span>' +
       '<button type="button" class="tmore icon-btn sm" data-act="task-menu" aria-label="Task actions">' + ED.icon('more') + '</button>' +
