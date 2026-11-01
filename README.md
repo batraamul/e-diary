@@ -445,3 +445,9 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 ### v1.18.4 — Exercise: link and remarks
 - Each exercise in your plan has two optional fields: **Link** (a video or page showing how to do it) and **Remarks** (form tips, weight used, how it felt). The day’s list shows the remarks under the exercise and a ↗ button that opens the link; both also appear in the day’s workout task.
 - A web address typed into *Reps / time* is moved into **Link** by itself the next time you open the exercise.
+
+### v1.18.5 — Clickable links, exercise pictures
+- **Links open with a plain click.** In any note (tasks, workout, diary pages), clicking a link shows **Open link** / **Copy link** — no Ctrl/⌘ needed. Web addresses typed as plain text in notes become links by themselves.
+- The day’s **workout task** now lists each exercise with a **how-to ↗** link when the exercise has one.
+- In the exercise form, an **Open** button sits next to the Link field.
+- **Picture (optional)** for each exercise: choose a photo from your phone or computer (it is made small, a few tens of KB) or paste an image address. A thumbnail shows in the day’s list; click it to see it large with the link and remarks. **Remove picture** takes it off.

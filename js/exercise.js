@@ -185,14 +185,14 @@
           if (!t) {
             const start = U.addDays(today, (dw - U.dow(today) + 7) % 7);
             t = M.newTask({ id, title, date: start, time: p.time || null, dur: day.mins || 45, prio: 'A', repeat: rep, roleId: role, link: { k: 'exercise', id: String(dw) }, linkTitle: title,
-              notes: day.items.map(i => '• ' + ex(i.k || i.name).name + ' — ' + i.sets + ' × ' + i.reps + (i.notes ? ' (' + i.notes + ')' : '') + (i.link ? ' ' + i.link : '')).join('\n') });
+              notes: day.items.map(i => '<p>• ' + e(ex(i.k || i.name).name + ' — ' + i.sets + ' × ' + i.reps + (i.notes ? ' (' + i.notes + ')' : '')) + (i.link ? ' <a href="' + e(i.link) + '" target="_blank" rel="noopener noreferrer">how-to ↗</a>' : '') + '</p>').join('') });
             d.tasks.push(t); ch = true; return;
           }
           if (t.repeat && t.repeat.until) { t.repeat = rep; ch = true; }
           if (t.linkTitle !== title) { if (t.title === t.linkTitle) t.title = title; t.linkTitle = title; ch = true; }
           if ((t.time || null) !== (p.time || null)) { t.time = p.time || null; ch = true; }
           if (t.dur !== (day.mins || 45)) { t.dur = day.mins || 45; ch = true; }
-          const notes = day.items.map(i => '• ' + ex(i.k || i.name).name + ' — ' + i.sets + ' × ' + i.reps + (i.notes ? ' (' + i.notes + ')' : '') + (i.link ? ' ' + i.link : '')).join('\n');
+          const notes = day.items.map(i => '<p>• ' + e(ex(i.k || i.name).name + ' — ' + i.sets + ' × ' + i.reps + (i.notes ? ' (' + i.notes + ')' : '')) + (i.link ? ' <a href="' + e(i.link) + '" target="_blank" rel="noopener noreferrer">how-to ↗</a>' : '') + '</p>').join('');
           if (t.notes !== notes) { t.notes = notes; ch = true; }
         });
       }
@@ -340,6 +340,7 @@
     const items = (day.items || []).map((i, n) => {
       const x = ex(i.k || i.name), open = s.how === n;
       return '<li class="xr-it' + (ticks[n] ? ' done' : '') + '"><button type="button" class="hz-tick' + (ticks[n] ? ' on' : '') + '" data-act="xr-tick" data-k="' + k + '" data-i="' + n + '" aria-pressed="' + !!ticks[n] + '" aria-label="Done">' + (ticks[n] ? ED.icon('check') : '') + '</button>' +
+        (i.pic ? '<button type="button" class="xr-thumb" data-act="xr-pic" data-d="' + dw + '" data-i="' + n + '" title="See the picture" aria-label="Picture of ' + e(x.name) + '"><img src="' + e(i.pic) + '" alt=""></button>' : '') +
         '<button type="button" class="plain-btn grow xr-in" data-act="xr-how" data-i="' + n + '"><b>' + e(x.name) + '</b><span class="hint">' + e(i.sets + ' × ' + i.reps) + (x.equip && x.equip !== 'none' ? ' · ' + e(x.equip) : '') + ' · <span class="xr-area a-' + e(x.area) + '">' + e(x.area) + '</span></span>' + (i.notes ? '<span class="hint xr-rem">' + e(i.notes) + '</span>' : '') + (open && x.how ? '<span class="xr-how">' + e(x.how) + '</span>' : '') + '</button>' +
         (i.link ? '<a class="icon-btn sm" href="' + e(i.link) + '" target="_blank" rel="noopener noreferrer" title="Open the link" aria-label="Open the link for ' + e(x.name) + '">' + ED.icon('external') + '</a>' : '') +
         '<button type="button" class="icon-btn sm" data-act="xr-edit-item" data-d="' + dw + '" data-i="' + n + '" aria-label="Change" title="Change">' + ED.icon('pencil') + '</button></li>';
@@ -438,18 +439,52 @@
   };
   /* 1.18.4: a web address typed into "Reps / time" goes to the Link field */
   const splitUrl = v => { const m = String(v.reps || '').match(/\s*(https?:\/\/\S+)\s*/); if (m && !v.link) { v.link = m[1]; v.reps = String(v.reps).replace(m[0], ' ').trim(); } return v; };
+  /* 1.18.5: a picture of the exercise — an image address, or a photo from this device (made small, about 30 KB) */
+  let picData = '';
+  const shrink = file => new Promise((ok, bad) => {
+    const r = new FileReader(); r.onerror = bad;
+    r.onload = () => { const img = new Image(); img.onerror = bad; img.onload = () => { const k = Math.min(1, 640 / Math.max(img.width, img.height)); const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k); c.getContext('2d').drawImage(img, 0, 0, c.width, c.height); ok(c.toDataURL('image/jpeg', 0.78)); }; img.src = r.result; };
+    r.readAsDataURL(file);
+  });
+  const picBox = (el, cur) => {
+    picData = /^data:image\//.test(cur || '') ? cur : '';
+    const inp = el.querySelector('input[placeholder^="An image address"]'); if (!inp) return;
+    const box = document.createElement('div'); box.className = 'xr-picbox';
+    box.innerHTML = '<label class="btn small"><input type="file" accept="image/*" hidden>' + ED.icon('image') + 'Choose a photo…</label><img class="xr-picprev" alt="Picture of the exercise" hidden><button type="button" class="btn small ghost" data-x="nopic" hidden>' + ED.icon('x') + 'Remove picture</button>';
+    inp.parentNode.appendChild(box);
+    const prev = box.querySelector('img'), rm = box.querySelector('[data-x="nopic"]');
+    const show = () => { const src = /^https?:\/\/\S+$/i.test(inp.value.trim()) ? inp.value.trim() : picData; prev.hidden = !src; rm.hidden = !src; if (src) prev.src = src; };
+    box.querySelector('input[type="file"]').addEventListener('change', async ev => { const f = ev.target.files && ev.target.files[0]; if (!f) return; try { picData = await shrink(f); inp.value = ''; show(); } catch (err) { ED.ui.toast('Could not read that picture'); } });
+    rm.addEventListener('click', () => { picData = ''; inp.value = ''; show(); });
+    inp.addEventListener('input', show); show();
+  };
+  const linkBox = el => {
+    const inp = el.querySelector('input[placeholder^="https://… a video"]'); if (!inp) return;
+    const a = document.createElement('a'); a.className = 'btn small ghost xr-open'; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.innerHTML = ED.icon('external') + 'Open';
+    inp.parentNode.appendChild(a);
+    const upd = () => { const v = inp.value.trim(); a.hidden = !v; a.href = /^https?:\/\//i.test(v) ? v : 'https://' + v; };
+    inp.addEventListener('input', upd); upd();
+  };
+  XR.showPic = (dw, n) => {
+    const p = XR.plan(), i = p && p.days[dw] && p.days[dw].items[n]; if (!i || !i.pic) return;
+    const x = ex(i.k || i.name);
+    ED.ui.modal({ title: x.name, cls: 'st-modal wide', body: '<img class="xr-big" src="' + e(i.pic) + '" alt="' + e(x.name) + '">' + (i.notes ? '<p>' + e(i.notes) + '</p>' : '') + (i.link ? '<p><a href="' + e(i.link) + '" target="_blank" rel="noopener noreferrer">' + ED.icon('external') + ' ' + e(i.link) + '</a></p>' : '') });
+  };
+  (ED.actions = ED.actions || {})['xr-pic'] = el => XR.showPic(+el.dataset.d, +el.dataset.i);
   const editItem = (dw, n) => {
     const p = XR.plan(); if (!p) return;
     const day = p.days[dw] || (p.days[dw] = { title: 'Workout', focus: '', mins: 30, items: [] });
     const it = n != null ? day.items[n] : null;
     FX().form({
       title: it ? 'Exercise' : 'Add an exercise · ' + U.DAYS[dw],
-      data: it ? splitUrl({ k: it.k || '', name: it.k ? '' : it.name, sets: it.sets, reps: it.reps, link: it.link || '', notes: it.notes || '' }) : { k: 'pushup', name: '', sets: 3, reps: '10–12', link: '', notes: '' },
+      data: it ? splitUrl({ k: it.k || '', name: it.k ? '' : it.name, sets: it.sets, reps: it.reps, link: it.link || '', notes: it.notes || '', pic: /^https?:/.test(it.pic || '') ? it.pic : '' }) : { k: 'pushup', name: '', sets: 3, reps: '10–12', link: '', notes: '' },
       fields: [{ k: 'k', label: 'Exercise', type: 'select', options: [['', '— my own (type below) —']].concat(libOptions()) }, { k: 'name', label: 'Or my own exercise', ph: 'e.g. Badminton 30 min' }, { k: 'sets', label: 'Sets', type: 'number', min: 1, max: 20 }, { k: 'reps', label: 'Reps / time', ph: '10–12, 30 s, 20 min' },
-        { k: 'link', label: 'Link (optional)', ph: 'https://… a video or page showing how to do it' }, { k: 'notes', label: 'Remarks (optional)', type: 'textarea', rows: 2, ph: 'Form tips, weight used, how it felt…' }],
+        { k: 'link', label: 'Link (optional)', ph: 'https://… a video or page showing how to do it' }, { k: 'notes', label: 'Remarks (optional)', type: 'textarea', rows: 2, ph: 'Form tips, weight used, how it felt…' },
+        { k: 'pic', label: 'Picture (optional)', ph: 'An image address — or choose a photo below' }],
+      mount(el) { picBox(el, it ? it.pic : ''); linkBox(el); },
       check: v => !v.k && !v.name ? 'Choose an exercise or type one' : '',
       del: it ? async () => { ED.store.checkpoint('Exercise'); day.items.splice(n, 1); p.updatedAt = Date.now(); ED.store.commit(); } : null, delLabel: 'Remove',
-      save(v, api) { ED.store.checkpoint('Exercise'); v = splitUrl(v); const row = v.k ? { k: v.k, sets: v.sets || 1, reps: v.reps || '' } : { name: v.name, sets: v.sets || 1, reps: v.reps || '' }; if (v.link) row.link = /^https?:\/\//i.test(v.link) ? v.link : 'https://' + v.link; if (v.notes) row.notes = v.notes; if (it) day.items[n] = row; else day.items.push(row); p.updatedAt = Date.now(); ED.store.commit(); api.close(); },
+      save(v, api) { ED.store.checkpoint('Exercise'); v = splitUrl(v); const row = v.k ? { k: v.k, sets: v.sets || 1, reps: v.reps || '' } : { name: v.name, sets: v.sets || 1, reps: v.reps || '' }; if (v.link) row.link = /^https?:\/\//i.test(v.link) ? v.link : 'https://' + v.link; if (v.notes) row.notes = v.notes; const pic = /^https?:\/\/\S+$/i.test(v.pic || '') ? v.pic : picData; if (pic) row.pic = pic; if (it) day.items[n] = row; else day.items.push(row); p.updatedAt = Date.now(); ED.store.commit(); api.close(); },
     });
   };
   const editDay = dw => {

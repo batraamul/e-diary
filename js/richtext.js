@@ -15,7 +15,20 @@
   };
   const COLORS = ['#16181c', '#b3261e', '#d9542b', '#ef6c00', '#2e7d32', '#1f6fe0', '#7b3fb8', '#c2185b', '#8a8f97'];
 
+  /* 1.18.5: notes kept as plain text keep their line breaks, and web addresses in notes become links */
+  const fromPlain = h => { h = String(h || ''); return h && !/<[a-z!\/][^>]*>/i.test(h) ? e(h).replace(/\n/g, '<br>') : h; };
+  const URL_RE = /\b(https?:\/\/[^\s<>"']+[^\s<>"'.,;:!?)\]])/g;
+  const linkify = root => {
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null), list = [];
+    while (w.nextNode()) { const n = w.currentNode; if (!n.parentNode.closest('a') && URL_RE.test(n.nodeValue)) list.push(n); URL_RE.lastIndex = 0; }
+    list.forEach(n => {
+      const frag = document.createDocumentFragment(); let at = 0, m; const t = n.nodeValue; URL_RE.lastIndex = 0;
+      while ((m = URL_RE.exec(t))) { frag.appendChild(document.createTextNode(t.slice(at, m.index))); const a = document.createElement('a'); a.href = m[1]; a.textContent = m[1]; a.target = '_blank'; a.rel = 'noopener noreferrer'; frag.appendChild(a); at = m.index + m[1].length; }
+      frag.appendChild(document.createTextNode(t.slice(at))); n.parentNode.replaceChild(frag, n);
+    });
+  };
   ED.rich = {
+    linkify, fromPlain,
     mount(host, opts) {
       opts = opts || {};
       const set = opts.toolbar === 'none' ? [] : SETS[opts.toolbar || 'mini'];
@@ -28,7 +41,8 @@
       const wrap = host.firstElementChild;
       const bar = wrap.querySelector('.rt-bar');
       const body = wrap.querySelector('.rt-body');
-      body.innerHTML = U.sanitize(opts.html || '');
+      body.innerHTML = U.sanitize(fromPlain(opts.html));
+      linkify(body);
       let last = body.innerHTML;
 
       const empty = () => { const t = (body.textContent || '').trim(); const hasImg = !!body.querySelector('img,hr'); wrap.classList.toggle('is-empty', !t && !hasImg); };
@@ -172,13 +186,17 @@
           return;
         }
         const a = ev.target.closest('a');
-        if (a && (ev.metaKey || ev.ctrlKey || !body.isContentEditable)) { ev.preventDefault(); window.open(a.href, '_blank', 'noopener'); }
+        if (a && (ev.metaKey || ev.ctrlKey || !body.isContentEditable)) { ev.preventDefault(); window.open(a.href, '_blank', 'noopener'); return; }
+        // a plain click on a link while writing: offer to open it (the click still places the cursor for editing)
+        if (a && /^(https?:|mailto:)/i.test(a.getAttribute('href') || '')) {
+          ED.ui.menu(a, [{ label: 'Open link', icon: 'external', onClick: () => window.open(a.href, '_blank', 'noopener') }, { label: 'Copy link', icon: 'copy', onClick: async () => ED.ui.toast(await U.copy(a.href) ? 'Link copied' : 'Could not copy') }], { placement: 'bottom' });
+        }
       });
 
       const ctrl = {
         el: wrap, body,
         getHTML() { deb.flush(); return U.sanitize(body.innerHTML); },
-        setHTML(h) { body.innerHTML = U.sanitize(h || ''); last = body.innerHTML; empty(); },
+        setHTML(h) { body.innerHTML = U.sanitize(fromPlain(h)); linkify(body); last = body.innerHTML; empty(); },
         focus(end) {
           body.focus();
           if (end) { const r = document.createRange(); r.selectNodeContents(body); r.collapse(false); const s = window.getSelection(); s.removeAllRanges(); s.addRange(r); }
