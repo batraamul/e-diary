@@ -185,14 +185,14 @@
           if (!t) {
             const start = U.addDays(today, (dw - U.dow(today) + 7) % 7);
             t = M.newTask({ id, title, date: start, time: p.time || null, dur: day.mins || 45, prio: 'A', repeat: rep, roleId: role, link: { k: 'exercise', id: String(dw) }, linkTitle: title,
-              notes: day.items.map(i => '• ' + ex(i.k || i.name).name + ' — ' + i.sets + ' × ' + i.reps).join('\n') });
+              notes: day.items.map(i => '• ' + ex(i.k || i.name).name + ' — ' + i.sets + ' × ' + i.reps + (i.notes ? ' (' + i.notes + ')' : '') + (i.link ? ' ' + i.link : '')).join('\n') });
             d.tasks.push(t); ch = true; return;
           }
           if (t.repeat && t.repeat.until) { t.repeat = rep; ch = true; }
           if (t.linkTitle !== title) { if (t.title === t.linkTitle) t.title = title; t.linkTitle = title; ch = true; }
           if ((t.time || null) !== (p.time || null)) { t.time = p.time || null; ch = true; }
           if (t.dur !== (day.mins || 45)) { t.dur = day.mins || 45; ch = true; }
-          const notes = day.items.map(i => '• ' + ex(i.k || i.name).name + ' — ' + i.sets + ' × ' + i.reps).join('\n');
+          const notes = day.items.map(i => '• ' + ex(i.k || i.name).name + ' — ' + i.sets + ' × ' + i.reps + (i.notes ? ' (' + i.notes + ')' : '') + (i.link ? ' ' + i.link : '')).join('\n');
           if (t.notes !== notes) { t.notes = notes; ch = true; }
         });
       }
@@ -340,7 +340,8 @@
     const items = (day.items || []).map((i, n) => {
       const x = ex(i.k || i.name), open = s.how === n;
       return '<li class="xr-it' + (ticks[n] ? ' done' : '') + '"><button type="button" class="hz-tick' + (ticks[n] ? ' on' : '') + '" data-act="xr-tick" data-k="' + k + '" data-i="' + n + '" aria-pressed="' + !!ticks[n] + '" aria-label="Done">' + (ticks[n] ? ED.icon('check') : '') + '</button>' +
-        '<button type="button" class="plain-btn grow xr-in" data-act="xr-how" data-i="' + n + '"><b>' + e(x.name) + '</b><span class="hint">' + e(i.sets + ' × ' + i.reps) + (x.equip && x.equip !== 'none' ? ' · ' + e(x.equip) : '') + ' · <span class="xr-area a-' + e(x.area) + '">' + e(x.area) + '</span></span>' + (open && x.how ? '<span class="xr-how">' + e(x.how) + '</span>' : '') + '</button>' +
+        '<button type="button" class="plain-btn grow xr-in" data-act="xr-how" data-i="' + n + '"><b>' + e(x.name) + '</b><span class="hint">' + e(i.sets + ' × ' + i.reps) + (x.equip && x.equip !== 'none' ? ' · ' + e(x.equip) : '') + ' · <span class="xr-area a-' + e(x.area) + '">' + e(x.area) + '</span></span>' + (i.notes ? '<span class="hint xr-rem">' + e(i.notes) + '</span>' : '') + (open && x.how ? '<span class="xr-how">' + e(x.how) + '</span>' : '') + '</button>' +
+        (i.link ? '<a class="icon-btn sm" href="' + e(i.link) + '" target="_blank" rel="noopener noreferrer" title="Open the link" aria-label="Open the link for ' + e(x.name) + '">' + ED.icon('external') + '</a>' : '') +
         '<button type="button" class="icon-btn sm" data-act="xr-edit-item" data-d="' + dw + '" data-i="' + n + '" aria-label="Change" title="Change">' + ED.icon('pencil') + '</button></li>';
     }).join('');
     const doneN = Object.keys(ticks).length, kc = dayKcal(day);
@@ -435,17 +436,20 @@
     const by = {}; Object.keys(LIB).forEach(k => { (by[LIB[k][1]] = by[LIB[k][1]] || []).push([k, LIB[k][0] + (LIB[k][3] !== 'none' ? ' (' + LIB[k][3] + ')' : '')]); });
     return Object.keys(by).flatMap(a => by[a].map(o => [o[0], a + ' — ' + o[1]]));
   };
+  /* 1.18.4: a web address typed into "Reps / time" goes to the Link field */
+  const splitUrl = v => { const m = String(v.reps || '').match(/\s*(https?:\/\/\S+)\s*/); if (m && !v.link) { v.link = m[1]; v.reps = String(v.reps).replace(m[0], ' ').trim(); } return v; };
   const editItem = (dw, n) => {
     const p = XR.plan(); if (!p) return;
     const day = p.days[dw] || (p.days[dw] = { title: 'Workout', focus: '', mins: 30, items: [] });
     const it = n != null ? day.items[n] : null;
     FX().form({
       title: it ? 'Exercise' : 'Add an exercise · ' + U.DAYS[dw],
-      data: it ? { k: it.k || '', name: it.k ? '' : it.name, sets: it.sets, reps: it.reps } : { k: 'pushup', name: '', sets: 3, reps: '10–12' },
-      fields: [{ k: 'k', label: 'Exercise', type: 'select', options: [['', '— my own (type below) —']].concat(libOptions()) }, { k: 'name', label: 'Or my own exercise', ph: 'e.g. Badminton 30 min' }, { k: 'sets', label: 'Sets', type: 'number', min: 1, max: 20 }, { k: 'reps', label: 'Reps / time', ph: '10–12, 30 s, 20 min' }],
+      data: it ? splitUrl({ k: it.k || '', name: it.k ? '' : it.name, sets: it.sets, reps: it.reps, link: it.link || '', notes: it.notes || '' }) : { k: 'pushup', name: '', sets: 3, reps: '10–12', link: '', notes: '' },
+      fields: [{ k: 'k', label: 'Exercise', type: 'select', options: [['', '— my own (type below) —']].concat(libOptions()) }, { k: 'name', label: 'Or my own exercise', ph: 'e.g. Badminton 30 min' }, { k: 'sets', label: 'Sets', type: 'number', min: 1, max: 20 }, { k: 'reps', label: 'Reps / time', ph: '10–12, 30 s, 20 min' },
+        { k: 'link', label: 'Link (optional)', ph: 'https://… a video or page showing how to do it' }, { k: 'notes', label: 'Remarks (optional)', type: 'textarea', rows: 2, ph: 'Form tips, weight used, how it felt…' }],
       check: v => !v.k && !v.name ? 'Choose an exercise or type one' : '',
       del: it ? async () => { ED.store.checkpoint('Exercise'); day.items.splice(n, 1); p.updatedAt = Date.now(); ED.store.commit(); } : null, delLabel: 'Remove',
-      save(v, api) { ED.store.checkpoint('Exercise'); const row = v.k ? { k: v.k, sets: v.sets || 1, reps: v.reps || '' } : { name: v.name, sets: v.sets || 1, reps: v.reps || '' }; if (it) day.items[n] = row; else day.items.push(row); p.updatedAt = Date.now(); ED.store.commit(); api.close(); },
+      save(v, api) { ED.store.checkpoint('Exercise'); v = splitUrl(v); const row = v.k ? { k: v.k, sets: v.sets || 1, reps: v.reps || '' } : { name: v.name, sets: v.sets || 1, reps: v.reps || '' }; if (v.link) row.link = /^https?:\/\//i.test(v.link) ? v.link : 'https://' + v.link; if (v.notes) row.notes = v.notes; if (it) day.items[n] = row; else day.items.push(row); p.updatedAt = Date.now(); ED.store.commit(); api.close(); },
     });
   };
   const editDay = dw => {

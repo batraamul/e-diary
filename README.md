@@ -441,3 +441,7 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 ### v1.18.3 — Science bits: your own news reader
 - Web pages may not read Google News directly, and the free shared relays are often busy or blocked. Science bits can now use **your own news reader**: a 10-line Google Apps Script under your Google account (free, used only by you). Set it up once with **⚙** next to *Get latest bits* (or the link under a “relay did not answer” message): the steps and the script are shown there, with **Copy the script** and **Test and save**. The address is kept in the diary, so all your devices use it.
 - When it is set, it is asked first (the shared relays stay as backup) and its answer — even “nothing found” — is trusted. **Stop using it** in the same window goes back to the shared relays.
+
+### v1.18.4 — Exercise: link and remarks
+- Each exercise in your plan has two optional fields: **Link** (a video or page showing how to do it) and **Remarks** (form tips, weight used, how it felt). The day’s list shows the remarks under the exercise and a ↗ button that opens the link; both also appear in the day’s workout task.
+- A web address typed into *Reps / time* is moved into **Link** by itself the next time you open the exercise.
