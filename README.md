@@ -457,3 +457,8 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 - **⇄** beside each policy or investment (Assets) opens a transfer into it straight away. The table shows “+₹… moved” under its value.
 - When you type a new value from a statement, it is taken as it is: transfers recorded before that are not counted again.
 - *Spent* and *Received* still use accounts only; a premium or investment paid from a bank is best recorded as a Transfer to that policy or investment.
+
+### v1.18.7 — Account balance that stays what you type
+- An account’s balance now has a date: **Balance** and **Balance on (date)**. The diary shows that balance plus the records **after** that date (on the same day, those you enter after typing it), and nothing dated after today. Before, every record ever entered was added to it, so a balance typed from the passbook drifted by records already included in it.
+- Open an account to see **how the balance is worked out**: the typed balance and date, money in and out since, the records dated before it that are not counted, and records dated in the future that will count on their day.
+- Accounts saved before 1.18.7 show the old figure until you open and save them; “Balance on” is filled with today, which is right when the balance you typed is today’s.

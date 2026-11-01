@@ -90,12 +90,24 @@
   FN.budgetTotal = () => r2(FN.catsOf('expense').reduce((a, c) => a + (c.budget || 0), 0));
   FN.spendBudget = () => r2(FN.catsOf('expense').filter(c => !c.saving).reduce((a, c) => a + (c.budget || 0), 0));
   FN.saveBudget = () => r2(FN.catsOf('expense').filter(c => c.saving).reduce((a, c) => a + (c.budget || 0), 0));
-  FN.balance = acc => r2(F().records.reduce((b, r) => {
-    const a = +r.amount || 0;
-    if (r.type === 'transfer') return r.accountId === acc.id ? b - a : r.toAccountId === acc.id ? b + a : b;
-    if (r.accountId !== acc.id) return b;
-    return r.type === 'income' ? b + a : r.type === 'expense' ? b - a : b;
-  }, acc.opening || 0));
+  /* 1.18.7: the balance you type is the balance ON A DATE ("Balance on"). Only records after that date are added (on the
+     same day: only those entered after you typed it), and nothing dated after today — so the figure you type is the
+     figure you see. An account saved before 1.18.7 without a date keeps the old sum (all its records). */
+  const effect = (acc, r) => { const a = +r.amount || 0; if (r.type === 'transfer') return r.accountId === acc.id ? -a : r.toAccountId === acc.id ? a : 0; if (r.accountId !== acc.id) return 0; return r.type === 'income' ? a : r.type === 'expense' ? -a : 0; };
+  const counts = (acc, r, upto) => {
+    if (r.date > upto) return false;
+    if (!acc.asOn || r.date > acc.asOn) return true;
+    if (r.date < acc.asOn) return false;
+    return (r.createdAt || 0) > (acc.openingAt || 0);
+  };
+  FN.balance = (acc, upto) => { upto = upto || U.today(); return r2(F().records.reduce((b, r) => counts(acc, r, upto) ? b + effect(acc, r) : b, +acc.opening || 0)); };
+  /* how the balance is made up (shown in the account form) */
+  FN.balanceParts = acc => {
+    const today = U.today(), o = { inn: 0, out: 0, n: 0, before: 0, nBefore: 0, later: 0, nLater: 0 };
+    F().records.forEach(r => { const x = effect(acc, r); if (!x) return; if (r.date > today) { o.later += x; o.nLater++; } else if (counts(acc, r, today)) { if (x > 0) o.inn += x; else o.out -= x; o.n++; } else { o.before += x; o.nBefore++; } });
+    Object.keys(o).forEach(k => { o[k] = r2(o[k]); });
+    return o;
+  };
   /* financial year (April to March, as in India) */
   FN.fyStart = k => { const [y, m] = U.ymd(k); return (m >= 4 ? y : y - 1) + '-04-01'; };
 
@@ -290,11 +302,22 @@
   };
   FN.editAccount = id => {
     const a = id ? F().accounts.find(x => x.id === id) : { id: U.uid('fa'), name: '', type: 'bank', institution: '', last4: '', opening: 0, notes: '' };
-    itemEditor({ title: id ? 'Account' : 'New account', item: a,
+    const today = U.today(), bp = id ? FN.balanceParts(a) : null;
+    const how = bp ? '<span class="fin-how"><b>How the balance in the diary is worked out:</b> ' + M$(+a.opening || 0) + (a.asOn ? ' on ' + e(U.fmtShort(a.asOn)) : ' (no date — every record is added)') +
+      (bp.inn ? ' + ' + M$(bp.inn) + ' in' : '') + (bp.out ? ' − ' + M$(bp.out) + ' out' : '') + (bp.n ? ' (' + U.plural(bp.n, 'record') + (a.asOn ? ' after that' : '') + ')' : ' (no records after it)') + ' = <b>' + M$(FN.balance(a)) + '</b> today.' +
+      (bp.nBefore ? ' ' + U.plural(bp.nBefore, 'record') + ' dated before it (' + (bp.before >= 0 ? '+' : '−') + M$(Math.abs(bp.before)) + ') are not counted — they are already in the balance you typed.' : '') +
+      (bp.nLater ? ' ' + U.plural(bp.nLater, 'record') + ' dated after today (' + (bp.later >= 0 ? '+' : '−') + M$(Math.abs(bp.later)) + ') will count on their dates.' : '') +
+      (a.asOn ? '' : ' <b>Set “Balance on”</b> to the date of the balance you typed (today, if it is today’s) so records before it are not added again.') + '</span><br>' : '';
+    itemEditor({ title: id ? 'Account' : 'New account', item: Object.assign({}, a, { asOn: a.asOn || today }),
       fields: [{ k: 'name', label: 'Name', required: true, ph: 'Salary account, cash, credit card…' }, { k: 'type', label: 'Type', type: 'select', options: Object.keys(ATYPES).map(k => [k, ATYPES[k]]) },
-        { k: 'institution', label: 'Bank / issuer' }, { k: 'last4', label: 'Last 4 digits', ph: 'Only the last four' }, { k: 'opening', label: 'Opening balance', type: 'money' }, { k: 'notes', label: 'Notes', type: 'area' }],
-      hint: 'Keep full account and card numbers, PINs and passwords out of here — the Passwords tab keeps secrets encrypted.',
-      onSave: v => { v.last4 = String(v.last4 || '').replace(/\D/g, '').slice(-4); upsert(F().accounts, a, v); },
+        { k: 'institution', label: 'Bank / issuer' }, { k: 'last4', label: 'Last 4 digits', ph: 'Only the last four' }, { k: 'opening', label: 'Balance', type: 'money' }, { k: 'asOn', label: 'Balance on (date)', type: 'date' }, { k: 'notes', label: 'Notes', type: 'area' }],
+      hint: how + 'Type the balance from your passbook or bank app and its date: records after that date are added to it. Keep full account and card numbers, PINs and passwords out of here — the Passwords tab keeps secrets encrypted.',
+      onSave: v => {
+        v.last4 = String(v.last4 || '').replace(/\D/g, '').slice(-4);
+        if (!U.isKey(v.asOn)) v.asOn = today;
+        if (+v.opening !== +(a.opening || 0) || v.asOn !== a.asOn) v.openingAt = Date.now();
+        upsert(F().accounts, a, v);
+      },
       onDelete: id ? () => { F().accounts = F().accounts.filter(x => x.id !== id); F().records.forEach(r => { if (r.accountId === id) r.accountId = null; }); } : null });
   };
   FN.editHolding = id => {
@@ -540,7 +563,7 @@
       const today = U.today();
       return '<h3 class="gh">Accounts</h3>' +
         (acc.length ? '<table class="st-table"><thead><tr><th>Account</th><th>Type</th><th class="num">Balance in diary</th></tr></thead><tbody>' + acc.map(a => '<tr><td><button type="button" class="plain-btn" data-act="fin-aedit" data-id="' + e(a.id) + '"><b>' + e(a.name) + '</b></button><div class="hint">' + e([a.institution, a.last4 ? '•••• ' + a.last4 : ''].filter(Boolean).join(' · ')) + '</div></td><td>' + e(ATYPES[a.type] || '') + '</td><td class="num">' + M$(FN.balance(a)) + '</td></tr>').join('') + '</tbody></table>' +
-          '<p class="hint">Balance = opening balance + money received − money spent recorded here.</p>' : '<p class="hint">No accounts yet.</p>') +
+          '<p class="hint">Balance = the balance you typed on its date + money received − money spent and transferred, recorded after that date (nothing dated after today). Open an account to see how its figure is made up.</p>' : '<p class="hint">No accounts yet.</p>') +
         '<button type="button" class="btn small" data-act="fin-anew">' + ED.icon('plus') + 'Add account</button>' +
         '<h3 class="gh fin-gap">Policies & investments</h3>' +
         (hs.length ? '<div class="fin-inv"><span>Invested <b class="num">' + M$(inv) + '</b></span><span>Worth now <b class="num">' + M$(val) + '</b></span>' + (inv ? '<span class="' + (val >= inv ? 'fin-ok' : 'fin-bad') + '">' + (val >= inv ? '+' : '−') + M$(Math.abs(val - inv)) + '</span>' : '') + '</div>' +
