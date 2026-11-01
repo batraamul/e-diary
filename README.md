@@ -451,3 +451,9 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 - The day’s **workout task** now lists each exercise with a **how-to ↗** link when the exercise has one.
 - In the exercise form, an **Open** button sits next to the Link field.
 - **Picture (optional)** for each exercise: choose a photo from your phone or computer (it is made small, a few tens of KB) or paste an image address. A thumbnail shows in the day’s list; click it to see it large with the link and remarks. **Remove picture** takes it off.
+
+### v1.18.6 — Transfers into policies & investments
+- **Money → Add record → Transfer:** the *To* list now has your **Policies & investments** (FDs, PPF, gold bonds, shares, mutual funds, insurance…) under the accounts, and the *From* list has them too (an FD maturing into your bank, a withdrawal). The account’s balance changes as for any transfer; the investment’s **invested amount and value** grow by the money put in (or shrink by money taken out).
+- **⇄** beside each policy or investment (Assets) opens a transfer into it straight away. The table shows “+₹… moved” under its value.
+- When you type a new value from a statement, it is taken as it is: transfers recorded before that are not counted again.
+- *Spent* and *Received* still use accounts only; a premium or investment paid from a bank is best recorded as a Transfer to that policy or investment.

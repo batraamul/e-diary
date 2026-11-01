@@ -53,6 +53,21 @@
   /* ---------------- lookups & totals ---------------- */
   FN.cat = id => F().cats.find(c => c.id === id) || null;
   FN.account = id => F().accounts.find(a => a.id === id) || null;
+  /* 1.18.6: a transfer can go to (or come from) a policy or investment — buying into an FD, PPF, SGB, shares, paying a
+     premium… The account's balance changes as for any transfer, and the holding's invested amount and value grow (or
+     shrink, for money taken out) by it. Transfers count from the time you last typed that figure on the holding, so
+     updating the value from a statement never counts a transfer twice. Record fields: fromHoldingId / toHoldingId. */
+  FN.holding = id => F().holdings.find(h => h.id === id) || null;
+  const recAt = r => r.createdAt || Date.parse(r.date) || 0;
+  FN.hFlow = (h, since) => r2(F().records.reduce((t, r) => {
+    if (r.type !== 'transfer' || (since && recAt(r) <= since)) return t;
+    const a = +r.amount || 0;
+    return r.toHoldingId === h.id ? t + a : r.fromHoldingId === h.id ? t - a : t;
+  }, 0));
+  FN.hInvested = h => r2((+h.amount || 0) + FN.hFlow(h, h.amountAt));
+  FN.hValue = h => r2((+h.value ? +h.value + FN.hFlow(h, h.valueAt) : (+h.amount || 0) + FN.hFlow(h, h.amountAt)));
+  /* the name of either side of a record (account or holding) */
+  FN.sideName = (accId, hId) => { if (hId) { const h = FN.holding(hId); return h ? h.name : '(deleted investment)'; } const a = FN.account(accId); return a ? a.name : '?'; };
   FN.catsOf = kind => F().cats.filter(c => c.kind === kind).sort((a, b) => (a.order || 0) - (b.order || 0));
   const monthEnd = m => U.addDays(U.addMonths(m, 1), -1);
   FN.inMonth = m => { const end = monthEnd(m); return F().records.filter(r => r.date >= m && r.date <= end); };
@@ -135,7 +150,10 @@
     const accs = F().accounts;
     const d = r ? U.clone(r) : Object.assign({ date: U.today() > monthEnd(monthKey()) || U.today() < monthKey() ? monthKey() : U.today(), type: 'expense', amount: '', categoryId: 'fc-other', accountId: (accs[0] || {}).id || '', toAccountId: (accs[1] || {}).id || '', desc: '', notes: '' }, preset || {});
     const catOpts = kind => FN.catsOf(kind).map(c => opt(c.id, (c.icon ? c.icon + ' ' : '') + c.name + (c.saving ? ' (saving)' : ''), c.id === d.categoryId)).join('');
-    const accOpts = sel => opt('', '—', !sel) + accs.map(a => opt(a.id, a.name, a.id === sel)).join('');
+    const hs = F().holdings.slice();
+    const accOpts = (sel, withH) => opt('', '—', !sel) + (withH && hs.length ? '<optgroup label="Accounts">' : '') + accs.map(a => opt(a.id, a.name, a.id === sel)).join('') + (withH && hs.length ? '</optgroup>' : '') +
+      (withH && hs.length ? '<optgroup label="Policies & investments">' + hs.map(h => opt('h:' + h.id, h.name + (h.ref ? ' · ' + h.ref : ''), 'h:' + h.id === sel)).join('') + '</optgroup>' : '');
+    const fromSel = d.fromHoldingId ? 'h:' + d.fromHoldingId : d.accountId, toSel = d.toHoldingId ? 'h:' + d.toHoldingId : d.toAccountId;
     const body = '<form class="fin-form">' +
       '<div class="seg fin-type" role="group" aria-label="Type"><button type="button" data-type="expense" aria-pressed="' + (d.type === 'expense') + '">Spent</button><button type="button" data-type="income" aria-pressed="' + (d.type === 'income') + '">Received</button><button type="button" data-type="transfer" aria-pressed="' + (d.type === 'transfer') + '" title="Between your own accounts: bank → cash, bank → credit card">Transfer</button></div>' +
       '<div class="st-grid">' +
@@ -143,10 +161,10 @@
       '<label class="lbl" for="fr-desc">What for</label><input id="fr-desc" class="field" value="' + e(d.desc) + '" placeholder="e.g. Groceries at the market" autocomplete="off">' +
       '<label class="lbl fr-cat-l" for="fr-cat">Category</label><select id="fr-cat" class="field">' + catOpts(d.type === 'income' ? 'income' : 'expense') + '</select>' +
       '<label class="lbl" for="fr-date">Date</label><input id="fr-date" class="field" type="date" value="' + e(d.date) + '">' +
-      '<label class="lbl" for="fr-acc" id="fr-acc-l">' + (d.type === 'transfer' ? 'From account' : 'Paid from / into') + '</label><select id="fr-acc" class="field">' + accOpts(d.accountId) + '</select>' +
-      '<label class="lbl fr-to-l" for="fr-to">To account</label><select id="fr-to" class="field">' + accOpts(d.toAccountId) + '</select>' +
+      '<label class="lbl" for="fr-acc" id="fr-acc-l">' + (d.type === 'transfer' ? 'From account' : 'Paid from / into') + '</label><select id="fr-acc" class="field">' + accOpts(fromSel, d.type === 'transfer') + '</select>' +
+      '<label class="lbl fr-to-l" for="fr-to">To account</label><select id="fr-to" class="field">' + accOpts(toSel, true) + '</select>' +
       '<label class="lbl" for="fr-notes">Notes</label><textarea id="fr-notes" class="field" rows="2" placeholder="Bill number, mode of payment…">' + e(d.notes || '') + '</textarea>' +
-      '</div><p class="hint fr-thint">A transfer moves money between your own accounts. It changes their balances but is not income or spending.</p></form>';
+      '</div><p class="hint fr-thint">A transfer moves money between your own accounts — or into a policy or investment (FD, PPF, gold bonds, shares, a premium…) and back out of one when it matures. It changes their balances and values but is not income or spending.</p></form>';
     ED.ui.modal({
       title: r ? 'Record' : 'New record', cls: 'st-modal', body,
       footer: (r ? '<button type="button" class="btn danger" data-x="del">' + ED.icon('trash') + 'Delete</button>' : '') + '<span class="grow"></span><button type="button" class="btn" data-mclose>Cancel</button><button type="button" class="btn primary" data-x="save">' + (r ? 'Save' : 'Add') + '</button>',
@@ -159,6 +177,10 @@
           [cat, el.querySelector('.fr-cat-l')].forEach(x => { x.hidden = tr; });
           [el.querySelector('#fr-to'), el.querySelector('.fr-to-l'), el.querySelector('.fr-thint')].forEach(x => { x.hidden = !tr; });
           el.querySelector('#fr-acc-l').textContent = tr ? 'From account' : 'Paid from / into';
+          el.querySelector('.fr-to-l').textContent = tr ? 'To account or investment' : 'To account';
+          const fa = el.querySelector('#fr-acc'), keepV = fa.value;
+          fa.innerHTML = accOpts(tr ? keepV : (/^h:/.test(keepV) ? '' : keepV), tr);   // investments can be a source only for a transfer
+          if (!tr && /^h:/.test(keepV)) fa.value = (accs[0] || {}).id || '';
         };
         show();
         el.querySelector('.fin-type').addEventListener('click', ev => {
@@ -181,9 +203,10 @@
           if (!(a > 0)) { ED.ui.toast('Enter an amount'); el.querySelector('#fr-amt').focus(); return; }
           const date = el.querySelector('#fr-date').value; if (!U.isKey(date)) { ED.ui.toast('Choose a date'); return; }
           const from = el.querySelector('#fr-acc').value || null, to = el.querySelector('#fr-to').value || null;
-          if (type === 'transfer' && (!from || !to || from === to)) { ED.ui.toast('Choose two different accounts for a transfer'); return; }
+          if (type === 'transfer' && (!from || !to || from === to)) { ED.ui.toast('Choose two different accounts (or an investment) for a transfer'); return; }
+          const fromH = type === 'transfer' && /^h:/.test(from || '') ? from.slice(2) : null, toH = type === 'transfer' && /^h:/.test(to || '') ? to.slice(2) : null;
           ED.store.checkpoint('Record');
-          const f = { type, amount: a, date, categoryId: type === 'transfer' ? null : cat.value, accountId: from, toAccountId: type === 'transfer' ? to : null, desc: el.querySelector('#fr-desc').value.trim(), notes: el.querySelector('#fr-notes').value.trim(), updatedAt: Date.now() };
+          const f = { type, amount: a, date, categoryId: type === 'transfer' ? null : cat.value, accountId: fromH ? null : from, toAccountId: type === 'transfer' && !toH ? to : null, fromHoldingId: fromH, toHoldingId: toH, desc: el.querySelector('#fr-desc').value.trim(), notes: el.querySelector('#fr-notes').value.trim(), updatedAt: Date.now() };
           if (r) { Object.assign(r, f); delete r.sample; if (r.src) r.fixed = true; } else FN.addRecord(f);   // fixed: your edit stays (js/purchases.js)
           if (date.slice(0, 7) !== monthKey().slice(0, 7)) st().month = U.firstOfMonth(date);
           ED.store.commit(); api.close();
@@ -281,7 +304,8 @@
         { k: 'institution', label: 'Company / bank' }, { k: 'ref', label: 'Policy / folio no.' }, { k: 'amount', label: 'Invested / sum assured', type: 'money' }, { k: 'value', label: 'Current value', type: 'money' },
         { k: 'premium', label: 'Premium / instalment', type: 'money' }, { k: 'frequency', label: 'Paid', type: 'select', options: [['', '—'], ['monthly', 'Monthly'], ['quarterly', 'Quarterly'], ['half-yearly', 'Half-yearly'], ['yearly', 'Yearly'], ['once', 'Once']] },
         { k: 'start', label: 'Started', type: 'date' }, { k: 'due', label: 'Next due / maturity', type: 'date' }, { k: 'notes', label: 'Notes', type: 'area' }],
-      onSave: v => upsert(F().holdings, h, v),
+      hint: id && (FN.hFlow(h, h.amountAt) || FN.hFlow(h, h.valueAt)) ? 'Transfers recorded in Money since you last typed these figures: <b>' + e(M$(FN.hFlow(h, h.value ? h.valueAt : h.amountAt))) + '</b> — the list shows invested ' + e(M$(FN.hInvested(h))) + ', worth ' + e(M$(FN.hValue(h))) + '. If you type the value from a statement now, it replaces that (no double counting).' : 'Money moved here with a Transfer in Money (e.g. SBI Account → this FD) adds to the invested amount and the value by itself.',
+      onSave: v => { const now = Date.now(); if (+v.amount !== +(h.amount || 0)) v.amountAt = now; if (+v.value !== +(h.value || 0)) v.valueAt = now; upsert(F().holdings, h, v); },
       onDelete: id ? () => { F().holdings = F().holdings.filter(x => x.id !== id); } : null });
   };
   FN.editCategory = id => {
@@ -299,8 +323,8 @@
     const rows = [['Date', 'Type', 'Category', 'Account', 'Description', 'Amount', 'Notes']];
     F().records.slice().sort((a, b) => a.date.localeCompare(b.date)).forEach(r => {
       const c = FN.cat(r.categoryId), a = FN.account(r.accountId);
-      const to = FN.account(r.toAccountId);
-      rows.push([r.date, r.type === 'income' ? 'Income' : r.type === 'transfer' ? 'Transfer' : FN.isSaving(r.categoryId) ? 'Saving' : 'Expense', c ? c.name : r.type === 'transfer' ? 'Transfer' + (to ? ' to ' + to.name : '') : '', a ? a.name : '', r.desc, r.amount, r.notes || '']);
+      const tr = r.type === 'transfer';
+      rows.push([r.date, r.type === 'income' ? 'Income' : tr ? 'Transfer' : FN.isSaving(r.categoryId) ? 'Saving' : 'Expense', c ? c.name : tr ? 'Transfer to ' + FN.sideName(r.toAccountId, r.toHoldingId) : '', tr ? FN.sideName(r.accountId, r.fromHoldingId) : a ? a.name : '', r.desc, r.amount, r.notes || '']);
     });
     await U.download('finance-records-' + U.today() + '.csv', ED.xlsx.toCSV(rows), 'text/csv');
   };
@@ -388,7 +412,7 @@
           const c = FN.cat(r.categoryId), a = FN.account(r.accountId), to = FN.account(r.toAccountId);
           const tr = r.type === 'transfer', sv = !tr && FN.isSaving(r.categoryId);
           return '<button type="button" class="fin-rec ' + r.type + (sv ? ' saving' : '') + '" data-act="fin-rec" data-id="' + e(r.id) + '"><span class="fin-ic emo" aria-hidden="true">' + (tr ? '⇄' : e(c ? c.icon || '•' : '•')) + '</span>' +
-            '<span class="fin-rt"><b>' + e(r.desc || (tr ? 'Transfer' : c ? c.name : 'Record')) + '</b><span class="hint">' + e(tr ? (a ? a.name : '?') + ' → ' + (to ? to.name : '?') : (c ? c.name : '') + (sv ? ' · put aside' : '') + (a ? ' · ' + a.name : '')) + '</span></span>' +
+            '<span class="fin-rt"><b>' + e(r.desc || (tr ? (r.toHoldingId ? 'Invested' : r.fromHoldingId ? 'From investment' : 'Transfer') : c ? c.name : 'Record')) + '</b><span class="hint">' + e(tr ? FN.sideName(r.accountId, r.fromHoldingId) + ' → ' + FN.sideName(r.toAccountId, r.toHoldingId) : (c ? c.name : '') + (sv ? ' · put aside' : '') + (a ? ' · ' + a.name : '')) + '</span></span>' +
             '<span class="fin-amt num">' + (r.type === 'income' ? '+' : tr ? '' : '−') + e(M$(r.amount)) + '</span></button>';
         }).join('') + '</li>').join('');
       const filt = f ? '<span class="chip">' + e((FN.cat(f) || {}).name || '') + '<button type="button" data-act="fin-cat" data-id="" aria-label="Show all categories">' + ED.icon('x') + '</button></span>' : '';
@@ -512,7 +536,7 @@
 
     r_assets() {
       const acc = F().accounts, hs = F().holdings.slice().sort((a, b) => String(a.due || '9999').localeCompare(String(b.due || '9999')));
-      const inv = hs.reduce((a, h) => a + (h.type === 'loan' ? 0 : h.amount || 0), 0), val = hs.reduce((a, h) => a + (h.type === 'loan' ? 0 : h.value || h.amount || 0), 0);
+      const inv = hs.reduce((a, h) => a + (h.type === 'loan' ? 0 : FN.hInvested(h)), 0), val = hs.reduce((a, h) => a + (h.type === 'loan' ? 0 : FN.hValue(h)), 0);
       const today = U.today();
       return '<h3 class="gh">Accounts</h3>' +
         (acc.length ? '<table class="st-table"><thead><tr><th>Account</th><th>Type</th><th class="num">Balance in diary</th></tr></thead><tbody>' + acc.map(a => '<tr><td><button type="button" class="plain-btn" data-act="fin-aedit" data-id="' + e(a.id) + '"><b>' + e(a.name) + '</b></button><div class="hint">' + e([a.institution, a.last4 ? '•••• ' + a.last4 : ''].filter(Boolean).join(' · ')) + '</div></td><td>' + e(ATYPES[a.type] || '') + '</td><td class="num">' + M$(FN.balance(a)) + '</td></tr>').join('') + '</tbody></table>' +
@@ -522,8 +546,8 @@
         (hs.length ? '<div class="fin-inv"><span>Invested <b class="num">' + M$(inv) + '</b></span><span>Worth now <b class="num">' + M$(val) + '</b></span>' + (inv ? '<span class="' + (val >= inv ? 'fin-ok' : 'fin-bad') + '">' + (val >= inv ? '+' : '−') + M$(Math.abs(val - inv)) + '</span>' : '') + '</div>' +
           '<table class="st-table"><thead><tr><th>Name</th><th>Type</th><th class="num">Value</th><th>Next due</th></tr></thead><tbody>' + hs.map(h => {
             const d = h.due ? U.diffDays(today, h.due) : null;
-            return '<tr><td><button type="button" class="plain-btn" data-act="fin-hedit" data-id="' + e(h.id) + '"><b>' + e(h.name) + '</b></button><div class="hint">' + e([h.institution, h.ref ? 'No. ' + h.ref : '', h.premium ? M$(h.premium) + (h.frequency ? ' ' + h.frequency : '') : ''].filter(Boolean).join(' · ')) + '</div></td><td>' + e(HTYPES[h.type] || '') + '</td><td class="num">' + M$(h.value || h.amount || 0) + '</td>' +
-              '<td>' + (h.due ? '<span class="' + (d < 0 ? 'fin-bad' : d <= 30 ? 'fin-warn' : '') + '">' + e(U.fmtShort(h.due)) + (d != null && d <= 30 ? (d < 0 ? ' · overdue' : ' · ' + (d === 0 ? 'today' : 'in ' + d + ' d')) : '') + '</span> <button type="button" class="icon-btn sm" data-act="fin-remind" data-id="' + e(h.id) + '" title="Add a task on this date" aria-label="Add a reminder task">' + ED.icon('bell') + '</button>' : '') + '</td></tr>';
+            return '<tr><td><button type="button" class="plain-btn" data-act="fin-hedit" data-id="' + e(h.id) + '"><b>' + e(h.name) + '</b></button><div class="hint">' + e([h.institution, h.ref ? 'No. ' + h.ref : '', h.premium ? M$(h.premium) + (h.frequency ? ' ' + h.frequency : '') : ''].filter(Boolean).join(' · ')) + '</div></td><td>' + e(HTYPES[h.type] || '') + '</td><td class="num">' + M$(FN.hValue(h)) + (FN.hFlow(h, h.value ? h.valueAt : h.amountAt) ? '<div class="hint">' + (FN.hFlow(h, h.value ? h.valueAt : h.amountAt) > 0 ? '+' : '−') + M$(Math.abs(FN.hFlow(h, h.value ? h.valueAt : h.amountAt))) + ' moved</div>' : '') + '</td>' +
+              '<td>' + '<button type="button" class="icon-btn sm fin-hmove" data-act="fin-hmove" data-id="' + e(h.id) + '" title="Move money into or out of ' + e(h.name) + '" aria-label="Move money">⇄</button> ' + (h.due ? '<span class="' + (d < 0 ? 'fin-bad' : d <= 30 ? 'fin-warn' : '') + '">' + e(U.fmtShort(h.due)) + (d != null && d <= 30 ? (d < 0 ? ' · overdue' : ' · ' + (d === 0 ? 'today' : 'in ' + d + ' d')) : '') + '</span> <button type="button" class="icon-btn sm" data-act="fin-remind" data-id="' + e(h.id) + '" title="Add a task on this date" aria-label="Add a reminder task">' + ED.icon('bell') + '</button>' : '') + '</td></tr>';
           }).join('') + '</tbody></table>' : '<p class="hint">Insurance, FDs, PPF, mutual funds, NPS, loans — keep their numbers, values and renewal dates here.</p>') +
         '<button type="button" class="btn small" data-act="fin-hnew">' + ED.icon('plus') + 'Add policy or investment</button>';
     },
@@ -561,6 +585,7 @@
   A['fin-aedit'] = el => FN.editAccount(el.dataset.id);
   A['fin-hnew'] = () => FN.editHolding(null);
   A['fin-hedit'] = el => FN.editHolding(el.dataset.id);
+  A['fin-hmove'] = el => { const h = FN.holding(el.dataset.id); if (h) FN.editRecord(null, { type: 'transfer', toAccountId: null, toHoldingId: h.id, desc: 'Into ' + h.name }); };
   A['fin-cnew'] = () => FN.editCategory(null);
   A['fin-cedit'] = el => FN.editCategory(el.dataset.id);
   A['fin-billpay'] = el => {

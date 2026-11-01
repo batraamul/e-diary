@@ -342,7 +342,7 @@
     const months = [1, 2, 3].map(i => U.addMonths(m0, -i));
     const tot = months.map(m => FN.totals(FN.inMonth(m)));
     const withData = tot.filter(t => t.income || t.expense);
-    const inv = F.holdings.reduce((a, h) => a + (h.type === 'loan' || h.type === 'insurance' ? 0 : h.value || h.amount || 0), 0) + F.accounts.reduce((a, x) => a + Math.max(0, FN.balance(x)), 0);
+    const inv = F.holdings.reduce((a, h) => a + (h.type === 'loan' || h.type === 'insurance' ? 0 : (ED.finance && ED.finance.hValue ? ED.finance.hValue(h) : h.value || h.amount || 0)), 0) + F.accounts.reduce((a, x) => a + Math.max(0, FN.balance(x)), 0);
     return { income: withData.length ? Math.round(withData.reduce((a, t) => a + t.income, 0) / withData.length) : 0, expenses: withData.length ? Math.round(withData.reduce((a, t) => a + t.expense, 0) / withData.length) : 0, months: withData.length, savings: Math.round(inv) };
   };
 
