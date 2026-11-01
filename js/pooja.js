@@ -26,7 +26,7 @@
     const d = D();
     if (!d.pooja || typeof d.pooja !== 'object') d.pooja = ED.sample.pooja ? ED.sample.pooja() : { daily: [], vrats: [], custom: [], fest: false, festV: 2, strip: true, ahead: 30, skip: {} };
     const p = d.pooja;
-    if (!Array.isArray(p.daily)) p.daily = []; if (!Array.isArray(p.vrats)) p.vrats = []; if (!p.skip || typeof p.skip !== 'object') p.skip = {};
+    if (!Array.isArray(p.daily)) p.daily = []; if (!Array.isArray(p.vrats)) p.vrats = []; if (!p.skip || typeof p.skip !== 'object') p.skip = {}; if (!p.vratEnd || typeof p.vratEnd !== 'object') p.vratEnd = {};
     if (!Array.isArray(p.custom)) p.custom = [];
     if (p.festV !== 2) { p.fest = false; p.festV = 2; }   // 1.16.2: festivals stay on the calendar, not in the task list (switch them on in Settings)
     return p;
@@ -162,6 +162,7 @@
         }
         const every = Math.max(1, +x.every || 1);
         const rep = x.days && x.days.length && x.days.length < 7 ? { freq: 'weekly', days: x.days.slice(), interval: 1 } : { freq: 'daily', interval: every };
+        if (U.isKey(x.end)) rep.until = x.end;                      // 1.19: an end date for the pooja
         const title = (x.icon ? x.icon + ' ' : '') + x.name;
         let t = find(id);
         if (!t) {
@@ -184,6 +185,7 @@
           const k = U.addDays(today, i), day = P.day(k);
           p.vrats.forEach(key => {
             if (day.vrats.indexOf(key) < 0) return;
+            if (U.isKey(p.vratEnd[key]) && k > p.vratEnd[key]) return;      // 1.19: kept until this date
             const id = VID(key, k); if (p.skip[id]) return;
             live.add(id);
             const v = PJ.VRATS[key] || {};
@@ -209,7 +211,7 @@
               t.num = M.nextNum(t.prio, t.date); d.tasks.push(t); ch = true;
             } else if (t.linkTitle !== title) { if (t.title === t.linkTitle) t.title = title; t.linkTitle = title; ch = true; }
           });
-          if (p.fest) {
+          if (p.fest && !(U.isKey(p.festEnd) && k > p.festEnd)) {
             const fs = day.festivals.filter(f => BIG.test(f));
             if (fs.length) {
               const id = FID(k);
@@ -365,8 +367,8 @@
         const v = PJ.VRATS[k], on = p.vrats.indexOf(k) >= 0, open = s.open === k;
         const nx = P.next(k, today, k === 'navratri' || PJ.VRATS[k].group === 'Festivals' ? 400 : 60).slice(0, 3);
         return '<li class="pj-v' + (on ? ' on' : '') + '"><div class="pj-vh"><label class="switch pj-sw"><input type="checkbox" data-change="pj-vrat" data-k="' + k + '"' + (on ? ' checked' : '') + '><span class="track"></span></label>' +
-          '<button type="button" class="plain-btn grow pj-vb" data-act="pj-vopen" data-k="' + k + '" aria-expanded="' + open + '"><b>' + e(v.name) + '</b> <span class="hint">· ' + e(v.deity) + '</span><span class="hint pj-vn">' + (nx.length ? 'Next: ' + nx.map(d => e(U.fmtDM(d)) + (k === 'ekadashi' ? ' (' + e(P.day(d).ekadashi || '') + ')' : '')).join(', ') : e(v.when)) + '</span></button>' + ED.icon(open ? 'chevD' : 'chevR') + '</div>' +
-          (open ? '<div class="pj-vd"><p><b>When:</b> ' + e(v.when) + '</p><p><b>How to keep it:</b></p><ul>' + v.how.map(h => '<li>' + e(h) + '</li>').join('') + '</ul>' + (v.food ? '<p><b>Food:</b> ' + e(v.food) + '</p>' : '') + (v.paran ? '<p><b>Paran (breaking the fast):</b> ' + e(v.paran) + '</p>' : '') + '<p class="hint">Customs differ by family and region — follow yours. Not medical advice: people who are unwell, pregnant, elderly or on medicines should keep a lighter fast.</p></div>' : '') + '</li>';
+          '<button type="button" class="plain-btn grow pj-vb" data-act="pj-vopen" data-k="' + k + '" aria-expanded="' + open + '"><b>' + e(v.name) + '</b> <span class="hint">· ' + e(v.deity) + '</span>' + (on && p.vratEnd[k] ? '<span class="hint pj-vn">until ' + e(U.fmtShort(p.vratEnd[k])) + '</span>' : '') + '<span class="hint pj-vn">' + (nx.length ? 'Next: ' + nx.map(d => e(U.fmtDM(d)) + (k === 'ekadashi' ? ' (' + e(P.day(d).ekadashi || '') + ')' : '')).join(', ') : e(v.when)) + '</span></button>' + ED.icon(open ? 'chevD' : 'chevR') + '</div>' +
+          (open ? '<div class="pj-vd"><label class="pj-vend">Keep it until <input type="date" class="field" data-change="pj-vend" data-k="' + k + '" value="' + e(p.vratEnd[k] || '') + '"> <span class="hint">optional — leave empty to keep it every year</span></label><p><b>When:</b> ' + e(v.when) + '</p><p><b>How to keep it:</b></p><ul>' + v.how.map(h => '<li>' + e(h) + '</li>').join('') + '</ul>' + (v.food ? '<p><b>Food:</b> ' + e(v.food) + '</p>' : '') + (v.paran ? '<p><b>Paran (breaking the fast):</b> ' + e(v.paran) + '</p>' : '') + '<p class="hint">Customs differ by family and region — follow yours. Not medical advice: people who are unwell, pregnant, elderly or on medicines should keep a lighter fast.</p></div>' : '') + '</li>';
       }).join('') + '</ul>').join('');
   };
   const setTab = () => {
@@ -374,6 +376,7 @@
     return '<div class="pj-set">' +
       '<label class="switch"><input type="checkbox" data-change="pj-set" data-k="strip"' + (p.strip !== false ? ' checked' : '') + '><span class="track"></span><span>Show the Panchang line on the Daily page</span></label>' +
       '<label class="switch"><input type="checkbox" data-change="pj-set" data-k="fest"' + (p.fest ? ' checked' : '') + '><span class="track"></span><span>Also put the main festivals in the Daily planner as tasks (they are always on the calendar and the Panchang line)</span></label>' +
+      (p.fest ? '<label class="pj-ahead">Festivals in the planner until <input type="date" class="field" data-change="pj-fend" value="' + e(p.festEnd || '') + '"> <span class="hint">optional</span></label>' : '') +
       '<label class="pj-ahead">Fill the planner ahead for <select class="field" data-change="pj-ahead">' + [14, 30, 45, 60, 90].map(n => FX().opt(n, n + ' days', (+p.ahead || 30) === n)).join('') + '</select></label>' +
       '<p class="hint">City for sunrise and the tithi: <b>' + e(P.place().name) + '</b> — change it in Settings → Weather &amp; Quotes.</p>' +
       '<p class="hint">Only your poojas and the vrats you keep go into the Daily planner as tasks, under the role <b>' + e(((D().roles.find(r => r.id === p.roleId)) || {}).name || 'Spiritual & Pooja') + '</b> (rename it on the Roles page). Deleting a pooja’s task takes it out of the planner (switch it on again here); deleting a vrat or festival task skips that day only.</p></div>';
@@ -402,12 +405,14 @@
         { k: 'days', label: 'Days', type: 'days' },
         { k: 'every', label: 'How often', type: 'select', options: [['1', 'On the days ticked'], ['2', 'Alternate days'], ['3', 'Once in 3 days'], ['7', 'Once a week'], ['15', 'Once a fortnight']], hint: 'Used when every day is ticked.' },
         { k: 'start', label: 'From', type: 'date' },
+        { k: 'end', label: 'Until (optional)', type: 'date', hint: 'Leave empty to keep it going.' },
         { k: 'notes', label: 'How I do it', type: 'textarea', rows: 3, ph: 'Steps, mantra, samagri…' },
       ],
       del: x ? async () => { if (!await ED.ui.confirm({ title: 'Remove pooja', message: 'Remove “' + x.name + '” and its task in the planner?', ok: 'Remove', danger: true })) return false; ED.store.checkpoint('Remove pooja'); p.daily = p.daily.filter(y => y !== x); ED.store.commit(); ED.ui.undoToast('Pooja removed'); } : null,
       save(v, api) {
         ED.store.checkpoint(x ? 'Pooja' : 'New pooja');
         v.every = Math.max(1, +v.every || 1); if (!v.start) v.start = U.today();
+        if (v.end && v.end < v.start) { ED.ui.toast('“Until” is before “From”'); return; }
         if (x) { Object.assign(x, v, { updatedAt: Date.now() }); delete x.noPlan; }
         else p.daily.push(Object.assign({ id: U.uid('pj'), key: (preset && preset.key) || '', updatedAt: Date.now() }, v));
         ED.store.commit(); api.close(); ED.ui.toast(x ? 'Saved' : 'Added — it is in the Daily planner under Spiritual & Pooja');
@@ -458,6 +463,8 @@
     p.vrats = p.vrats.filter(x => x !== k); if (el.checked) p.vrats.push(k);
     ED.store.commit(); ED.ui.toast(el.checked ? PJ.VRATS[k].name + ' — in the Daily planner on its days' : PJ.VRATS[k].name + ' — taken out of the planner');
   };
+  CH['pj-vend'] = el => { const p = PD(); ED.store.checkpoint('Vrat until'); if (U.isKey(el.value)) p.vratEnd[el.dataset.k] = el.value; else delete p.vratEnd[el.dataset.k]; ED.store.commit(); ED.ui.toast(el.value ? (PJ.VRATS[el.dataset.k] || {}).name + ' — kept until ' + U.fmtShort(el.value) : 'No end date'); };
+  CH['pj-fend'] = el => { const p = PD(); ED.store.checkpoint('Festivals until'); if (U.isKey(el.value)) p.festEnd = el.value; else delete p.festEnd; ED.store.commit(); };
   CH['pj-set'] = el => { PD()[el.dataset.k] = el.checked; ED.store.commit(); };
   CH['pj-ahead'] = el => { PD().ahead = +el.value || 30; ED.store.commit(); };
 })();

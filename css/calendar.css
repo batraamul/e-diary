@@ -63,7 +63,9 @@
 .tg-item span { flex: none; color: var(--ink-2); font-size: 11.5px; white-space: nowrap; }
 .tg-item:hover { z-index: 3; box-shadow: inset 3px 0 0 var(--c), 0 3px 10px rgba(0,0,0,.2); }
 .tg-task { background: var(--paper-3); box-shadow: inset 0 0 0 1px var(--card-border), inset 3px 0 0 var(--c); }
-.tg-task.st-done b, .tg-task.st-cancelled b { text-decoration: line-through; color: var(--ink-3); }
+.tg-task.st-cancelled b { text-decoration: line-through; color: var(--ink-3); }
+.tg-task.st-done b { color: var(--ink-3); }
+.tg-task.st-done b::before, .ad-task.st-done .ad-t::before, .cp-li.st-done .ttl::before { content: '✓ '; color: var(--good, #16a34a); font-weight: 800; }
 @supports not (background: color-mix(in srgb, red 10%, white)) { .tg-ev, .tg-study { background: var(--paper-3); } }
 .tg-study { background: color-mix(in srgb, var(--c) 14%, var(--paper-3)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent), inset 3px 0 0 var(--c); }
 .tg-study.done b { color: var(--ink-2); }
@@ -91,7 +93,8 @@ body.tg-drag-on .tg-item.tg-resizing, body.tg-drag-on.tg-resize-on * { cursor: n
 .ad-tick .ic { width: 17px; height: 17px; }
 .ad-tick:hover { background: var(--well); }
 .ad-t { flex: 1; min-width: 0; border: 0; background: none; padding: 2px 0; text-align: left; font: inherit; font-weight: 600; color: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
-.ad-task.st-done .ad-t, .ad-task.st-cancelled .ad-t { text-decoration: line-through; color: var(--ink-3); }
+.ad-task.st-cancelled .ad-t { text-decoration: line-through; color: var(--ink-3); }
+.ad-task.st-done .ad-t { color: var(--ink-3); }
 .ad-task.dragging, .ev-chip.dragging { opacity: .45; }
 .ev-chip[draggable="true"], .m-ev[draggable="true"] { cursor: grab; }
 .m-t.allday { font-weight: 600; }
@@ -162,7 +165,8 @@ body.tg-drag-on .tg-item.tg-resizing, body.tg-drag-on.tg-resize-on * { cursor: n
 .cp-li:hover { background: var(--well); }
 .cp-li .code { color: var(--prio-c); font-weight: 650; font-size: 12px; margin-right: 4px; }
 .cp-li .mini-b { display: none; }
-.cp-li.st-done .ttl, .cp-li.st-cancelled .ttl, .cp-li.st-forwarded .ttl { color: var(--ink-3); text-decoration: line-through; }
+.cp-li.st-cancelled .ttl, .cp-li.st-forwarded .ttl { color: var(--ink-3); text-decoration: line-through; }
+.cp-li.st-done .ttl { color: var(--ink-3); }
 .cp-li.st-done .code { color: var(--ink-3); }
 .mini-b .ic { width: 14px; height: 14px; color: var(--ink-3); }
 

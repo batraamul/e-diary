@@ -265,3 +265,23 @@ a.icon-btn { display: inline-grid; place-items: center; color: var(--ink-2); }
 .tlink { display: inline-flex; vertical-align: -2px; margin-right: 5px; color: var(--ok); }
 .tlink .ic { width: 15px; height: 15px; }
 @media (max-width: 640px) { .pu-src { display: none; } }
+
+/* 1.19: category detail */
+.fin-cname { text-align: left; } .fin-cname u { text-decoration-style: dotted; text-underline-offset: 3px; }
+.fin-cdh { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 8px; font-size: 15px; }
+.fin-cds { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 8px 10px; border-radius: 10px; background: var(--paper-3); border: 1px solid var(--card-border); font-size: 13.5px; }
+.fin-ctr { position: relative; display: flex; align-items: flex-end; gap: 4px; height: 120px; margin: 12px 0 4px; padding-bottom: 16px; }
+.fin-ctb { position: relative; flex: 1; height: 100%; display: flex; align-items: flex-end; }
+.fin-ctb i { display: block; width: 100%; min-height: 2px; border-radius: 4px 4px 0 0; background: color-mix(in srgb, var(--accent) 45%, transparent); }
+.fin-ctb.cur i { background: var(--accent); } .fin-ctb.over i { background: var(--bad, #dc2626); }
+.fin-ctb em { position: absolute; bottom: -16px; left: 0; right: 0; text-align: center; font-style: normal; font-size: 10px; color: var(--ink-3); }
+.fin-ctl { position: absolute; left: 0; right: 0; border-top: 1.5px dashed var(--ink-3); pointer-events: none; }
+.fin-cdh4 { margin: 14px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-3); }
+.fin-cg { list-style: none; margin: 0; padding: 0; } .fin-cg li { display: flex; align-items: center; gap: 10px; padding: 4px 0; font-size: 13.5px; } .fin-cg .fin-bar { width: 90px; }
+.fin-cir { cursor: pointer; } .fin-cir:hover td { background: var(--well); }
+
+/* 1.19: SIPs and money committed to goals */
+.fl-cn { margin-top: 2px; color: var(--good-ink, #15803d); }
+.fl-goal { margin-top: 8px; padding-top: 6px; border-top: 1px dashed var(--rule); }
+.fl-cl { list-style: none; margin: 0 0 6px; padding: 0; } .fl-cl li { display: flex; padding: 3px 0; font-size: 13px; } .fl-cl li.done { opacity: .6; }
+.fl-cl .plain-btn { text-align: left; }

@@ -80,7 +80,7 @@
       ['books', 'lectures', 'items', 'srcCats', 'topics'].forEach(k => { lists[k] = mergeList(pb && pb.id === pl.id ? pb[k] : null, pl[k], pr[k]); });
       out.study.plan = Object.assign({}, out.study.plan, lists);
     }
-    out.finance = nested('finance', ['cats', 'accounts', 'goals', 'holdings', 'bills', 'records']) || undefined;
+    out.finance = nested('finance', ['cats', 'accounts', 'goals', 'holdings', 'bills', 'records', 'sips', 'commits']) || undefined;
     out.sites = mergeList(base.sites, local.sites, remote.sites);
     out.bucket = nested('bucket', ['list']) || undefined;
     out.wardrobe = nested('wardrobe', ['items', 'wish'], { plan: 1 }) || undefined;
@@ -96,7 +96,7 @@
     out.maps = nested('maps', ['list']) || undefined;
     out.jobs = nested('jobs', ['items', 'sites']) || undefined;
     // 1.16: Pooja & Vrat, Exercise, Welfare & Help
-    out.pooja = nested('pooja', ['daily', 'custom'], { skip: 1 }) || undefined;
+    out.pooja = nested('pooja', ['daily', 'custom'], { skip: 1, vratEnd: 1 }) || undefined;
     out.exercise = nested('exercise', ['log'], { steps: 1, ticks: 2, watch: 1 }) || undefined;
     out.welfare = nested('welfare', ['list']) || undefined;
     // 1.17: Research papers

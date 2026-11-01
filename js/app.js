@@ -41,11 +41,11 @@
   const GROUPS = [
     { id: 'planner', label: 'Planner', title: 'Daily & monthly tasks, events and meetings', views: ['daily', 'weekly', 'monthly', 'yearly', 'events', 'matrix', 'bucket'], names: ['Daily', 'Weekly', 'Monthly', 'Yearly', 'Events', 'Eisenhower', 'Bucket List'] },
     { id: 'purpose', label: 'Purpose', title: 'Roles, goals and mission', views: ['roles', 'goals', 'mission'], names: ['Roles', 'Goals', 'Mission'] },
-    { id: 'life', label: 'Notes & Life', title: 'Notes & Life Planner: notes, progress, travel, grocery, meals, wardrobe, exercise, welfare, pooja', views: ['career', 'exercise', 'welfare', 'pooja'], names: ['Notes & Life', 'Exercise', 'Welfare & Help', 'Pooja & Vrat'] },
-    { id: 'study', label: 'Study', title: 'Study planner', views: ['studyYear', 'studyMonth', 'studyWeek', 'projects', 'mindmap', 'jobs'], names: ['Year', 'Month', 'Week & Day', 'Projects', 'Mind Maps', 'Govt Jobs'] },
+    { id: 'life', label: 'Notes & Life', title: 'Notes & Life Planner: notes, progress, travel, grocery, meals, wardrobe, welfare, pooja', views: ['career', 'welfare', 'pooja'], names: ['Notes & Life', 'Welfare & Help', 'Pooja & Vrat'] },
+    { id: 'study', label: 'Study', title: 'Study planner', views: ['studyYear', 'studyMonth', 'studyWeek'], names: ['Year', 'Month', 'Week & Day'] },
     { id: 'money', label: 'Fi\u00adnance', title: 'Money records and the financial plan', views: ['finance', 'finplan'], names: ['Money', 'Financial Plan'] },
-    { id: 'interview', label: 'Inter\u00adview & Exams', title: 'Interview and exam preparation', views: ['interview', 'exam'], names: ['Interviews', 'Exam Preparation'] },
-    { id: 'health', label: 'Health', title: 'Health, medicine and treatment', views: ['health'] },
+    { id: 'interview', label: 'Inter\u00adview & Exams', title: 'Interviews, exams, projects, mind maps and Govt jobs', views: ['interview', 'exam', 'projects', 'mindmap', 'jobs'], names: ['Interviews', 'Exam Preparation', 'Projects', 'Mind Maps', 'Govt Jobs'] },
+    { id: 'health', label: 'Health', title: 'Health, medicine, treatment and exercise', views: ['health', 'exercise'], names: ['Health', 'Exercise'] },
     { id: 'vault', label: 'Pass\u00adwords', title: 'Passwords and important websites', views: ['vault'] },
   ];
   ED.GROUPS = GROUPS;

@@ -126,6 +126,7 @@
       if (d >= -7 && d <= 45) out.push({ kind: 'holding', item: h, date: h.due, amount: h.premium || h.value || h.amount || 0, name: h.name + (h.type === 'insurance' ? ' — renewal' : ' — ' + (HTYPES[h.type] || 'due')) });
     });
     if (ED.purchases) ED.purchases.dues().forEach(x => out.push(x));   // groceries and clothes to buy (js/purchases.js)
+    if (ED.finLinks) ED.finLinks.dues().forEach(x => out.push(x));     // 1.19: SIP instalments and goal withdrawals (js/finlinks.js)
     return out.sort((a, b) => a.date.localeCompare(b.date));
   };
 
@@ -230,6 +231,7 @@
         const del = el.querySelector('[data-x="del"]');
         if (del) del.addEventListener('click', () => {
           ED.store.checkpoint('Delete record');
+          if (ED.finLinks) ED.finLinks.recordDeleted(r);
           F().records = F().records.filter(x => x.id !== r.id);
           F().bills.forEach(b => { Object.keys(b.paid || {}).forEach(k => { if (b.paid[k] === r.id) delete b.paid[k]; }); });
           ED.store.commit(); api.close(); ED.ui.undoToast('Record deleted');
@@ -298,7 +300,7 @@
     itemEditor({ title: id ? 'Savings goal' : 'New savings goal', item: g,
       fields: [{ k: 'name', label: 'Goal', required: true, ph: 'Emergency fund, children’s education…' }, { k: 'target', label: 'Target amount', type: 'money' }, { k: 'saved', label: 'Saved so far', type: 'money' }, { k: 'due', label: 'Reach it by', type: 'date' }, { k: 'notes', label: 'Notes', type: 'area' }],
       onSave: v => upsert(F().goals, g, v),
-      onDelete: id ? () => { F().goals = F().goals.filter(x => x.id !== id); } : null });
+      onDelete: id ? () => { F().goals = F().goals.filter(x => x.id !== id); if (F().commits) { F().commits.filter(c => c.goal === 'm:' + id).forEach(c => ED.fx && ED.fx.dropEvent(c)); F().commits = F().commits.filter(c => c.goal !== 'm:' + id); } } : null });
   };
   FN.editAccount = id => {
     const a = id ? F().accounts.find(x => x.id === id) : { id: U.uid('fa'), name: '', type: 'bank', institution: '', last4: '', opening: 0, notes: '' };
@@ -318,7 +320,7 @@
         if (+v.opening !== +(a.opening || 0) || v.asOn !== a.asOn) v.openingAt = Date.now();
         upsert(F().accounts, a, v);
       },
-      onDelete: id ? () => { F().accounts = F().accounts.filter(x => x.id !== id); F().records.forEach(r => { if (r.accountId === id) r.accountId = null; }); } : null });
+      onDelete: id ? () => { F().accounts = F().accounts.filter(x => x.id !== id); F().records.forEach(r => { if (r.accountId === id) r.accountId = null; }); if (F().sips) F().sips = F().sips.filter(x => x.accountId !== id); if (F().commits) { F().commits.filter(c => c.src === 'a:' + id).forEach(c => ED.fx && ED.fx.dropEvent(c)); F().commits = F().commits.filter(c => c.src !== 'a:' + id); } } : null });
   };
   FN.editHolding = id => {
     const h = id ? F().holdings.find(x => x.id === id) : { id: U.uid('fh'), name: '', type: 'insurance', institution: '', amount: 0, value: 0, premium: 0, frequency: 'yearly', start: '', due: '', ref: '', notes: '' };
@@ -329,7 +331,7 @@
         { k: 'start', label: 'Started', type: 'date' }, { k: 'due', label: 'Next due / maturity', type: 'date' }, { k: 'notes', label: 'Notes', type: 'area' }],
       hint: id && (FN.hFlow(h, h.amountAt) || FN.hFlow(h, h.valueAt)) ? 'Transfers recorded in Money since you last typed these figures: <b>' + e(M$(FN.hFlow(h, h.value ? h.valueAt : h.amountAt))) + '</b> — the list shows invested ' + e(M$(FN.hInvested(h))) + ', worth ' + e(M$(FN.hValue(h))) + '. If you type the value from a statement now, it replaces that (no double counting).' : 'Money moved here with a Transfer in Money (e.g. SBI Account → this FD) adds to the invested amount and the value by itself.',
       onSave: v => { const now = Date.now(); if (+v.amount !== +(h.amount || 0)) v.amountAt = now; if (+v.value !== +(h.value || 0)) v.valueAt = now; upsert(F().holdings, h, v); },
-      onDelete: id ? () => { F().holdings = F().holdings.filter(x => x.id !== id); } : null });
+      onDelete: id ? () => { F().holdings = F().holdings.filter(x => x.id !== id); if (F().sips) F().sips = F().sips.filter(x => x.holdingId !== id); if (F().commits) { F().commits.filter(c => c.src === 'h:' + id).forEach(c => ED.fx && ED.fx.dropEvent(c)); F().commits = F().commits.filter(c => c.src !== 'h:' + id); } } : null });
   };
   FN.editCategory = id => {
     const c = id ? FN.cat(id) : { id: U.uid('fc'), name: '', kind: 'expense', icon: '🧾', budget: 0, order: F().cats.length };
@@ -494,7 +496,7 @@
         const days = U.diffDays(U.today(), d.date);
         const when = days < 0 ? Math.abs(days) + ' days late' : days === 0 ? 'today' : days === 1 ? 'tomorrow' : 'in ' + days + ' days';
         return '<li class="' + (days < 0 ? 'late' : days <= 3 ? 'soon' : '') + '"><span class="fin-due-d num">' + e(U.fmtDM(d.date)) + '</span><span class="grow">' + e(d.name) + '<span class="hint"> · ' + e(when) + (days < 0 ? ' ⚠' : '') + '</span></span><span class="num">' + (d.amount ? e(M$(d.amount)) : '') + '</span>' +
-          (d.kind === 'purchase' ? '<button type="button" class="btn small" data-act="pu-pay" data-key="' + e(d.key) + '">Bought</button>' : d.kind === 'bill' ? '<button type="button" class="btn small" data-act="fin-billpay" data-id="' + e(d.item.id) + '">Paid</button>' : '<button type="button" class="btn small ghost" data-act="fin-remind" data-id="' + e(d.item.id) + '" title="Add a task on the due date">' + ED.icon('bell') + '</button>') + '</li>';
+          (d.kind === 'sip' ? '<button type="button" class="btn small ghost" data-act="fl-sip" data-id="' + e(d.item.id) + '">SIP</button>' : d.kind === 'commit' ? '<button type="button" class="btn small ghost" data-act="fl-commit" data-id="' + e(d.item.id) + '">Goal</button>' : d.kind === 'purchase' ? '<button type="button" class="btn small" data-act="pu-pay" data-key="' + e(d.key) + '">Bought</button>' : d.kind === 'bill' ? '<button type="button" class="btn small" data-act="fin-billpay" data-id="' + e(d.item.id) + '">Paid</button>' : '<button type="button" class="btn small ghost" data-act="fin-remind" data-id="' + e(d.item.id) + '" title="Add a task on the due date">' + ED.icon('bell') + '</button>') + '</li>';
       }).join('') + '</ul>' : '<p class="hint">No bills or renewals due soon.</p>');
       return duesHtml + fyCard + groups + where + rate;
     },
@@ -505,14 +507,14 @@
       const row = c => {
         const v = t.byCat.get(c.id) || 0, b = c.budget || 0;
         const spend = c.kind === 'expense' && !c.saving;
-        return '<tr><td><span class="emo">' + e(c.icon || '•') + '</span> ' + e(c.name) + '</td><td class="num"><input class="field num fin-bin" data-cat="' + e(c.id) + '" inputmode="decimal" value="' + (b || '') + '" placeholder="0" aria-label="Monthly budget for ' + e(c.name) + '"></td><td class="num">' + M$(v) + '</td><td>' + (b ? bar(v, b, v > b && spend) + '<span class="hint num"> ' + (spend ? (v > b ? 'over ' + M$(r2(v - b)) : M$(r2(b - v)) + ' left') : Math.round(v / b * 100) + '%') + '</span>' : '') + '</td>' +
+        return '<tr><td><button type="button" class="plain-btn fin-cname" data-act="fin-cdetail" data-id="' + e(c.id) + '" title="See what was spent in ' + e(c.name) + '"><span class="emo">' + e(c.icon || '•') + '</span> <u>' + e(c.name) + '</u></button></td><td class="num"><input class="field num fin-bin" data-cat="' + e(c.id) + '" inputmode="decimal" value="' + (b || '') + '" placeholder="0" aria-label="Monthly budget for ' + e(c.name) + '"></td><td class="num">' + M$(v) + '</td><td>' + (b ? bar(v, b, v > b && spend) + '<span class="hint num"> ' + (spend ? (v > b ? 'over ' + M$(r2(v - b)) : M$(r2(b - v)) + ' left') : Math.round(v / b * 100) + '%') + '</span>' : '') + '</td>' +
           '<td><button type="button" class="icon-btn sm" data-act="fin-cedit" data-id="' + e(c.id) + '" aria-label="Edit ' + e(c.name) + '">' + ED.icon('pencil') + '</button></td></tr>';
       };
       const spendC = FN.catsOf('expense').filter(c => !c.saving), saveC = FN.catsOf('expense').filter(c => c.saving);
       const tb = FN.spendBudget(), sb = FN.saveBudget();
       const ti = r2(FN.catsOf('income').reduce((a, c) => a + (c.budget || 0), 0));
       const head = x => '<thead><tr><th>Category</th><th class="num">' + x + '</th><th class="num">' + (x === 'Expected' ? 'Received' : x === 'Plan' ? 'Put aside' : 'Spent') + '</th><th>Progress</th><th></th></tr></thead>';
-      return '<p class="hint">Set a monthly amount for each category. Spending is compared with it every month; the Overview chart turns red where you go over.</p>' +
+      return '<p class="hint">Set a monthly amount for each category. Spending is compared with it every month; the Overview chart turns red where you go over. Click a category to see each item spent on it.</p>' +
         '<h3 class="gh">Spending</h3><table class="st-table fin-bt">' + head('Budget') + '<tbody>' + spendC.map(row).join('') +
         '<tr class="fin-total"><td>Total</td><td class="num">' + M$(tb) + '</td><td class="num">' + M$(t.expense) + '</td><td>' + (tb ? bar(t.expense, tb, t.expense > tb) : '') + '</td><td></td></tr></tbody></table>' +
         (saveC.length ? '<h3 class="gh">Saving & investing</h3><table class="st-table fin-bt">' + head('Plan') + '<tbody>' + saveC.map(row).join('') +
@@ -544,17 +546,19 @@
       const goals = F().goals;
       return '<p class="hint">Savings pots with a target and a date. The diary works out how much to put aside each month. For long-range goals with inflation and tax — a house, children’s education — use the <button type="button" class="link-btn" data-act="tab" data-tab="finplan">Financial Plan</button> tab.</p>' +
         (goals.length ? goals.map(g => {
-          const left = Math.max(0, (g.target || 0) - (g.saved || 0));
+          const com = ED.finLinks ? ED.finLinks.committed('m:' + g.id) : 0;
+          const left = Math.max(0, (g.target || 0) - (g.saved || 0) - com);
           const late = g.due && g.due < today;
           const months = g.due && !late ? Math.max(1, Math.round(U.diffDays(today, g.due) / 30.44)) : null;
-          const pct = g.target ? Math.min(100, Math.round((g.saved || 0) / g.target * 100)) : 0;
+          const pct = g.target ? Math.min(100, Math.round(((g.saved || 0) + com) / g.target * 100)) : 0;
           return '<article class="fin-goal"><div class="fin-goal-h"><button type="button" class="plain-btn" data-act="fin-gedit" data-id="' + e(g.id) + '"><b>' + e(g.name) + '</b></button><span class="hint">' + (g.due ? 'by ' + e(U.fmtShort(g.due)) : '') + '</span></div>' +
-            '<div class="fin-goal-bar">' + bar(g.saved || 0, g.target || 0) + '<span class="num">' + pct + '%</span></div>' +
-            '<div class="fin-goal-f"><span class="num">' + M$(g.saved || 0) + ' of ' + M$(g.target || 0) + '</span>' +
+            '<div class="fin-goal-bar">' + bar((g.saved || 0) + com, g.target || 0) + '<span class="num">' + pct + '%</span></div>' +
+            '<div class="fin-goal-f"><span class="num">' + M$(g.saved || 0) + (com ? ' saved + ' + M$(com) + ' committed' : '') + ' of ' + M$(g.target || 0) + '</span>' +
             (left ? '<span class="hint">' + (late ? '<span class="fin-bad">Date passed</span> · ' + M$(left) + ' to go' : months ? M$(Math.ceil(left / months)) + ' a month for ' + U.plural(months, 'month') : M$(left) + ' to go') + '</span>' : '<span class="fin-ok">Reached ✓</span>') +
-            '<button type="button" class="btn small" data-act="fin-gadd" data-id="' + e(g.id) + '">' + ED.icon('plus') + 'Add money</button></div></article>';
+            '<button type="button" class="btn small" data-act="fin-gadd" data-id="' + e(g.id) + '">' + ED.icon('plus') + 'Add money</button></div>' + (ED.finLinks ? ED.finLinks.goalHtml('m:' + g.id) : '') + '</article>';
         }).join('') : '<div class="empty">' + ED.icon('piggy') + '<div><b>No savings goals yet.</b><br>An emergency fund of six months’ expenses is a good first one.</div></div>') +
-        '<button type="button" class="btn small" data-act="fin-gnew">' + ED.icon('plus') + 'Add savings goal</button>';
+        '<button type="button" class="btn small" data-act="fin-gnew">' + ED.icon('plus') + 'Add savings goal</button>' +
+        (ED.finLinks ? ED.finLinks.planGoalsHtml() + '<p class="hint fin-gap">Money in an account or investment can be committed to any goal — a savings goal here or a Financial Plan goal — with the date to withdraw it and a reminder. <button type="button" class="link-btn" data-act="fl-commit">Commit money to a goal</button></p>' : '');
     },
 
     r_assets() {
@@ -562,17 +566,18 @@
       const inv = hs.reduce((a, h) => a + (h.type === 'loan' ? 0 : FN.hInvested(h)), 0), val = hs.reduce((a, h) => a + (h.type === 'loan' ? 0 : FN.hValue(h)), 0);
       const today = U.today();
       return '<h3 class="gh">Accounts</h3>' +
-        (acc.length ? '<table class="st-table"><thead><tr><th>Account</th><th>Type</th><th class="num">Balance in diary</th></tr></thead><tbody>' + acc.map(a => '<tr><td><button type="button" class="plain-btn" data-act="fin-aedit" data-id="' + e(a.id) + '"><b>' + e(a.name) + '</b></button><div class="hint">' + e([a.institution, a.last4 ? '•••• ' + a.last4 : ''].filter(Boolean).join(' · ')) + '</div></td><td>' + e(ATYPES[a.type] || '') + '</td><td class="num">' + M$(FN.balance(a)) + '</td></tr>').join('') + '</tbody></table>' +
+        (acc.length ? '<table class="st-table"><thead><tr><th>Account</th><th>Type</th><th class="num">Balance in diary</th></tr></thead><tbody>' + acc.map(a => '<tr><td><button type="button" class="plain-btn" data-act="fin-aedit" data-id="' + e(a.id) + '"><b>' + e(a.name) + '</b></button><div class="hint">' + e([a.institution, a.last4 ? '•••• ' + a.last4 : ''].filter(Boolean).join(' · ')) + '</div>' + (ED.finLinks ? ED.finLinks.srcNote('a:' + a.id) : '') + '</td><td>' + e(ATYPES[a.type] || '') + '</td><td class="num">' + M$(FN.balance(a)) + '</td></tr>').join('') + '</tbody></table>' +
           '<p class="hint">Balance = the balance you typed on its date + money received − money spent and transferred, recorded after that date (nothing dated after today). Open an account to see how its figure is made up.</p>' : '<p class="hint">No accounts yet.</p>') +
         '<button type="button" class="btn small" data-act="fin-anew">' + ED.icon('plus') + 'Add account</button>' +
         '<h3 class="gh fin-gap">Policies & investments</h3>' +
         (hs.length ? '<div class="fin-inv"><span>Invested <b class="num">' + M$(inv) + '</b></span><span>Worth now <b class="num">' + M$(val) + '</b></span>' + (inv ? '<span class="' + (val >= inv ? 'fin-ok' : 'fin-bad') + '">' + (val >= inv ? '+' : '−') + M$(Math.abs(val - inv)) + '</span>' : '') + '</div>' +
           '<table class="st-table"><thead><tr><th>Name</th><th>Type</th><th class="num">Value</th><th>Next due</th></tr></thead><tbody>' + hs.map(h => {
             const d = h.due ? U.diffDays(today, h.due) : null;
-            return '<tr><td><button type="button" class="plain-btn" data-act="fin-hedit" data-id="' + e(h.id) + '"><b>' + e(h.name) + '</b></button><div class="hint">' + e([h.institution, h.ref ? 'No. ' + h.ref : '', h.premium ? M$(h.premium) + (h.frequency ? ' ' + h.frequency : '') : ''].filter(Boolean).join(' · ')) + '</div></td><td>' + e(HTYPES[h.type] || '') + '</td><td class="num">' + M$(FN.hValue(h)) + (FN.hFlow(h, h.value ? h.valueAt : h.amountAt) ? '<div class="hint">' + (FN.hFlow(h, h.value ? h.valueAt : h.amountAt) > 0 ? '+' : '−') + M$(Math.abs(FN.hFlow(h, h.value ? h.valueAt : h.amountAt))) + ' moved</div>' : '') + '</td>' +
+            return '<tr><td><button type="button" class="plain-btn" data-act="fin-hedit" data-id="' + e(h.id) + '"><b>' + e(h.name) + '</b></button><div class="hint">' + e([h.institution, h.ref ? 'No. ' + h.ref : '', h.premium ? M$(h.premium) + (h.frequency ? ' ' + h.frequency : '') : ''].concat(ED.finLinks ? (F().sips || []).filter(x => x.holdingId === h.id && !x.off).map(x => 'SIP ' + M$(+x.amount) + ' a month') : []).filter(Boolean).join(' · ')) + '</div>' + (ED.finLinks ? ED.finLinks.srcNote('h:' + h.id) : '') + '</td><td>' + e(HTYPES[h.type] || '') + '</td><td class="num">' + M$(FN.hValue(h)) + (FN.hFlow(h, h.value ? h.valueAt : h.amountAt) ? '<div class="hint">' + (FN.hFlow(h, h.value ? h.valueAt : h.amountAt) > 0 ? '+' : '−') + M$(Math.abs(FN.hFlow(h, h.value ? h.valueAt : h.amountAt))) + ' moved</div>' : '') + '</td>' +
               '<td>' + '<button type="button" class="icon-btn sm fin-hmove" data-act="fin-hmove" data-id="' + e(h.id) + '" title="Move money into or out of ' + e(h.name) + '" aria-label="Move money">⇄</button> ' + (h.due ? '<span class="' + (d < 0 ? 'fin-bad' : d <= 30 ? 'fin-warn' : '') + '">' + e(U.fmtShort(h.due)) + (d != null && d <= 30 ? (d < 0 ? ' · overdue' : ' · ' + (d === 0 ? 'today' : 'in ' + d + ' d')) : '') + '</span> <button type="button" class="icon-btn sm" data-act="fin-remind" data-id="' + e(h.id) + '" title="Add a task on this date" aria-label="Add a reminder task">' + ED.icon('bell') + '</button>' : '') + '</td></tr>';
           }).join('') + '</tbody></table>' : '<p class="hint">Insurance, FDs, PPF, mutual funds, NPS, loans — keep their numbers, values and renewal dates here.</p>') +
-        '<button type="button" class="btn small" data-act="fin-hnew">' + ED.icon('plus') + 'Add policy or investment</button>';
+        '<button type="button" class="btn small" data-act="fin-hnew">' + ED.icon('plus') + 'Add policy or investment</button>' +
+        (ED.finLinks ? ED.finLinks.sipsHtml() : '');
     },
 
     mount(L, R) { CH.bind(L); CH.bind(R); bindBudget(R); },
@@ -611,6 +616,40 @@
   A['fin-hmove'] = el => { const h = FN.holding(el.dataset.id); if (h) FN.editRecord(null, { type: 'transfer', toAccountId: null, toHoldingId: h.id, desc: 'Into ' + h.name }); };
   A['fin-cnew'] = () => FN.editCategory(null);
   A['fin-cedit'] = el => FN.editCategory(el.dataset.id);
+  /* 1.19: a category, item by item — what was spent on it in a month, the items that add up most, and 12 months */
+  FN.catDetail = (id, m) => {
+    const c = FN.cat(id); if (!c) return;
+    m = m || monthKey();
+    const recs = list => list.filter(r => r.categoryId === id && r.type !== 'transfer');
+    const draw = () => {
+      const l = recs(FN.inMonth(m)).sort((a, b) => b.date.localeCompare(a.date) || (b.amount - a.amount));
+      const tot = r2(l.reduce((a, r) => a + (+r.amount || 0), 0)), b = c.budget || 0;
+      const by = new Map(); l.forEach(r => { const k = (r.desc || '(no description)').trim().replace(/\s+/g, ' ').toLowerCase(); const o = by.get(k) || { name: (r.desc || '(no description)').trim(), n: 0, v: 0 }; o.n++; o.v += +r.amount || 0; by.set(k, o); });
+      const groups = Array.from(by.values()).sort((a, z) => z.v - a.v);
+      const months = []; for (let i = 11; i >= 0; i--) { const d = U.parse(m); d.setDate(1); d.setMonth(d.getMonth() - i); months.push(U.key(d)); }
+      const per = months.map(k => r2(recs(FN.inMonth(k)).reduce((a, r) => a + (+r.amount || 0), 0)));
+      const top = Math.max(1, ...per, b);
+      const avg = r2(per.reduce((a, v) => a + v, 0) / 12);
+      const trend = '<div class="fin-ctr" role="img" aria-label="' + e(c.name) + ' by month">' + months.map((k, i) => '<span class="fin-ctb' + (k === m ? ' cur' : '') + (b && per[i] > b ? ' over' : '') + '" title="' + e(U.fmtMonthYear(k) + ': ' + M$(per[i])) + '"><i style="height:' + Math.round(per[i] / top * 100) + '%"></i><em>' + U.MON[+k.slice(5, 7) - 1] + '</em></span>').join('') + (b ? '<span class="fin-ctl" style="bottom:' + Math.round(16 + b / top * 104) + 'px" title="Budget ' + e(M$(b)) + '"></span>' : '') + '</div>';
+      const kind = c.kind === 'income' ? 'Received' : c.saving ? 'Put aside' : 'Spent';
+      return '<div class="fin-cd"><div class="fin-cdh"><button type="button" class="cp-arrow" data-x="prev" aria-label="Previous month">' + ED.icon('chevL') + '</button><b>' + e(U.fmtMonthYear(m)) + '</b><button type="button" class="cp-arrow" data-x="next" aria-label="Next month">' + ED.icon('chevR') + '</button></div>' +
+        '<div class="fin-cds"><span>' + kind + ' <b class="num">' + M$(tot) + '</b></span>' + (b ? '<span>Budget <b class="num">' + M$(b) + '</b></span><span class="' + (tot > b && c.kind === 'expense' ? 'fin-bad' : 'fin-ok') + '">' + (tot > b ? 'over by ' : 'left ') + '<b class="num">' + M$(Math.abs(r2(b - tot))) + '</b></span>' : '') + '<span>' + U.plural(l.length, 'item') + '</span><span class="hint">12-month average ' + M$(avg) + '</span></div>' +
+        trend +
+        (groups.length > 1 ? '<h4 class="fin-cdh4">Where it went</h4><ul class="fin-cg">' + groups.slice(0, 12).map(g => '<li><span class="grow">' + e(g.name) + (g.n > 1 ? ' <span class="hint">× ' + g.n + '</span>' : '') + '</span>' + bar(g.v, tot) + '<span class="num">' + M$(r2(g.v)) + '</span><span class="hint num">' + Math.round(g.v / (tot || 1) * 100) + '%</span></li>').join('') + '</ul>' : '') +
+        '<h4 class="fin-cdh4">Every item</h4>' + (l.length ? '<table class="st-table fin-ci"><thead><tr><th>Date</th><th>What for</th><th>Account</th><th class="num">Amount</th></tr></thead><tbody>' + l.map(r => { const a = FN.account(r.accountId); return '<tr data-rec="' + e(r.id) + '" class="fin-cir" title="Open this record"><td class="num">' + e(U.fmtDM(r.date)) + '</td><td>' + e(r.desc || '—') + (r.notes ? '<div class="hint">' + e(r.notes) + '</div>' : '') + '</td><td>' + e(a ? a.name : '') + '</td><td class="num">' + M$(r.amount) + '</td></tr>'; }).join('') + '<tr class="fin-total"><td></td><td>Total</td><td></td><td class="num">' + M$(tot) + '</td></tr></tbody></table>' : '<p class="hint">Nothing recorded in ' + e(c.name) + ' this month.</p>') + '</div>';
+    };
+    ED.ui.modal({
+      title: (c.icon ? c.icon + ' ' : '') + c.name, cls: 'st-modal wide', body: '<div id="fin-cdb">' + draw() + '</div>',
+      onMount(el, api) {
+        el.addEventListener('click', ev => {
+          const x = ev.target.closest('[data-x]'), row = ev.target.closest('[data-rec]');
+          if (x) { const d = U.parse(m); d.setDate(1); d.setMonth(d.getMonth() + (x.dataset.x === 'next' ? 1 : -1)); m = U.key(d); el.querySelector('#fin-cdb').innerHTML = draw(); }
+          else if (row) { api.close(); FN.editRecord(row.dataset.rec); }
+        });
+      },
+    });
+  };
+  A['fin-cdetail'] = el => FN.catDetail(el.dataset.id);
   A['fin-billpay'] = el => {
     const b = F().bills.find(x => x.id === el.dataset.id); if (!b) return;
     const m = el.closest('.fin-dues') ? U.firstOfMonth(U.today()) : monthKey();

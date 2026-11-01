@@ -105,7 +105,8 @@
 .te-subs li { display: grid; grid-template-columns: 30px auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 4px 8px; border-radius: 8px; background: var(--paper-3); border: 1px solid var(--card-border); }
 .te-subs .tstat .ic { width: 22px; height: 22px; }
 .te-subt { text-align: left; color: var(--ink); overflow-wrap: anywhere; }
-.te-subs li.st-done .te-subt { text-decoration: line-through; color: var(--ink-3); }
+.te-subs li.st-done .te-subt { color: var(--ink-3); }
+.te-subs li.st-done .te-subt::before, .ge-tasks li.st-done .link-btn::before { content: '✓ '; color: var(--good, #16a34a); font-weight: 800; }
 .te-check li { display: grid; grid-template-columns: 28px minmax(0, 1fr) 28px; align-items: center; gap: 6px; }
 .te-check .field { min-height: 32px; padding: 4px 8px; }
 .cb input { width: 20px; height: 20px; accent-color: var(--ok); cursor: pointer; }
@@ -134,7 +135,7 @@
 .ge-tasks { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 4px; max-height: 240px; overflow-y: auto; }
 .ge-tasks li { display: grid; grid-template-columns: 20px auto minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: var(--paper-3); border: 1px solid var(--card-border); font-size: 14px; }
 .ge-tasks li .link-btn { color: var(--ink); text-align: left; overflow-wrap: anywhere; }
-.ge-tasks li.st-done .link-btn { text-decoration: line-through; color: var(--ink-3); }
+.ge-tasks li.st-done .link-btn { color: var(--ink-3); }
 .st-mini .ic { width: 18px; height: 18px; color: var(--ink-3); }
 
 /* colour swatches */

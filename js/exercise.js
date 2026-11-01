@@ -169,10 +169,18 @@
 
   /* ---------------- planner tasks: one repeating task per workout day ---------------- */
   let busy = false;
+  /* 1.19: a day whose stored distance cannot come from its steps is recalculated from the steps (only `km` changes; the
+     old figure is kept in `kmWas` so it can be seen) */
+  XR.fixKm = () => {
+    const x = D() && D().exercise; if (!x || !x.steps) return 0; let n = 0;
+    Object.keys(x.steps).forEach(k => { const o = x.steps[k]; if (o && XR.oddKm(+o.n || 0, +o.km)) { o.kmWas = o.km; o.km = Math.round((+o.n || 0) * XR.stride() / 10) / 100; n++; } });
+    return n;
+  };
   XR.reconcile = () => {
     if (busy || !D() || !D().tasks || !D().exercise) return false;
     busy = true; let ch = false;
     try {
+      if (XR.fixKm()) ch = true;
       const d = D(), x = XD(), p = XR.plan(), live = new Set(), today = U.today();
       if (p && p.inPlanner) {
         const role = ED.lifeRole ? ED.lifeRole(/health|fitness|exercise|gym|sport/i, 'Health & Fitness', '💪', '#16a34a', x) : null;
@@ -236,7 +244,7 @@
     };
     if (data && data.format === 'cycling-app-backup') {
       const s = data.settings || {};
-      x.watch = Object.assign(x.watch, { file: fileName || x.watch.file || 'Cycling-backup.json', at: Date.now(), device: data.device || '', app: data.appVersion || '', goal: +s.dailyStepGoal || x.watch.goal || null, heightCm: +s.heightCm || null, weightKg: +s.weightKg || null, made: data.createdAtMs || null });
+      x.watch = Object.assign(x.watch, { file: fileName || x.watch.file || 'Cycling-backup.json', at: Date.now(), device: data.device || '', app: data.appVersion || '', goal: +s.dailyStepGoal || x.watch.goal || null, stride: +s.walkStepM || x.watch.stride || null, heightCm: +s.heightCm || null, weightKg: +s.weightKg || null, made: data.createdAtMs || null });
       (data.dailyActivity || []).forEach(a => setDay(a.day, +a.steps || 0, a.walkDistanceM != null ? a.walkDistanceM / 1000 : null));
       (data.sessions || []).filter(z => !z.isCalibration).forEach(z => {
         const t = new Date(z.startTimeMs || Date.now());
@@ -313,7 +321,11 @@
   };
   XR.week = k => U.range(U.addDays(k, -6), 7);
   /* walking distance that day: from the phone, or steps × your step length (0.7 m) */
-  XR.walkKm = k => { const s = XD().steps[k]; if (!s) return 0; return s.km != null && s.km > 0 ? +s.km : (s.n || 0) * 0.0007; };
+  /* 1.19: your stride — from the phone app (walkStepM), else from your height (as the app does: 0.3855 × height), else 0.7 m */
+  XR.stride = () => { const w = XD().watch || {}; return +w.stride > 0.3 && +w.stride < 1.3 ? +w.stride : +w.heightCm > 100 ? Math.round(0.003855 * w.heightCm * 1e4) / 1e4 : 0.7; };
+  /* a distance that cannot come from those steps (a stride under 0.3 m or over 1.5 m — e.g. 526 km for 9,904 steps) */
+  XR.oddKm = (n, km) => n > 200 && km > 0 && (km * 1000 / n > 1.5 || km * 1000 / n < 0.3);
+  XR.walkKm = k => { const s = XD().steps[k]; if (!s) return 0; return s.km != null && s.km > 0 && !XR.oddKm(s.n || 0, +s.km) ? +s.km : (s.n || 0) * XR.stride() / 1000; };
   const KM = { Walk: 'walk', Cycling: 'cycle', Run: 'run' };
   /* distance by kind on a day: walking from the daily steps, cycling and running from the sessions */
   XR.kmOn = k => {
@@ -525,7 +537,8 @@
   A['xr-steps'] = () => {
     const x = XD();
     FX().form({ title: 'Steps for a day', data: { date: U.today(), n: null, km: null }, fields: [{ k: 'date', label: 'Date', type: 'date', req: true }, { k: 'n', label: 'Steps', type: 'number', min: 0, req: true }, { k: 'km', label: 'Distance (km)', type: 'number', min: 0, step: 0.1 }],
-      save(v, api) { ED.store.checkpoint('Steps'); x.steps[v.date] = { n: Math.round(+v.n || 0), km: v.km, src: 'manual' }; ED.store.commit(); api.close(); ED.ui.toast('Steps saved'); } });
+      check: v => v.km > 0 && XR.oddKm(+v.n || 0, +v.km) ? (v.km * 1000 / (v.n || 1) > 1.5 ? v.km + ' km is too far for ' + v.n + ' steps (about ' + Math.round(v.n * XR.stride() / 10) / 100 + ' km at your stride). If you meant metres, type ' + Math.round(v.km) / 1000 + ', or leave Distance empty to work it out from the steps.' : v.km + ' km is too short for ' + v.n + ' steps — leave Distance empty to work it out from the steps.') : '',
+      save(v, api) { ED.store.checkpoint('Steps'); x.steps[v.date] = { n: Math.round(+v.n || 0), km: v.km > 0 ? v.km : Math.round((+v.n || 0) * XR.stride() / 10) / 100, src: 'manual' }; ED.store.commit(); api.close(); ED.ui.toast('Steps saved'); } });
   };
   A['xr-file'] = () => XR.pickFile();
   A['xr-drive'] = () => XR.fetchDrive(false).catch(() => {});

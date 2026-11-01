@@ -583,3 +583,11 @@ There is no automated test runner in the package; test by hand in the browser:
 | `css/projects.css` | Styles for both. | |
 
 - `sync.js`: `projects` merged with `nested('projects', ['list'])` (a project is one item, newest `updatedAt` wins — every edit calls `touch(p)`); `research.bits` merged as a list.
+
+## 1.19
+- `js/finlinks.js` (after projects.js): `finance.sips[]` → transfer records `fr-sip-<sip>-<YYYY-MM>` (`sipId`, `createdAt` = instalment date) up to today, `skip{ym}` on delete (`FL.recordDeleted`, called from the record delete in finance.js); `finance.commits[]` (goal `m:`/`p:`, src `a:`/`h:`, mode full|amount|pct, by, to, remind ''|task|cal|both, days, done, eventId) → tasks `tk-gc-<id>` (`link.k gcommit`) and `FX.linkEvent`. `FL.dues()` feeds `FN.dues()`. Deleting an account/holding/goal removes its SIPs and commitments.
+- `finance.js`: `FN.catDetail(id)` (Budget → category); `sync.js` merges `sips`, `commits`.
+- `pooja.js`: `pooja.vratEnd{key:date}`, `pooja.festEnd`, `daily[].end` → `repeat.until`.
+- `exercise.js`: `XR.stride()` (phone `walkStepM` kept in `watch.stride`), `XR.oddKm`, `XR.fixKm()` in reconcile (keeps `kmWas`).
+- CSS: done tasks — `.st-done .ttitle::after` DONE stamp, no line-through (views.css, calendar.css, components.css, more.css).
+- `app.js` GROUPS: health = health, exercise; interview = interview, exam, projects, mindmap, jobs.
