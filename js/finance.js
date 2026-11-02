@@ -67,7 +67,7 @@
   FN.hInvested = h => r2((+h.amount || 0) + FN.hFlow(h, h.amountAt));
   FN.hValue = h => r2((+h.value ? +h.value + FN.hFlow(h, h.valueAt) : (+h.amount || 0) + FN.hFlow(h, h.amountAt)));
   /* the name of either side of a record (account or holding) */
-  FN.sideName = (accId, hId) => { if (hId) { const h = FN.holding(hId); return h ? h.name : '(deleted investment)'; } const a = FN.account(accId); return a ? a.name : '?'; };
+  FN.sideName = (accId, hId) => { if (hId) { const h = FN.holding(hId); return h ? h.name : '(deleted investment)'; } if (!accId) return '(not chosen)'; const a = FN.account(accId); return a ? a.name : '?'; };
   FN.catsOf = kind => F().cats.filter(c => c.kind === kind).sort((a, b) => (a.order || 0) - (b.order || 0));
   const monthEnd = m => U.addDays(U.addMonths(m, 1), -1);
   FN.inMonth = m => { const end = monthEnd(m); return F().records.filter(r => r.date >= m && r.date <= end); };
@@ -546,14 +546,14 @@
       const goals = F().goals;
       return '<p class="hint">Savings pots with a target and a date. The diary works out how much to put aside each month. For long-range goals with inflation and tax — a house, children’s education — use the <button type="button" class="link-btn" data-act="tab" data-tab="finplan">Financial Plan</button> tab.</p>' +
         (goals.length ? goals.map(g => {
-          const com = ED.finLinks ? ED.finLinks.committed('m:' + g.id) : 0;
-          const left = Math.max(0, (g.target || 0) - (g.saved || 0) - com);
+          const com = ED.finLinks ? ED.finLinks.committed('m:' + g.id) : 0, mov = ED.finLinks ? ED.finLinks.moved('m:' + g.id) : 0;
+          const left = Math.max(0, (g.target || 0) - (g.saved || 0) - com - mov);
           const late = g.due && g.due < today;
           const months = g.due && !late ? Math.max(1, Math.round(U.diffDays(today, g.due) / 30.44)) : null;
-          const pct = g.target ? Math.min(100, Math.round(((g.saved || 0) + com) / g.target * 100)) : 0;
+          const pct = g.target ? Math.min(100, Math.round(((g.saved || 0) + com + mov) / g.target * 100)) : 0;
           return '<article class="fin-goal"><div class="fin-goal-h"><button type="button" class="plain-btn" data-act="fin-gedit" data-id="' + e(g.id) + '"><b>' + e(g.name) + '</b></button><span class="hint">' + (g.due ? 'by ' + e(U.fmtShort(g.due)) : '') + '</span></div>' +
-            '<div class="fin-goal-bar">' + bar((g.saved || 0) + com, g.target || 0) + '<span class="num">' + pct + '%</span></div>' +
-            '<div class="fin-goal-f"><span class="num">' + M$(g.saved || 0) + (com ? ' saved + ' + M$(com) + ' committed' : '') + ' of ' + M$(g.target || 0) + '</span>' +
+            '<div class="fin-goal-bar">' + bar((g.saved || 0) + com + mov, g.target || 0) + '<span class="num">' + pct + '%</span></div>' +
+            '<div class="fin-goal-f"><span class="num">' + M$(g.saved || 0) + (mov ? ' saved + ' + M$(mov) + ' moved' : com ? ' saved' : '') + (com ? ' + ' + M$(com) + ' committed' : '') + ' of ' + M$(g.target || 0) + '</span>' +
             (left ? '<span class="hint">' + (late ? '<span class="fin-bad">Date passed</span> · ' + M$(left) + ' to go' : months ? M$(Math.ceil(left / months)) + ' a month for ' + U.plural(months, 'month') : M$(left) + ' to go') + '</span>' : '<span class="fin-ok">Reached ✓</span>') +
             '<button type="button" class="btn small" data-act="fin-gadd" data-id="' + e(g.id) + '">' + ED.icon('plus') + 'Add money</button></div>' + (ED.finLinks ? ED.finLinks.goalHtml('m:' + g.id) : '') + '</article>';
         }).join('') : '<div class="empty">' + ED.icon('piggy') + '<div><b>No savings goals yet.</b><br>An emergency fund of six months’ expenses is a good first one.</div></div>') +

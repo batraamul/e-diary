@@ -181,6 +181,7 @@
     busy = true; let ch = false;
     try {
       if (XR.fixKm()) ch = true;
+      if (XR.whenFix()) ch = true;
       const d = D(), x = XD(), p = XR.plan(), live = new Set(), today = U.today();
       if (p && p.inPlanner) {
         const role = ED.lifeRole ? ED.lifeRole(/health|fitness|exercise|gym|sport/i, 'Health & Fitness', '💪', '#16a34a', x) : null;
@@ -353,7 +354,7 @@
       const x = ex(i.k || i.name), open = s.how === n;
       return '<li class="xr-it' + (ticks[n] ? ' done' : '') + '"><button type="button" class="hz-tick' + (ticks[n] ? ' on' : '') + '" data-act="xr-tick" data-k="' + k + '" data-i="' + n + '" aria-pressed="' + !!ticks[n] + '" aria-label="Done">' + (ticks[n] ? ED.icon('check') : '') + '</button>' +
         (i.pic ? '<button type="button" class="xr-thumb" data-act="xr-pic" data-d="' + dw + '" data-i="' + n + '" title="See the picture" aria-label="Picture of ' + e(x.name) + '"><img src="' + e(i.pic) + '" alt=""></button>' : '') +
-        '<button type="button" class="plain-btn grow xr-in" data-act="xr-how" data-i="' + n + '"><b>' + e(x.name) + '</b><span class="hint">' + e(i.sets + ' × ' + i.reps) + (x.equip && x.equip !== 'none' ? ' · ' + e(x.equip) : '') + ' · <span class="xr-area a-' + e(x.area) + '">' + e(x.area) + '</span></span>' + (i.notes ? '<span class="hint xr-rem">' + e(i.notes) + '</span>' : '') + (open && x.how ? '<span class="xr-how">' + e(x.how) + '</span>' : '') + '</button>' +
+        '<button type="button" class="plain-btn grow xr-in" data-act="xr-how" data-i="' + n + '"><b>' + e(x.name) + '</b><span class="hint">' + e(i.sets + ' × ' + i.reps) + (x.equip && x.equip !== 'none' ? ' · ' + e(x.equip) : '') + ' · <span class="xr-area a-' + e(x.area) + '">' + e(x.area) + '</span></span>' + (i.when ? '<span class="xr-when w-' + e(i.when) + '">' + (i.when === 'morning' ? '🌅 Morning' : '🌇 Evening') + '</span>' : '') + (i.notes ? '<span class="hint xr-rem">' + e(i.notes) + '</span>' : '') + (open && x.how ? '<span class="xr-how">' + e(x.how) + '</span>' : '') + '</button>' +
         (i.link ? '<a class="icon-btn sm" href="' + e(i.link) + '" target="_blank" rel="noopener noreferrer" title="Open the link" aria-label="Open the link for ' + e(x.name) + '">' + ED.icon('external') + '</a>' : '') +
         '<button type="button" class="icon-btn sm" data-act="xr-edit-item" data-d="' + dw + '" data-i="' + n + '" aria-label="Change" title="Change">' + ED.icon('pencil') + '</button></li>';
     }).join('');
@@ -450,6 +451,11 @@
     return Object.keys(by).flatMap(a => by[a].map(o => [o[0], a + ' — ' + o[1]]));
   };
   /* 1.18.4: a web address typed into "Reps / time" goes to the Link field */
+  /* 1.19.1: morning or evening — a stamp on the day's list. Remarks that only said "Morning exercise" / "Evening
+     schedule" become this choice (the remark is then empty, nothing else changes). */
+  const WHEN = [['', 'Any time'], ['morning', '🌅 Morning'], ['evening', '🌇 Evening']];
+  const WHEN_RE = /^\s*(morning|evening)\s*(exercise|excercise|exercize|schedule|session|workout|time)?\s*$/i;
+  XR.whenFix = () => { const p = XR.plan(); if (!p || !p.days) return 0; let n = 0; Object.keys(p.days).forEach(k => (p.days[k].items || []).forEach(i => { const m = !i.when && String(i.notes || '').match(WHEN_RE); if (m) { i.when = m[1].toLowerCase(); delete i.notes; n++; } })); if (n) p.updatedAt = Date.now(); return n; };
   const splitUrl = v => { const m = String(v.reps || '').match(/\s*(https?:\/\/\S+)\s*/); if (m && !v.link) { v.link = m[1]; v.reps = String(v.reps).replace(m[0], ' ').trim(); } return v; };
   /* 1.18.5: a picture of the exercise — an image address, or a photo from this device (made small, about 30 KB) */
   let picData = '';
@@ -489,14 +495,15 @@
     const it = n != null ? day.items[n] : null;
     FX().form({
       title: it ? 'Exercise' : 'Add an exercise · ' + U.DAYS[dw],
-      data: it ? splitUrl({ k: it.k || '', name: it.k ? '' : it.name, sets: it.sets, reps: it.reps, link: it.link || '', notes: it.notes || '', pic: /^https?:/.test(it.pic || '') ? it.pic : '' }) : { k: 'pushup', name: '', sets: 3, reps: '10–12', link: '', notes: '' },
+      data: it ? splitUrl({ k: it.k || '', name: it.k ? '' : it.name, sets: it.sets, reps: it.reps, when: it.when || '', link: it.link || '', notes: it.notes || '', pic: /^https?:/.test(it.pic || '') ? it.pic : '' }) : { k: 'pushup', name: '', sets: 3, reps: '10–12', when: '', link: '', notes: '' },
       fields: [{ k: 'k', label: 'Exercise', type: 'select', options: [['', '— my own (type below) —']].concat(libOptions()) }, { k: 'name', label: 'Or my own exercise', ph: 'e.g. Badminton 30 min' }, { k: 'sets', label: 'Sets', type: 'number', min: 1, max: 20 }, { k: 'reps', label: 'Reps / time', ph: '10–12, 30 s, 20 min' },
+        { k: 'when', label: 'When', type: 'select', options: WHEN },
         { k: 'link', label: 'Link (optional)', ph: 'https://… a video or page showing how to do it' }, { k: 'notes', label: 'Remarks (optional)', type: 'textarea', rows: 2, ph: 'Form tips, weight used, how it felt…' },
         { k: 'pic', label: 'Picture (optional)', ph: 'An image address — or choose a photo below' }],
       mount(el) { picBox(el, it ? it.pic : ''); linkBox(el); },
       check: v => !v.k && !v.name ? 'Choose an exercise or type one' : '',
       del: it ? async () => { ED.store.checkpoint('Exercise'); day.items.splice(n, 1); p.updatedAt = Date.now(); ED.store.commit(); } : null, delLabel: 'Remove',
-      save(v, api) { ED.store.checkpoint('Exercise'); v = splitUrl(v); const row = v.k ? { k: v.k, sets: v.sets || 1, reps: v.reps || '' } : { name: v.name, sets: v.sets || 1, reps: v.reps || '' }; if (v.link) row.link = /^https?:\/\//i.test(v.link) ? v.link : 'https://' + v.link; if (v.notes) row.notes = v.notes; const pic = /^https?:\/\/\S+$/i.test(v.pic || '') ? v.pic : picData; if (pic) row.pic = pic; if (it) day.items[n] = row; else day.items.push(row); p.updatedAt = Date.now(); ED.store.commit(); api.close(); },
+      save(v, api) { ED.store.checkpoint('Exercise'); v = splitUrl(v); const row = v.k ? { k: v.k, sets: v.sets || 1, reps: v.reps || '' } : { name: v.name, sets: v.sets || 1, reps: v.reps || '' }; if (v.link) row.link = /^https?:\/\//i.test(v.link) ? v.link : 'https://' + v.link; if (v.notes) row.notes = v.notes; if (v.when) row.when = v.when; const pic = /^https?:\/\/\S+$/i.test(v.pic || '') ? v.pic : picData; if (pic) row.pic = pic; if (it) day.items[n] = row; else day.items.push(row); p.updatedAt = Date.now(); ED.store.commit(); api.close(); },
     });
   };
   const editDay = dw => {
