@@ -36,7 +36,6 @@
         (diff !== 0 ? '<button type="button" class="btn small" data-act="goto-today">' + ED.icon('today') + 'Today</button>' : '') + '</div>' +
         '</header>' +
         (ED.pooja && ED.pooja.dailyStrip ? ED.pooja.dailyStrip(k) : '') +
-        (ED.dayExt && S().moodStrip !== false ? ED.dayExt.strip(k) : '') +
         '<form class="addtask" data-form="quick-add">' +
         '<input class="addtask-in" id="quick-add" type="text" placeholder="Add Task" autocomplete="off" aria-label="Add a task. Start with A1, B2 or C3 to set its priority; end with @9:30 to set a time.">' +
         '<button type="button" class="add-btn" data-act="task-new" aria-label="New task with details" title="New task with details">' + ED.icon('plus') + '</button>' +
@@ -164,6 +163,7 @@
       const items = [
         { label: 'Show completed tasks', checked: S().showCompleted, icon: 'eye', onClick: () => ED.actions['toggle-completed']() },
         { label: 'Renumber priorities (A1, A2…)', icon: 'renumber', onClick: () => { M.renumberDay(k); ED.store.commit(); ED.ui.toast('Priorities renumbered'); } },
+        { label: 'Day off — cancel open tasks with a reason…', icon: 'xCircle', onClick: () => ED.actions['dx-dayoff'] && ED.actions['dx-dayoff']({ dataset: { k } }) },
         { label: 'Forward unfinished to tomorrow', icon: 'forward', onClick: () => { ED.store.checkpoint('Forward'); const n = M.forwardUnfinished(k, U.addDays(k, 1)); ED.store.commit(); ED.ui.undoToast(n ? U.plural(n, 'task') + ' moved to ' + U.fmtDM(U.addDays(k, 1)) : 'Nothing to forward'); } },
         { sep: true },
         { label: 'New event…', icon: 'calendar', onClick: () => ED.editors.event({ create: { date: k } }) },

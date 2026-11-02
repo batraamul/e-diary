@@ -88,11 +88,13 @@
 
   /* Daily Tasks: the habits due that day (none for days still to come) */
   H.dailyGroup = k => {
-    if (!HB().list.length || k > U.today()) return '';
-    const hs = H.dueOn(k); if (!hs.length) return '';
+    // 1.20.1: the day's mood sits at the top of Habits (js/dayext.js); it shows even when no habit is due
+    const mood = ED.dayExt && ED.store.data.settings.moodStrip !== false && k <= U.today() ? ED.dayExt.card(k) : '';
+    const hs = HB().list.length && k <= U.today() ? H.dueOn(k) : [];
+    if (!hs.length) return mood ? '<section class="tgroup hb-dgroup"><h3 class="tgroup-h hb-dg-h"><button type="button" class="plain-btn" data-act="hb-tracker" data-m="' + U.firstOfMonth(k) + '">' + ED.icon('repeat') + 'Habits</button><button type="button" class="icon-btn sm" data-act="hb-new" aria-label="Add a habit" title="Add a habit">' + ED.icon('plus') + '</button></h3>' + mood + '</section>' : '';
     const d = H.day(k);
     return '<section class="tgroup hb-dgroup"><h3 class="tgroup-h hb-dg-h"><button type="button" class="plain-btn" data-act="hb-tracker" data-m="' + U.firstOfMonth(k) + '">' + ED.icon('repeat') + 'Habits</button><span class="hint num">' + (d.full + d.part) + '/' + d.n + (d.part ? ' · ' + d.part + ' partly' : '') + '</span>' +
-      '<button type="button" class="icon-btn sm" data-act="hb-new" aria-label="Add a habit" title="Add a habit">' + ED.icon('plus') + '</button></h3>' +
+      '<button type="button" class="icon-btn sm" data-act="hb-new" aria-label="Add a habit" title="Add a habit">' + ED.icon('plus') + '</button></h3>' + mood +
       '<ul class="tlist hb-dlist">' + hs.map(h => {
         const v = H.get(h.id, k), s = H.streak(h, k);
         return '<li class="hb-row' + (v ? ' ' + v : '') + '"><span class="hb-ic" aria-hidden="true">' + e(h.icon || '•') + '</span><button type="button" class="plain-btn hb-name" data-act="hb-edit" data-id="' + e(h.id) + '" title="Change this habit">' + e(h.name) + '</button>' +

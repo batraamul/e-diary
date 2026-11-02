@@ -481,3 +481,7 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 - **Mood of the day:** a mood row on the Daily page — 😊 Happy, 🤩 Happiest day, 🤔 Thinking, 🤒 Sick, 😑 Dull, 🥳 Excited, 🏃 Busy day. Click to set (again to clear); the month’s moods show beside it.
 - **Settings → General → Daily page:** edit the moods (one per line: emoji and name) and the reasons for cancelling, and switch the mood row off.
 - **Money for goals — One time or repeating:** **How often**: One time, Every day, Every week, Every month (on the same date, e.g. the 1st) or Every year, from the first date until **Last time** (or the goal’s date). The goal counts all the times still to come as committed and the ones done as moved. One reminder repeats in the daily tasks and/or the calendar; ticking a time (or **Moved for …** in the form) records that move in Records, and unticking takes it out. One-time commitments work as before.
+
+### v1.20.1 — Mood moved under Habits
+- The mood is now a small **“How is your day?”** card at the top of **Habits** on the Daily page: round emoji buttons with their names, the chosen one lit up and named in the card, and this month’s moods beside it. It shows even when no habit is due (today and past days).
+- **Day off** is a button on that card, and also in the day’s ☰ menu (so it works for future days too).

@@ -34,6 +34,18 @@
       '<button type="button" class="btn small ghost dx-off" data-act="dx-dayoff" data-k="' + k + '" title="Cancel all of this day’s open tasks, with a reason">' + ED.icon('xCircle') + 'Day off…</button></div>';
   };
 
+  /* 1.20.1: the mood card at the top of Habits — round emoji buttons with their names, the chosen one lit up */
+  DX.card = k => {
+    const cur = DX.moodOn(k), today = U.today();
+    const [y, mo] = U.ymd(k), days = U.daysInMonth(y, mo - 1), count = {};
+    for (let i = 1; i <= days; i++) { const m = MD()[y + '-' + U.pad(mo) + '-' + U.pad(i)]; if (m) count[m.e] = (count[m.e] || 0) + 1; }
+    const sum = Object.keys(count).sort((a, b) => count[b] - count[a]).slice(0, 5);
+    return '<div class="mood-card' + (cur ? ' set' : '') + '"><div class="mood-h"><span class="mood-q">' + (cur ? '<span class="mood-now" aria-hidden="true">' + e(cur.e) + '</span>' + e(cur.m) : (k === today ? 'How is your day?' : 'How was the day?')) + '</span>' +
+      (sum.length ? '<span class="mood-sum" title="Moods this month">' + sum.map(x => '<span>' + e(x) + '<sub>' + count[x] + '</sub></span>').join('') + '</span>' : '') +
+      '<button type="button" class="mood-off" data-act="dx-dayoff" data-k="' + k + '" title="Cancel all of this day’s open tasks, with a reason">' + ED.icon('xCircle') + 'Day off</button></div>' +
+      '<div class="mood-row" role="group" aria-label="Mood of the day">' + DX.moods().map(([em, lb]) => { const on = cur && cur.m === lb; return '<button type="button" class="mood-b' + (on ? ' on' : '') + '" data-act="dx-mood" data-k="' + k + '" data-e="' + e(em) + '" data-l="' + e(lb) + '" aria-pressed="' + !!on + '" title="' + e(lb) + '"><span class="mood-e" aria-hidden="true">' + e(em) + '</span><span class="mood-l">' + e(lb) + '</span></button>'; }).join('') + '</div></div>';
+  };
+
   /* ---------------- cancelling with a reason ---------------- */
   DX.askReason = (title, cur) => new Promise(resolve => {
     let out = null;
@@ -72,7 +84,7 @@
   DX.settingsHtml = () => '<h3 class="set-h">Daily page: mood and cancel reasons</h3>' +
     '<div class="set-grid"><div class="set-row"><label class="lbl" for="sg-moods">Moods <span class="hint">one per line: emoji and name</span></label><textarea id="sg-moods" class="field" rows="7">' + e(DX.moods().map(x => x[0] + ' ' + x[1]).join('\n')) + '</textarea></div>' +
     '<div class="set-row"><label class="lbl" for="sg-reasons">Reasons for cancelling <span class="hint">one per line</span></label><textarea id="sg-reasons" class="field" rows="7">' + e(DX.reasons().join('\n')) + '</textarea></div></div>' +
-    '<div class="set-row"><label class="switch"><input id="sg-moodon" type="checkbox"' + (S().moodStrip !== false ? ' checked' : '') + '><span class="track"></span><span>Show the mood row on the Daily page</span></label></div>';
+    '<div class="set-row"><label class="switch"><input id="sg-moodon" type="checkbox"' + (S().moodStrip !== false ? ' checked' : '') + '><span class="track"></span><span>Show “How is your day?” (mood) under Habits on the Daily page</span></label></div>';
   DX.bindSettings = b => {
     const m = b.querySelector('#sg-moods'), r = b.querySelector('#sg-reasons'), on = b.querySelector('#sg-moodon');
     if (m) m.addEventListener('change', () => {
