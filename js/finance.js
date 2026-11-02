@@ -72,11 +72,39 @@
   const monthEnd = m => U.addDays(U.addMonths(m, 1), -1);
   FN.inMonth = m => { const end = monthEnd(m); return F().records.filter(r => r.date >= m && r.date <= end); };
   FN.isSaving = id => { const c = FN.cat(id); return !!(c && c.kind === 'expense' && c.saving); };
+  /* 1.20.2: a transfer from a bank account into an investment or towards a goal is saving: it counts as "put aside"
+     under a Saving & investing category — the one you chose on the record (saveCat), or else the one whose name shares
+     its distinctive words with where the money went and the record's description (Franklin … Flexi Cap, PPF,
+     Vehicle_Repair…). Never as spending; money taken out of an investment is not counted. saveCat 'none' = don't count. */
+  const STOPW = new Set(['sbi', 'direct', 'regular', 'growth', 'sip', 'fund', 'funds', 'india', 'indian', 'account', 'acct', 'plan', 'monthly', 'yearly', 'the', 'for', 'of', 'and', 'auto', 'pay', 'autopay', 'a', 'an', 'to', 'in', 'my', 'goal', 'goals', 'saving', 'savings', 'investment', 'investments', 'bank', 'ltd', 'limited', 'fy', 'mf', 'scheme', 'option', 'idcw', 'dividend']);
+  const words = s => String(s || '').toLowerCase().replace(/[_\-–—()\/.:,&+]+/g, ' ').split(/\s+/).filter(w => w && (w.length > 2 || /\d/.test(w)) && !STOPW.has(w));
+  const saveCache = new Map();
+  ED.store.on(type => { if (type === 'change') saveCache.clear(); });   // a renamed category or account is matched afresh
+  FN.saveCatOf = r => {
+    if (!r || r.type !== 'transfer' || !r.accountId || r.fromHoldingId) return null;
+    if (r.saveCat === 'none') return null;
+    if (r.saveCat && FN.isSaving(r.saveCat)) return r.saveCat;
+    const dest = r.toHoldingId ? (FN.holding(r.toHoldingId) || {}).name : (FN.account(r.toAccountId) || {}).name;
+    const key = (dest || '') + '|' + (r.desc || '') + '|' + F().cats.length;
+    if (saveCache.has(key)) return saveCache.get(key);
+    const have = new Set(words(dest).concat(words(r.desc)));
+    let best = null, top = 0, tie = false;
+    FN.catsOf('expense').filter(c => c.saving).forEach(c => {
+      const cw = words(c.name); if (!cw.length) return;
+      const n = cw.filter(w => have.has(w)).length; if (!n) return;
+      const sc = n / cw.length + n;                      // more shared words, and a larger share of the category's name
+      if (sc > top) { top = sc; best = c.id; tie = false; } else if (sc === top) tie = true;
+    });
+    const out = tie ? null : best;
+    if (saveCache.size > 500) saveCache.clear();
+    saveCache.set(key, out);
+    return out;
+  };
   /* income, spending (without savings), put aside (savings categories), all money out, per category */
   FN.totals = list => {
     const t = { income: 0, expense: 0, saved: 0, out: 0, byCat: new Map() };
     list.forEach(r => {
-      if (r.type === 'transfer') return;
+      if (r.type === 'transfer') { const c = FN.saveCatOf(r); if (c) { const a = +r.amount || 0; t.saved += a; t.byCat.set(c, (t.byCat.get(c) || 0) + a); } return; }
       const a = +r.amount || 0;
       if (r.type === 'income') t.income += a;
       else if (r.type === 'expense') { if (FN.isSaving(r.categoryId)) t.saved += a; else t.expense += a; t.out += a; }
@@ -176,6 +204,7 @@
       '<label class="lbl" for="fr-date">Date</label><input id="fr-date" class="field" type="date" value="' + e(d.date) + '">' +
       '<label class="lbl" for="fr-acc" id="fr-acc-l">' + (d.type === 'transfer' ? 'From account' : 'Paid from / into') + '</label><select id="fr-acc" class="field">' + accOpts(fromSel, d.type === 'transfer') + '</select>' +
       '<label class="lbl fr-to-l" for="fr-to">To account</label><select id="fr-to" class="field">' + accOpts(toSel, true) + '</select>' +
+      '<label class="lbl fr-sv-l" for="fr-sv">Count as saving under</label><select id="fr-sv" class="field">' + opt('', 'Automatic — by name', !d.saveCat) + FN.catsOf('expense').filter(c => c.saving).map(c => opt(c.id, (c.icon ? c.icon + ' ' : '') + c.name, d.saveCat === c.id)).join('') + opt('none', 'Don’t count it as saving', d.saveCat === 'none') + '</select>' +
       '<label class="lbl" for="fr-notes">Notes</label><textarea id="fr-notes" class="field" rows="2" placeholder="Bill number, mode of payment…">' + e(d.notes || '') + '</textarea>' +
       '</div><p class="hint fr-thint">A transfer moves money between your own accounts — or into a policy or investment (FD, PPF, gold bonds, shares, a premium…) and back out of one when it matures. It changes their balances and values but is not income or spending.</p></form>';
     ED.ui.modal({
@@ -188,7 +217,7 @@
         const show = () => {
           const tr = type === 'transfer';
           [cat, el.querySelector('.fr-cat-l')].forEach(x => { x.hidden = tr; });
-          [el.querySelector('#fr-to'), el.querySelector('.fr-to-l'), el.querySelector('.fr-thint')].forEach(x => { x.hidden = !tr; });
+          [el.querySelector('#fr-to'), el.querySelector('.fr-to-l'), el.querySelector('.fr-thint'), el.querySelector('#fr-sv'), el.querySelector('.fr-sv-l')].forEach(x => { x.hidden = !tr; });
           el.querySelector('#fr-acc-l').textContent = tr ? 'From account' : 'Paid from / into';
           el.querySelector('.fr-to-l').textContent = tr ? 'To account or investment' : 'To account';
           const fa = el.querySelector('#fr-acc'), keepV = fa.value;
@@ -219,7 +248,7 @@
           if (type === 'transfer' && (!from || !to || from === to)) { ED.ui.toast('Choose two different accounts (or an investment) for a transfer'); return; }
           const fromH = type === 'transfer' && /^h:/.test(from || '') ? from.slice(2) : null, toH = type === 'transfer' && /^h:/.test(to || '') ? to.slice(2) : null;
           ED.store.checkpoint('Record');
-          const f = { type, amount: a, date, categoryId: type === 'transfer' ? null : cat.value, accountId: fromH ? null : from, toAccountId: type === 'transfer' && !toH ? to : null, fromHoldingId: fromH, toHoldingId: toH, desc: el.querySelector('#fr-desc').value.trim(), notes: el.querySelector('#fr-notes').value.trim(), updatedAt: Date.now() };
+          const f = { type, amount: a, date, categoryId: type === 'transfer' ? null : cat.value, accountId: fromH ? null : from, toAccountId: type === 'transfer' && !toH ? to : null, fromHoldingId: fromH, toHoldingId: toH, saveCat: type === 'transfer' ? (el.querySelector('#fr-sv').value || null) : null, desc: el.querySelector('#fr-desc').value.trim(), notes: el.querySelector('#fr-notes').value.trim(), updatedAt: Date.now() };
           if (r) { Object.assign(r, f); delete r.sample; if (r.src) r.fixed = true; } else FN.addRecord(f);   // fixed: your edit stays (js/purchases.js)
           if (date.slice(0, 7) !== monthKey().slice(0, 7)) st().month = U.firstOfMonth(date);
           ED.store.commit(); api.close();
@@ -429,7 +458,7 @@
         tile('Budget left', sb ? M$(Math.max(0, sb - t.expense)) : '—', sb ? (t.expense > sb ? 'over by ' + M$(t.expense - sb) : Math.round(t.expense / sb * 100) + '% used') : '<button type="button" class="link-btn" data-act="fin-rtab" data-tab="budget">Set a budget</button>') +
         '</div>';
       const f = st().cat || '';
-      const shown = list.filter(r => !f || r.categoryId === f).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
+      const shown = list.filter(r => !f || r.categoryId === f || FN.saveCatOf(r) === f).sort((a, b) => b.date.localeCompare(a.date) || (b.createdAt || 0) - (a.createdAt || 0));
       const byDay = new Map();
       shown.forEach(r => { if (!byDay.has(r.date)) byDay.set(r.date, []); byDay.get(r.date).push(r); });
       const rows = Array.from(byDay.entries()).map(([k, l]) => '<li class="fin-day"><div class="fin-dayh"><span>' + e(U.DAY3[U.dow(k)] + ', ' + U.fmtDM(k)) + '</span><span class="hint num">' + (v => (v < 0 ? '−' : v > 0 ? '+' : '') + M$(Math.abs(v)))(r2(l.reduce((a, r) => a + (r.type === 'income' ? r.amount : r.type === 'transfer' ? 0 : -r.amount), 0))) + '</span></div>' +
@@ -437,7 +466,7 @@
           const c = FN.cat(r.categoryId), a = FN.account(r.accountId), to = FN.account(r.toAccountId);
           const tr = r.type === 'transfer', sv = !tr && FN.isSaving(r.categoryId);
           return '<button type="button" class="fin-rec ' + r.type + (sv ? ' saving' : '') + '" data-act="fin-rec" data-id="' + e(r.id) + '"><span class="fin-ic emo" aria-hidden="true">' + (tr ? '⇄' : e(c ? c.icon || '•' : '•')) + '</span>' +
-            '<span class="fin-rt"><b>' + e(r.desc || (tr ? (r.toHoldingId ? 'Invested' : r.fromHoldingId ? 'From investment' : 'Transfer') : c ? c.name : 'Record')) + '</b><span class="hint">' + e(tr ? FN.sideName(r.accountId, r.fromHoldingId) + ' → ' + FN.sideName(r.toAccountId, r.toHoldingId) : (c ? c.name : '') + (sv ? ' · put aside' : '') + (a ? ' · ' + a.name : '')) + '</span></span>' +
+            '<span class="fin-rt"><b>' + e(r.desc || (tr ? (r.toHoldingId ? 'Invested' : r.fromHoldingId ? 'From investment' : 'Transfer') : c ? c.name : 'Record')) + '</b><span class="hint">' + e(tr ? FN.sideName(r.accountId, r.fromHoldingId) + ' → ' + FN.sideName(r.toAccountId, r.toHoldingId) + (FN.saveCatOf(r) ? ' · put aside in ' + (FN.cat(FN.saveCatOf(r)) || {}).name : '') : (c ? c.name : '') + (sv ? ' · put aside' : '') + (a ? ' · ' + a.name : '')) + '</span></span>' +
             '<span class="fin-amt num">' + (r.type === 'income' ? '+' : tr ? '' : '−') + e(M$(r.amount)) + '</span></button>';
         }).join('') + '</li>').join('');
       const filt = f ? '<span class="chip">' + e((FN.cat(f) || {}).name || '') + '<button type="button" data-act="fin-cat" data-id="" aria-label="Show all categories">' + ED.icon('x') + '</button></span>' : '';
@@ -514,7 +543,7 @@
       const tb = FN.spendBudget(), sb = FN.saveBudget();
       const ti = r2(FN.catsOf('income').reduce((a, c) => a + (c.budget || 0), 0));
       const head = x => '<thead><tr><th>Category</th><th class="num">' + x + '</th><th class="num">' + (x === 'Expected' ? 'Received' : x === 'Plan' ? 'Put aside' : 'Spent') + '</th><th>Progress</th><th></th></tr></thead>';
-      return '<p class="hint">Set a monthly amount for each category. Spending is compared with it every month; the Overview chart turns red where you go over. Click a category to see each item spent on it.</p>' +
+      return '<p class="hint">Set a monthly amount for each category. Spending is compared with it every month; the Overview chart turns red where you go over. Click a category to see each item spent on it. Transfers from your bank into an investment or for a goal count as put aside under the Saving &amp; investing category with the same name (choose another on the record if needed).</p>' +
         '<h3 class="gh">Spending</h3><table class="st-table fin-bt">' + head('Budget') + '<tbody>' + spendC.map(row).join('') +
         '<tr class="fin-total"><td>Total</td><td class="num">' + M$(tb) + '</td><td class="num">' + M$(t.expense) + '</td><td>' + (tb ? bar(t.expense, tb, t.expense > tb) : '') + '</td><td></td></tr></tbody></table>' +
         (saveC.length ? '<h3 class="gh">Saving & investing</h3><table class="st-table fin-bt">' + head('Plan') + '<tbody>' + saveC.map(row).join('') +
@@ -620,7 +649,7 @@
   FN.catDetail = (id, m) => {
     const c = FN.cat(id); if (!c) return;
     m = m || monthKey();
-    const recs = list => list.filter(r => r.categoryId === id && r.type !== 'transfer');
+    const recs = list => list.filter(r => (r.categoryId === id && r.type !== 'transfer') || FN.saveCatOf(r) === id);
     const draw = () => {
       const l = recs(FN.inMonth(m)).sort((a, b) => b.date.localeCompare(a.date) || (b.amount - a.amount));
       const tot = r2(l.reduce((a, r) => a + (+r.amount || 0), 0)), b = c.budget || 0;

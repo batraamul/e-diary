@@ -485,3 +485,8 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 ### v1.20.1 — Mood moved under Habits
 - The mood is now a small **“How is your day?”** card at the top of **Habits** on the Daily page: round emoji buttons with their names, the chosen one lit up and named in the card, and this month’s moods beside it. It shows even when no habit is due (today and past days).
 - **Day off** is a button on that card, and also in the day’s ☰ menu (so it works for future days too).
+
+### v1.20.2 — Transfers count as put aside
+- A **Transfer** from an account into an investment, policy or another account now counts under **Budget → Saving & investing** when its destination name or note shares words with a saving category (e.g. a SIP into *Franklin India Flexi Cap Fund* → *Franklin India Flexi Cap – Direct (SIP)*; “For goal: Vehicle_Repair” → *For goal: Vehicle_Repair*; *PPF ACCOUNT* → *SBI PPF*). It adds to **Put aside**, never to Spent.
+- The record shows “put aside in …”. To choose yourself, open the transfer: **Count as saving under** — Automatic (by name), a category, or Don’t count.
+- Money taken out of an investment, and transfers with no matching name, are not counted.
