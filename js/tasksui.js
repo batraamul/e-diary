@@ -44,6 +44,7 @@
       bits.push('<span class="tm num" title="Subtasks">' + ED.icon('list') + d + '/' + kids.length + '</span>');
     }
     if (U.stripHtml(t.notes || '').trim()) bits.push('<span class="tm" title="Has notes">' + ED.icon('doc') + '</span>');
+    if (o.st === 'cancelled' && ED.dayExt && ED.dayExt.reasonOf(o)) bits.push('<span class="tm tm-why" title="Why it was cancelled">✕ ' + e(ED.dayExt.reasonOf(o)) + '</span>');
     return bits.length ? '<span class="tmeta">' + bits.join('') + '</span>' : '';
   };
 
@@ -125,6 +126,7 @@
         });
         return;
       }
+      if (st === 'cancelled' && ED.dayExt) { ED.dayExt.cancel(o); return; }      // 1.20: asks for the reason
       M.setOccStatus(o, st); ED.store.commit();
     };
     const items = [

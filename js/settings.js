@@ -74,9 +74,10 @@
         [[7, '1 week old'], [14, '2 weeks old'], [30, '30 days old'], [60, '60 days old'], [90, '90 days old'], [365, '1 year old'], [0, 'any age']].map(x => opt(x[0], x[1], (s.carryDays == null ? 30 : s.carryDays) === x[0])).join('') + '</select></div>' +
         sw('sg-done', s.showCompleted, 'Show completed tasks', 'When off, completed, forwarded and cancelled tasks are hidden from lists.') +
         '<h3 class="set-h">The diary</h3>' +
-        sw('sg-cover', s.cover !== false, 'Open from the closed cover', 'The diary starts closed and opens with a page turn. The book button at the top closes it again (and locks the password log).');
+        sw('sg-cover', s.cover !== false, 'Open from the closed cover', 'The diary starts closed and opens with a page turn. The book button at the top closes it again (and locks the password log).') + (ED.dayExt ? ED.dayExt.settingsHtml() : '');
     },
     bind_general(b) {
+      if (ED.dayExt) ED.dayExt.bindSettings(b);
       const s = S();
       const on = (id, ev, fn) => b.querySelector('#' + id).addEventListener(ev, fn);
       on('sg-title', 'input', U.debounce(ev => { s.diaryTitle = ev.target.value.trim() || 'My E-Diary'; ED.store.commit(); }, 350));
@@ -284,7 +285,7 @@
     /* ---------------- See my data ---------------- */
     viewData() {
       const d = D();
-      const NAMES = { pooja: 'Pooja & Vrat (poojas, vrats, settings)', exercise: 'Exercise plan, workouts and steps', welfare: 'Welfare & Help', research: 'Research papers and saved Science bits', projects: 'Projects (steps, milestones, procurement, tools, log)', meta: 'About this diary', settings: 'Settings', tasks: 'Tasks', events: 'Events', categories: 'Categories', roles: 'Roles', goals: 'Goals', values: 'Values', dayNotes: 'Daily notes (by date)', mission: 'Mission statement', notebooks: 'Notebooks', notes: 'Notes', quotes: 'Your quotes', study: 'Study planner', finance: 'Finance and financial plan', sites: 'Important websites', vault: 'Password log (encrypted)', gcal: 'Google Calendar links', habits: 'Habits', interview: 'Interview preparation', health: 'Health', meetings: 'Meeting plans' };
+      const NAMES = { pooja: 'Pooja & Vrat (poojas, vrats, settings)', exercise: 'Exercise plan, workouts and steps', welfare: 'Welfare & Help', research: 'Research papers and saved Science bits', moods: 'Mood of each day', projects: 'Projects (steps, milestones, procurement, tools, log)', meta: 'About this diary', settings: 'Settings', tasks: 'Tasks', events: 'Events', categories: 'Categories', roles: 'Roles', goals: 'Goals', values: 'Values', dayNotes: 'Daily notes (by date)', mission: 'Mission statement', notebooks: 'Notebooks', notes: 'Notes', quotes: 'Your quotes', study: 'Study planner', finance: 'Finance and financial plan', sites: 'Important websites', vault: 'Password log (encrypted)', gcal: 'Google Calendar links', habits: 'Habits', interview: 'Interview preparation', health: 'Health', meetings: 'Meeting plans' };
       const count = v => Array.isArray(v) ? U.plural(v.length, 'item') : v && typeof v === 'object' ? U.plural(Object.keys(v).length, 'entry', 'entries') : '';
       const size = v => { try { return new Blob([JSON.stringify(v)]).size; } catch (err) { return 0; } };
       const keys = Object.keys(d).sort((a, b) => size(d[b]) - size(d[a]));

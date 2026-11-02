@@ -51,16 +51,37 @@
   FL.srcValue = src => { const [k, id] = String(src || '').split(':'); if (k === 'h') { const h = FN().holding(id); return h ? FN().hValue(h) : 0; } const a = FN().account(id); return a ? FN().balance(a) : 0; };
   FL.amount = c => { const v = Math.max(0, FL.srcValue(c.src)); return r2(c.mode === 'full' ? v : c.mode === 'pct' ? v * Math.min(100, +c.value || 0) / 100 : Math.min(v, +c.value || 0)); };
   FL.forGoal = ref => F().commits.filter(c => c.goal === ref);
-  FL.committed = ref => r2(FL.forGoal(ref).filter(c => !c.done).reduce((a, c) => a + FL.amount(c), 0));
+  /* 1.20: a commitment can repeat (every day / week / month / year from its first date until "Last time", else the
+     goal's date, else 12 months). Each time is its own move: c.occ = { 'YYYY-MM-DD': { doneOn, amt } }, a record
+     fr-gc-<id>-<date> when done, one repeating reminder task (tk-gc-<id>) and one repeating calendar entry. */
+  const FREQ = [['once', 'One time'], ['daily', 'Every day'], ['weekly', 'Every week (same weekday)'], ['monthly', 'Every month (same date)'], ['yearly', 'Every year']];
+  FL.isRep = c => !!c.freq && c.freq !== 'once';
+  const repEnd = c => U.isKey(c.until) ? c.until : (FL.goal(c.goal) || {}).due && U.isKey((FL.goal(c.goal) || {}).due) ? FL.goal(c.goal).due : U.addDays(U.today(), 365);
+  FL.rule = c => ({ freq: c.freq, interval: 1, until: repEnd(c) });
+  FL.occDates = (c, upto) => {
+    if (!FL.isRep(c) || !U.isKey(c.by)) return [];
+    const end = upto && upto < repEnd(c) ? upto : repEnd(c), out = [], r = FL.rule(c);
+    for (let k = c.by, i = 0; k <= end && i < 4000; k = U.addDays(k, 1), i++) if (M.occurs(c.by, r, k)) out.push(k);
+    return out;
+  };
+  FL.perTime = c => r2(c.mode === 'pct' ? Math.max(0, FL.srcValue(c.src)) * Math.min(100, +c.value || 0) / 100 : +c.value || 0);
+  FL.nextOcc = c => { const o = c.occ || {}; return FL.occDates(c).find(k => !o[k]) || null; };
+  const everyText = c => ({ daily: 'every day', weekly: 'every ' + U.DAYS[U.dow(c.by)], monthly: 'every month on the ' + ord(+c.by.slice(8)), yearly: 'every year on ' + U.fmtDM(c.by) })[c.freq] || '';
+  FL.committed = ref => r2(FL.forGoal(ref).filter(c => !c.done).reduce((a, c) => a + (FL.isRep(c) ? FL.occDates(c).filter(k => !(c.occ || {})[k]).length * FL.perTime(c) : FL.amount(c)), 0));
   /* 1.19.1: money already moved for the goal (commitments marked Done) */
-  FL.moved = ref => r2(FL.forGoal(ref).filter(c => c.done).reduce((a, c) => a + (+c.movedAmount || 0), 0));
+  FL.moved = ref => r2(FL.forGoal(ref).reduce((a, c) => a + (FL.isRep(c) ? Object.values(c.occ || {}).reduce((s, o) => s + (+o.amt || 0), 0) : c.done ? +c.movedAmount || 0 : 0), 0));
   FL.forSrc = src => F().commits.filter(c => c.src === src && !c.done);
   const toName = c => !c.to ? '' : /^h:/.test(c.to) ? FL.srcName(c.to) : (FN().account(c.to) ? FN().account(c.to).name : c.to);
   const howMuch = c => c.mode === 'full' ? 'all of it (' + M$(FL.amount(c)) + ' now)' : c.mode === 'pct' ? (+c.value || 0) + '% (' + M$(FL.amount(c)) + ' now)' : M$(+c.value || 0);
   const remindDate = c => U.isKey(c.by) ? U.addDays(c.by, -Math.max(0, Math.round(+c.days || 0))) : null;
-  const ttl = c => { const g = FL.goal(c.goal); return '💰 Withdraw ' + (c.mode === 'amount' ? M$(+c.value || 0) : c.mode === 'pct' ? (+c.value || 0) + '%' : 'all') + ' from ' + FL.srcName(c.src) + (c.to ? ' → ' + toName(c) : '') + ' for “' + (g ? g.name : 'goal') + '”'; };
+  const ttl = c => { const g = FL.goal(c.goal); return '💰 ' + (FL.isRep(c) ? everyText(c).replace(/^every/, 'Every') + ': withdraw ' : 'Withdraw ') + (c.mode === 'amount' ? M$(+c.value || 0) : c.mode === 'pct' ? (+c.value || 0) + '%' : 'all') + ' from ' + FL.srcName(c.src) + (c.to ? ' → ' + toName(c) : '') + ' for “' + (g ? g.name : 'goal') + '”'; };
   const evSpec = c => ({ on: (c.remind === 'cal' || c.remind === 'both') && !!remindDate(c) && !c.done, title: ttl(c), date: remindDate(c), time: null, notes: 'Goal: ' + ((FL.goal(c.goal) || {}).name || '') + '\nHow much: ' + howMuch(c) + '\nFrom: ' + FL.srcName(c.src) + (c.to ? '\nTo: ' + toName(c) : '') + (c.by ? '\nBy: ' + U.fmtShort(c.by) : ''), color: '#16a34a' });
-  FL.calSync = c => { if (FX() && FX().linkEvent) FX().linkEvent(c, evSpec(c)); };
+  FL.calSync = c => {
+    if (!FX() || !FX().linkEvent) return;
+    FX().linkEvent(c, evSpec(c));
+    const ev = c.eventId && D().events.find(x => x.id === c.eventId);
+    if (ev) { const r = FL.isRep(c) ? Object.assign({}, FL.rule(c), { until: U.addDays(repEnd(c), -Math.max(0, Math.round(+c.days || 0))) }) : null; if (JSON.stringify(ev.repeat || null) !== JSON.stringify(r)) { ev.repeat = r; ev.updatedAt = Date.now(); } }
+  };
 
   /* ---------------- keeping records, tasks and the calendar in step ---------------- */
   let busy = false;
@@ -86,6 +107,7 @@
       f.commits.forEach(c => {
         const k = remindDate(c);
         if (!k || !(c.remind === 'task' || c.remind === 'both')) return;
+        if (FL.isRep(c)) { if (repTask(c, k, live)) ch = true; return; }
         const id = 'tk-gc-' + c.id; live.add(id);
         const title = ttl(c), notes = '<p>Goal: <b>' + e((FL.goal(c.goal) || {}).name || '') + '</b></p><p>How much: ' + e(howMuch(c)) + '</p><p>From: ' + e(FL.srcName(c.src)) + (c.to ? ' → ' + e(toName(c)) : '') + '</p>' + (c.by ? '<p>Must be done by ' + e(U.fmtShort(c.by)) + '</p>' : '');
         let t = d.tasks.find(x => x.id === id);
@@ -125,11 +147,34 @@
     return open0 && open0(el, ev);
   };
 
+  /* a repeating commitment's reminder: one repeating task; ticking a day marks that time moved, and the other way round */
+  const repTask = (c, k, live) => {
+    const d = D(), today = U.today(), id = 'tk-gc-' + c.id, days = Math.max(0, Math.round(+c.days || 0)); let ch = false;
+    live.add(id);
+    const title = ttl(c), rule = Object.assign({}, FL.rule(c), { until: U.addDays(repEnd(c), -days) });
+    const notes = '<p>Goal: <b>' + e((FL.goal(c.goal) || {}).name || '') + '</b></p><p>Each time: ' + e(c.mode === 'pct' ? (+c.value || 0) + '% (' + M$(FL.perTime(c)) + ' now)' : M$(+c.value || 0)) + ', ' + e(everyText(c)) + '</p><p>From: ' + e(FL.srcName(c.src)) + (c.to ? ' → ' + e(toName(c)) : '') + '</p>';
+    let t = d.tasks.find(x => x.id === id);
+    if (!t) { t = M.newTask({ id, title, date: k, prio: 'A', repeat: rule, link: { k: 'gcommit', id: c.id }, linkTitle: title, linkOcc: {}, notes, categoryId: (d.categories.find(x => /financ|money/i.test(x.name || '')) || {}).id || null }); d.tasks.push(t); ch = true; }
+    if (t.date !== k) { t.date = k; ch = true; }
+    if (JSON.stringify(t.repeat) !== JSON.stringify(rule)) { t.repeat = rule; ch = true; }
+    if (t.linkTitle !== title) { if (t.title === t.linkTitle) t.title = title; t.linkTitle = title; ch = true; }
+    if (!t.linkOcc) { t.linkOcc = {}; ch = true; }
+    c.occ = c.occ || {};
+    FL.occDates(c).forEach(dk => {
+      const rk = U.addDays(dk, -days), tDone = M.isClosed(M.statusOf(t, rk)), synced = !!t.linkOcc[rk], cDone = !!c.occ[dk];
+      if (tDone !== synced) { if (tDone) c.occ[dk] = { doneOn: today, amt: FL.perTime(c) }; else delete c.occ[dk]; ch = true; }
+      else if (cDone !== tDone) { M.setStatus(t, rk, cDone ? 'done' : 'open'); ch = true; }
+      const fin = !!c.occ[dk]; if (!!t.linkOcc[rk] !== fin) { if (fin) t.linkOcc[rk] = 1; else delete t.linkOcc[rk]; ch = true; }
+    });
+    return ch;
+  };
+
   /* ---------------- upcoming (Money → Overview → Coming up) ---------------- */
   FL.dues = () => {
     const today = U.today(), lim = U.addDays(today, 45), out = [];
     F().sips.forEach(s => { const k = FL.sipNext(s); if (k && k <= lim) out.push({ kind: 'sip', item: s, date: k, amount: +s.amount, name: 'SIP → ' + FL.srcName('h:' + s.holdingId) }); });
-    F().commits.forEach(c => { const k = remindDate(c); if (k && !c.done && k <= lim && k >= U.addDays(today, -30)) out.push({ kind: 'commit', item: c, date: k, amount: FL.amount(c), name: 'Withdraw for ' + ((FL.goal(c.goal) || {}).name || 'goal') + ' from ' + FL.srcName(c.src) }); });
+    F().commits.filter(c => FL.isRep(c) && !c.done).forEach(c => { const n = FL.nextOcc(c); if (!n) return; const k = U.addDays(n, -Math.max(0, Math.round(+c.days || 0))); if (k <= lim) out.push({ kind: 'commit', item: c, date: k, amount: FL.perTime(c), name: 'Move for ' + ((FL.goal(c.goal) || {}).name || 'goal') + ' from ' + FL.srcName(c.src) + ' (' + everyText(c) + ')' }); });
+    F().commits.filter(c => !FL.isRep(c)).forEach(c => { const k = remindDate(c); if (k && !c.done && k <= lim && k >= U.addDays(today, -30)) out.push({ kind: 'commit', item: c, date: k, amount: FL.amount(c), name: 'Withdraw for ' + ((FL.goal(c.goal) || {}).name || 'goal') + ' from ' + FL.srcName(c.src) }); });
     return out;
   };
 
@@ -185,30 +230,39 @@
     FX().form({
       title: c ? 'Money for a goal' : 'Commit money to a goal', wide: true,
       intro: 'Set aside all, an amount or a share of an account or investment for a goal, and the date by which it has to be taken out and moved. The goal counts it; a reminder can tell you when to withdraw, how much, from where and to where.',
-      data: c ? Object.assign({}, c, { value: c.value }) : Object.assign({ goal: goals[0].ref, src: (srcs[0] || [])[0], mode: 'amount', value: null, by: goals[0].due || '', to: (F().accounts[0] || {}).id || '', remind: 'both', days: 7, notes: '' }, pre || {}),
+      data: c ? Object.assign({ freq: 'once', until: '' }, c, { value: c.value }) : Object.assign({ goal: goals[0].ref, src: (srcs[0] || [])[0], mode: 'amount', value: null, freq: 'once', by: goals[0].due || '', until: '', to: (F().accounts[0] || {}).id || '', remind: 'both', days: 7, notes: '' }, pre || {}),
       fields: [
         { k: 'goal', label: 'Goal', type: 'select', options: goals.map(g => [g.ref, g.name + ' (' + g.kind + ')']) },
         { k: 'src', label: 'From (account or investment)', type: 'select', options: srcs },
         { k: 'mode', label: 'How much', type: 'select', options: [['amount', 'An amount'], ['pct', 'A share (%)'], ['full', 'All of it']] },
-        { k: 'value', label: 'Amount (₹) or share (%)', type: 'number', min: 0, hint: 'Not needed for “All of it”.' },
-        { k: 'by', label: 'Withdraw by', type: 'date', hint: 'The date by which the money has to come out of it for the goal.' },
+        { k: 'value', label: 'Amount (₹) or share (%)', type: 'number', min: 0, hint: 'Not needed for “All of it”. For a repeating one: the amount each time.' },
+        { k: 'freq', label: 'How often', type: 'select', options: FREQ, hint: 'One time, or again and again — e.g. every month on the 1st.' },
+        { k: 'by', label: 'Withdraw by / first time', type: 'date', hint: 'One time: the date by which the money has to come out. Repeating: the first date (every month on this date, every week on this weekday…).' },
+        { k: 'until', label: 'Last time (repeating)', type: 'date', hint: 'Optional — otherwise until the goal’s date (or for 12 months).' },
         { k: 'to', label: 'Move it to', type: 'select', options: () => [['', '— (say in the notes) —']].concat(accOpts(), F().holdings.filter(h => h.type !== 'loan').map(h => ['h:' + h.id, '📈 ' + h.name])) },
         { k: 'remind', label: 'Remind me', type: 'select', options: [['both', 'In my daily tasks and calendar'], ['task', 'In my daily tasks'], ['cal', 'In my calendar'], ['', 'No reminder']] },
         { k: 'days', label: 'Days before the date', type: 'number', min: 0, max: 365, hint: '0 = on the date itself.' },
-        { k: 'done', label: 'Done — the money has been moved (it is recorded in Money as a transfer)', type: 'check' },
+        { k: 'done', label: 'Done — the money has been moved (one time: it is recorded in Money as a transfer; repeating: no more times)', type: 'check' },
         { k: 'notes', label: 'Notes', type: 'textarea', rows: 2 },
       ],
-      check: v => v.mode !== 'full' && !(v.value > 0) ? 'Enter the amount or the share' : v.mode === 'pct' && v.value > 100 ? 'A share cannot be over 100%' : v.remind && !v.by ? 'Give the “Withdraw by” date for a reminder' : '',
+      check: v => v.freq && v.freq !== 'once' && v.mode === 'full' ? 'A repeating one moves an amount or a share each time — not “All of it”' : v.freq && v.freq !== 'once' && !v.by ? 'Give the first date' : v.freq && v.freq !== 'once' && v.until && v.until < v.by ? '“Last time” is before the first time' : v.mode !== 'full' && !(v.value > 0) ? 'Enter the amount or the share' : v.mode === 'pct' && v.value > 100 ? 'A share cannot be over 100%' : v.remind && !v.by ? 'Give the “Withdraw by” date for a reminder' : '',
       del: c ? async () => { ED.store.checkpoint('Delete'); FX().dropEvent(c); F().commits = F().commits.filter(x => x.id !== c.id); ED.store.commit(); ED.ui.undoToast('Removed'); } : null,
-      extra: c && c.done && F().records.some(r => r.id === GID(c)) ? '<button type="button" class="btn" data-x="rec">' + ED.icon('receipt') + 'See the record</button>' : '',
-      mount(el, api) { const b = el.querySelector('[data-x="rec"]'); if (b) b.addEventListener('click', () => { api.close(); FN().editRecord(GID(c)); }); },
+      extra: (c && !FL.isRep(c) && c.done && F().records.some(r => r.id === GID(c)) ? '<button type="button" class="btn" data-x="rec">' + ED.icon('receipt') + 'See the record</button>' : '') +
+        (c && FL.isRep(c) && !c.done && FL.nextOcc(c) ? '<button type="button" class="btn" data-x="next">' + ED.icon('check') + 'Moved for ' + e(U.fmtShort(FL.nextOcc(c))) + '</button>' : ''),
+      mount(el, api) {
+        const b = el.querySelector('[data-x="rec"]'); if (b) b.addEventListener('click', () => { api.close(); FN().editRecord(GID(c)); });
+        const n = el.querySelector('[data-x="next"]'); if (n) n.addEventListener('click', () => { const k = FL.nextOcc(c); if (!k) return; ED.store.checkpoint('Money moved'); c.occ = c.occ || {}; c.occ[k] = { doneOn: U.today(), amt: FL.perTime(c) }; c.updatedAt = Date.now(); ED.store.commit(); api.close(); ED.ui.toast(M$(FL.perTime(c)) + ' moved for ' + U.fmtShort(k) + ' — in Records'); });
+      },
       save(v, api) {
         ED.store.checkpoint('Goal money');
         v.days = Math.max(0, Math.round(+v.days || 0)); v.doneOn = v.done ? ((c && c.doneOn) || U.today()) : null;
         const x = c || { id: U.uid('gc'), createdAt: Date.now() };
+        if (v.freq === 'once') { delete v.freq; v.until = ''; }
         Object.assign(x, v, { updatedAt: Date.now() }); if (!c) F().commits.push(x);
+        if (!x.freq) delete x.freq;
         FL.calSync(x);
         ED.store.commit(); api.close();
+        if (FL.isRep(x)) { ED.ui.toast(M$(FL.perTime(x)) + ' ' + everyText(x) + ' for “' + ((FL.goal(x.goal) || {}).name || '') + '” — ' + U.plural(FL.occDates(x).length, 'time') + ' until ' + U.fmtShort(repEnd(x))); return; }
         ED.ui.toast(M$(FL.amount(x)) + ' committed to “' + ((FL.goal(x.goal) || {}).name || '') + '”' + (x.remind ? ' — reminder on ' + U.fmtShort(remindDate(x)) : ''));
       },
     });
@@ -219,7 +273,24 @@
   const GID = c => 'fr-gc-' + c.id;
   FL.syncMoves = () => {
     const f = F(); let ch = false;
-    f.commits.forEach(c => {
+    f.commits.filter(FL.isRep).forEach(c => {
+      c.occ = c.occ || {}; c.occOff = c.occOff || {};
+      const pre = GID(c) + '-', want = new Set(Object.keys(c.occ));
+      want.forEach(dk => {
+        const id = pre + dk, r = f.records.find(x => x.id === id), o = c.occ[dk];
+        if (r) return;
+        if (o.made) { if (!c.occOff[dk]) { c.occOff[dk] = 1; ch = true; } return; }   // you deleted it in Money: leave it out
+        const amt = +o.amt || FL.perTime(c); if (!(amt > 0)) return;
+        const [k, sid] = String(c.src).split(':'), toH = /^h:/.test(c.to || '') ? c.to.slice(2) : null;
+        FN().addRecord({ id, type: 'transfer', amount: amt, date: dk <= U.today() ? dk : (o.doneOn || U.today()), accountId: k === 'a' ? sid : null, fromHoldingId: k === 'h' ? sid : null, toAccountId: c.to && !toH ? c.to : null, toHoldingId: toH, categoryId: null, desc: 'For goal: ' + ((FL.goal(c.goal) || {}).name || ''), notes: 'Moved for the goal — ' + everyText(c), commitId: c.id });
+        o.amt = amt; o.made = 1; ch = true;
+      });
+      const n0 = f.records.length;
+      f.records = f.records.filter(r => !(r.commitId === c.id && r.id.indexOf(pre) === 0 && !want.has(r.id.slice(pre.length)) && !r.fixed));
+      if (f.records.length !== n0) ch = true;
+      Object.keys(c.occOff).forEach(dk => { if (!c.occ[dk]) { delete c.occOff[dk]; ch = true; } });
+    });
+    f.commits.filter(c => !FL.isRep(c)).forEach(c => {
       const id = GID(c), r = f.records.find(x => x.id === id);
       if (c.done) {
         if (r) { if (!r.fixed && c.mode === 'amount' && +r.amount !== +c.value && +c.value > 0) { r.amount = +c.value; c.movedAmount = +c.value; r.updatedAt = Date.now(); ch = true; } return; }
@@ -248,11 +319,12 @@
       '<button type="button" class="btn small" data-act="fl-sip">' + ED.icon('plus') + 'Add SIP</button>';
   };
   /* under an account or investment: what is committed to goals */
-  FL.srcNote = src => { const l = FL.forSrc(src); return l.length ? '<div class="hint fl-cn">🎯 ' + l.map(c => e(M$(FL.amount(c))) + ' for ' + e((FL.goal(c.goal) || {}).name || 'goal') + (c.by ? ' by ' + e(U.fmtDM(c.by)) : '')).join(' · ') + '</div>' : ''; };
+  FL.srcNote = src => { const l = FL.forSrc(src); return l.length ? '<div class="hint fl-cn">🎯 ' + l.map(c => FL.isRep(c) ? e(M$(FL.perTime(c)) + ' ' + everyText(c)) + ' for ' + e((FL.goal(c.goal) || {}).name || 'goal') : e(M$(FL.amount(c))) + ' for ' + e((FL.goal(c.goal) || {}).name || 'goal') + (c.by ? ' by ' + e(U.fmtDM(c.by)) : '')).join(' · ') + '</div>' : ''; };
   /* in a goal card: the money committed to it */
   FL.goalHtml = ref => {
     const l = FL.forGoal(ref);
-    return '<div class="fl-goal">' + (l.length ? '<ul class="fl-cl">' + l.map(c => '<li class="' + (c.done ? 'done' : '') + '"><button type="button" class="plain-btn grow" data-act="fl-commit" data-id="' + e(c.id) + '"><b>' + e(M$(c.done ? +c.movedAmount || FL.amount(c) : FL.amount(c))) + '</b> from ' + e(FL.srcName(c.src)) + ' <span class="hint">' + e(c.mode === 'full' ? 'all of it' : c.mode === 'pct' ? (+c.value || 0) + '%' : 'fixed amount') + (c.by ? ' · withdraw by ' + U.fmtShort(c.by) : '') + (c.to ? ' → ' + toName(c) : '') + (c.done ? ' · moved ✓ ' + (c.doneOn ? U.fmtDM(c.doneOn) : '') + ' — in Records' : '') + (c.remind && !c.done ? ' · 🔔 ' + U.fmtDM(remindDate(c)) : '') + '</span></button></li>').join('') + '</ul>' : '') +
+    const repLi = c => { const all = FL.occDates(c), done = Object.keys(c.occ || {}).length, n = FL.nextOcc(c); return '<li class="' + (c.done ? 'done' : '') + '"><button type="button" class="plain-btn grow" data-act="fl-commit" data-id="' + e(c.id) + '"><b>' + e(M$(FL.perTime(c))) + '</b> ' + e(everyText(c)) + ' from ' + e(FL.srcName(c.src)) + ' <span class="hint">' + e((c.mode === 'pct' ? (+c.value || 0) + '% each time · ' : '') + done + ' of ' + all.length + ' times moved' + (c.to ? ' → ' + toName(c) : '') + ' · until ' + U.fmtShort(repEnd(c)) + (c.done ? ' · finished' : n ? ' · next ' + U.fmtDM(n) : '')) + (c.remind && !c.done && n ? ' · 🔔' : '') + '</span></button></li>'; };
+    return '<div class="fl-goal">' + (l.length ? '<ul class="fl-cl">' + l.map(c => FL.isRep(c) ? repLi(c) : '<li class="' + (c.done ? 'done' : '') + '"><button type="button" class="plain-btn grow" data-act="fl-commit" data-id="' + e(c.id) + '"><b>' + e(M$(c.done ? +c.movedAmount || FL.amount(c) : FL.amount(c))) + '</b> from ' + e(FL.srcName(c.src)) + ' <span class="hint">' + e(c.mode === 'full' ? 'all of it' : c.mode === 'pct' ? (+c.value || 0) + '%' : 'fixed amount') + (c.by ? ' · withdraw by ' + U.fmtShort(c.by) : '') + (c.to ? ' → ' + toName(c) : '') + (c.done ? ' · moved ✓ ' + (c.doneOn ? U.fmtDM(c.doneOn) : '') + ' — in Records' : '') + (c.remind && !c.done ? ' · 🔔 ' + U.fmtDM(remindDate(c)) : '') + '</span></button></li>').join('') + '</ul>' : '') +
       '<button type="button" class="btn small ghost" data-act="fl-commit" data-goal="' + e(ref) + '">' + ED.icon('plus') + 'Commit money from an account or investment</button></div>';
   };
   /* Financial Plan goals have no card here: list their commitments together */

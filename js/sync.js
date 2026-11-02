@@ -54,6 +54,7 @@
     const out = {};
     ['tasks', 'events', 'categories', 'roles', 'goals', 'values', 'notebooks', 'notes'].forEach(k => { out[k] = mergeList(base[k], local[k], remote[k]); });
     out.dayNotes = mergeMap(base.dayNotes, local.dayNotes, remote.dayNotes);
+    if (local.moods || remote.moods) out.moods = mergeMap(base.moods, local.moods, remote.moods);   // 1.20: mood of each day
     out.settings = mergeMap(base.settings, local.settings, remote.settings);
     const q = pick(base.quotes, local.quotes, remote.quotes); out.quotes = q === undefined ? [] : q;
     const m = pick(base.mission, local.mission, remote.mission); out.mission = m === undefined ? { html: '' } : m;

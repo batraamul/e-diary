@@ -549,3 +549,18 @@ button.hb-c:not(.fut):hover { border-color: var(--accent); }
 .hb-pick { border: 1px solid var(--rule); background: var(--paper-3); border-radius: 8px; width: 32px; height: 32px; font-size: 17px; cursor: pointer; padding: 0; }
 .hb-pick:hover { border-color: var(--accent); }
 .hb-days { display: flex; flex-wrap: wrap; gap: 5px; }
+
+/* 1.20: mood row and cancel reasons */
+.dx-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 8px; padding: 6px 10px; border: 1px solid var(--card-border); border-radius: 10px; background: var(--paper-3); font-size: 12.5px; }
+.dx-l { font-weight: 700; color: var(--ink-3); text-transform: uppercase; font-size: 11px; letter-spacing: .05em; }
+.dx-moods { display: flex; flex-wrap: wrap; gap: 4px; flex: 1 1 auto; }
+.dx-mood { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px; border: 1px solid transparent; border-radius: 999px; background: none; font: inherit; font-size: 12px; color: var(--ink-2); cursor: pointer; }
+.dx-mood span:first-child { font-size: 16px; }
+.dx-mood:hover { border-color: var(--card-border); }
+.dx-mood.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--ink); font-weight: 700; }
+.dx-mood:not(.on) .dx-ml { display: none; }
+.dx-mood:hover .dx-ml { display: inline; }
+.dx-sum { white-space: nowrap; }
+.dx-off { margin-left: auto; }
+.dx-rs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tm-why { color: var(--bad-ink, #b91c1c); font-weight: 600; }
