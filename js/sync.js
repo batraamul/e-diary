@@ -92,7 +92,7 @@
     out.interview = nested('interview', ['list', 'qs', 'docs', 'mocks'], { log: 1 }) || undefined;
     out.health = nested('health', ['meds', 'treats', 'visits', 'vitals', 'reports'], { taken: 2, dueOff: 1 }) || undefined;
     out.meetings = nested('meetings', [], { calInfo: 1, notes: 1 }) || undefined;
-    out.lists = nested('lists', ['trips', 'groc', 'foods'], { meals: 1 }) || undefined;
+    out.lists = nested('lists', ['trips', 'groc', 'foods', 'stock', 'mealPlans'], { meals: 1 }) || undefined;
     out.exam = nested('exam', ['list', 'topics', 'mocks'], { log: 1 }) || undefined;
     out.maps = nested('maps', ['list']) || undefined;
     out.jobs = nested('jobs', ['items', 'sites']) || undefined;
@@ -104,6 +104,8 @@
     out.research = nested('research', ['topics', 'papers', 'bits']) || undefined;
     // 1.18: Projects
     out.projects = nested('projects', ['list']) || undefined;
+    // 1.21: Ideal day — blocks merge one by one; which month is in which season by the later edit
+    out.ideal = nested('ideal', ['blocks'], { months: 1 }) || undefined;
     // deletion markers from both sides (js/store.js markGone): an item deleted anywhere stays deleted, unless it was
     // changed again after it was deleted
     const gone = Object.assign({}, (remote.meta && remote.meta.gone) || {});

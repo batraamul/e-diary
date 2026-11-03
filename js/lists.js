@@ -5,6 +5,7 @@
      groc:  [ { id, name, date, budget, notes, items: [ { id, text, qty, unit, cat, price, done } ], createdAt, updatedAt } ]
      meals: { 0..6: { b|l|s|d: [ { f, q } ] } }   this week's meal plan by weekday (0 = Sunday), with protein
      foods: [ { id, name, serving, p, kcal, fat, carb, cat } ] your own foods; weight, goalWeight (kg), height (cm), age, sex, act, pace, perKg
+     stock: home stock of groceries and usables (1.21, below); mealPlans: saved meal plans (1.21, below)
    Every list is editable in place: add, change, tick, delete; categories are free text (pick one or type a new one). */
 (function () {
   'use strict';
@@ -230,7 +231,7 @@
     const g = glist(), dt = dayTot(new Date().getDay()), t = LI.targets();
     const cats = {}; (g ? g.items : []).forEach(i => { const c = i.cat || 'Other'; cats[c] = cats[c] || { n: 0, done: 0, amt: 0 }; cats[c].n++; if (i.done) cats[c].done++; cats[c].amt += num(i.price); });
     const total = g ? g.items.reduce((a, i) => a + num(i.price), 0) : 0;
-    const body = (g ? '<div class="tiles xp-tiles">' + FX().tile('Items', String(g.items.length), g.items.filter(i => i.done).length + ' bought') + FX().tile('Total', total ? '₹' + Math.round(total).toLocaleString('en-IN') : '—', g.budget ? 'budget ₹' + Math.round(g.budget).toLocaleString('en-IN') : 'add prices to see it', g.budget && total > g.budget ? 'warn' : '') + '</div>' +
+    const body = LI.stockHtml() + (g ? '<h3 class="gh fin-gap">This list</h3><div class="tiles xp-tiles">' + FX().tile('Items', String(g.items.length), g.items.filter(i => i.done).length + ' bought') + FX().tile('Total', total ? '₹' + Math.round(total).toLocaleString('en-IN') : '—', g.budget ? 'budget ₹' + Math.round(g.budget).toLocaleString('en-IN') : 'add prices to see it', g.budget && total > g.budget ? 'warn' : '') + '</div>' +
       (Object.keys(cats).length ? '<table class="mm-table"><thead><tr><th>Group</th><th>Items</th><th>Bought</th><th>₹</th></tr></thead><tbody>' + Object.keys(cats).map(c => '<tr><td>' + e(c) + '</td><td class="num">' + cats[c].n + '</td><td class="num">' + cats[c].done + '</td><td class="num">' + (cats[c].amt ? Math.round(cats[c].amt).toLocaleString('en-IN') : '—') + '</td></tr>').join('') + '</tbody></table>' : '') +
       '<h4 class="ls-gh">Notes for “' + e(g.name || 'this list') + '”</h4><textarea class="field ls-notes" rows="5" data-change="ls-groc-notes" placeholder="Shop, offers, things to check at home…">' + e(g.notes || '') + '</textarea>' : '<p class="hint">Make a grocery list on the left.</p>') +
       '<div class="ml-moved"><span class="ml-moved-i" aria-hidden="true">🥗</span><div><b>Meal plan, protein and calories</b><span class="hint">Today: ' + Math.round(dt.kcal) + (t ? ' / ' + t.kcal : '') + ' kcal · ' + Math.round(dt.p) + (t ? ' / ' + t.p : '') + ' g protein</span></div>' +
@@ -384,13 +385,15 @@
       (dt.unk ? '<p class="hint">' + U.plural(dt.unk, 'food') + ' without calories yet — click “add calories” beside it.</p>' : '') + '</div>';
     const meals = MEALS.map(x => {
       const items = mealItems(day, x[0]), mt = tot(items);
-      return '<section class="ls-meal ml-meal m-' + x[0] + '"><h4 class="ls-gh">' + x[1] + ' <span class="hint num">' + Math.round(mt.kcal) + ' kcal · ' + g1(mt.p) + ' g protein · ' + g1(mt.fat) + ' g fat</span></h4>' +
+      return '<section class="ls-meal ml-meal m-' + x[0] + '"><h4 class="ls-gh"><span class="ml-mi" aria-hidden="true">' + MICON[x[0]] + '</span>' + x[1] + ' <span class="hint num">' + Math.round(mt.kcal) + ' kcal · ' + g1(mt.p) + ' g protein · ' + g1(mt.fat) + ' g fat</span></h4>' +
         '<ul class="ls-list">' + items.map((it, i) => { const f = food(it.f), q = +it.q || 0; const nk = f && f.kcal != null && f.kcal !== ''; return '<li class="ls-row' + (f ? '' : ' unk') + '"><input type="number" class="ls-in ls-q num" min="0" step="0.5" value="' + e(it.q) + '" data-change="ls-fq" data-d="' + day + '" data-m="' + x[0] + '" data-i="' + i + '" aria-label="Servings">' +
           '<span class="ls-text">× ' + e(it.f) + (f ? ' <span class="hint">(' + e(f.serving) + ')</span>' : '') + (!f || !nk ? ' <button type="button" class="link-btn" data-act="ls-food-new" data-name="' + e(it.f) + '">' + (f ? 'add calories' : 'add its nutrition') + '</button>' : '') + '</span>' +
           '<span class="num ls-p">' + (nk ? Math.round(f.kcal * q) + ' kcal' : '—') + '</span><span class="num ls-p">' + (f ? g1(f.p * q) + ' g' : '—') + '</span>' +
           '<button type="button" class="icon-btn sm" data-act="ls-fdel" data-d="' + day + '" data-m="' + x[0] + '" data-i="' + i + '" aria-label="Remove ' + e(it.f) + '">' + ED.icon('x') + '</button></li>'; }).join('') + '</ul>' + picker(day, x[0]) + '</section>';
     }).join('');
-    const tools = '<div class="ls-tools"><button type="button" class="btn small ghost" data-act="ls-food-new">' + ED.icon('plus') + 'Add a new food</button>' + ((l.foods || []).length ? '<button type="button" class="btn small ghost" data-act="ls-foods">My foods (' + l.foods.length + ')</button>' : '') +
+    const np = (LS().mealPlans || []).length;
+    const tools = '<div class="ls-tools ml-save"><button type="button" class="btn small primary" data-act="mp-save">' + ED.icon('download') + 'Save plan…</button><button type="button" class="btn small" data-act="mp-open">' + ED.icon('list') + 'Saved plans' + (np ? ' (' + np + ')' : '') + '</button></div>' +
+      '<div class="ls-tools"><button type="button" class="btn small ghost" data-act="ls-food-new">' + ED.icon('plus') + 'Add a new food</button>' + ((l.foods || []).length ? '<button type="button" class="btn small ghost" data-act="ls-foods">My foods (' + l.foods.length + ')</button>' : '') +
       '<button type="button" class="btn small ghost" data-act="ls-mcopy">' + ED.icon('copy') + 'Copy ' + U.DAY3[day] + ' to every day</button><button type="button" class="btn small ghost" data-act="ls-meals-clear">Clear week</button></div>' +
       '<p class="hint">Values are approximate for usual home portions (IFCT / NIN); change any food with “Add a new food” using the same name. A general guide, not medical advice.</p>';
     return wrap(head, '<div class="ml-head"><h3 class="ml-title">Meal plan · nutrition</h3><span class="hint">Pick a day, add foods to each meal — calories, protein, fat and carbs add up.</span></div>' + strip + sum + meals + tools, 'ls-mm-l');
@@ -425,6 +428,8 @@
       return '<tr' + (k === U.today() ? ' class="today"' : '') + '><th class="num">' + U.DAY3[d] + ' ' + +k.slice(8) + '</th>' + MEALS.map(m => '<td>' + e(short(mealItems(d, m[0]))) + '</td>').join('') + cell(x.kcal, t && t.kcal, '', 'k') + cell(x.p, t && t.p, ' g', 'p') + cell(x.fat, t && t.fat, ' g', 'f') + cell(x.carb, t && t.carb, ' g', 'c') + '</tr>'; }).join('');
     const avg = days.reduce((a, k) => { const x = dayTot(U.dow(k)); a.k += x.kcal / 7; a.p += x.p / 7; return a; }, { k: 0, p: 0 });
     const body = '<h3 class="gh">My numbers</h3>' + prof + '<h3 class="gh fin-gap">What I need each day</h3>' + targ +
+      '<h3 class="gh fin-gap" id="mp-saved">Saved plans <span class="hint">· use a week or a day again</span></h3>' + LI.mealPlansHtml() +
+      '<h3 class="gh fin-gap">This week’s insights</h3>' + LI.mealInsights() +
       '<h3 class="gh fin-gap">The week at a glance <span class="hint">· average ' + Math.round(avg.k) + ' kcal and ' + Math.round(avg.p) + ' g protein a day</span></h3>' +
       '<div class="ml-tablewrap"><table class="mm-table ml-table"><thead><tr><th>Day</th>' + MEALS.map(x => '<th>' + x[1] + '</th>').join('') + '<th>kcal</th><th>Protein</th><th>Fat</th><th>Carbs</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<p class="hint">Green: on target · red: short of protein, or more than 8% over calories or fat.</p>';
@@ -437,4 +442,238 @@
     wdays().forEach(k => { const d = U.dow(k); const x = dayTot(d); lines.push('', U.DAY3[d] + ' ' + +k.slice(8) + ' (' + Math.round(x.kcal) + ' kcal, ' + Math.round(x.p) + ' g protein, ' + Math.round(x.fat) + ' g fat, ' + Math.round(x.carb) + ' g carbs)'); MEALS.forEach(x => { const t = short(mealItems(d, x[0])); if (t) lines.push('  ' + x[1] + ': ' + t); }); });
     ED.ui.toast(await U.copy(lines.join('\n')) ? 'Meal chart copied' : 'Could not copy');
   };
+
+  /* ---------------- 1.21: home stock — groceries & usables ----------------
+     stock: [ { id, name, kind: 'groc' | 'use', have, unit, by (needed by), buy (how much to get), cat, notes, boughtOn, updatedAt } ]
+     "→ List" pulls an item into the open grocery list (the list item keeps stockId). When that item is ticked as bought
+     — on the list, by its task or by its bill — the bought quantity is added to what you have and the "needed by" date
+     is cleared; unticking puts both back (item.stockIn remembers what was changed). */
+  const U_CATS = ['Household & cleaning', 'Personal care', 'Kitchen items', 'Electrical & bulbs', 'Stationery', 'Medicines & first aid', 'Gas & fuel', 'Other'];
+  const STK = () => { const l = LS(); if (!Array.isArray(l.stock)) l.stock = []; return l.stock; };
+  const stOpen = s => { for (const g of LS().groc) for (const i of g.items || []) if (i.stockId === s.id && !i.done) return { g, i }; return null; };
+  const stLeft = s => s.by ? U.diffDays(U.today(), s.by) : null;
+  const stNeed = s => { const d = stLeft(s); return (d != null && d <= 7) || (s.have !== '' && s.have != null && num(s.have) <= 0); };
+  const stState = s => {
+    const d = stLeft(s), out = s.have !== '' && s.have != null && num(s.have) <= 0;
+    if (d != null && d < 0) return ['late', 'needed ' + U.plural(-d, 'day') + ' ago'];
+    if (d === 0) return ['late', 'needed today'];
+    if (out) return ['late', 'finished'];
+    if (d != null && d <= 3) return ['soon', 'in ' + U.plural(d, 'day')];
+    if (d != null && d <= 7) return ['week', 'in ' + d + ' days'];
+    if (d != null) return ['later', 'by ' + U.fmtDM(s.by)];
+    return ['ok', s.boughtOn ? 'bought ' + U.fmtDM(s.boughtOn) : 'in stock'];
+  };
+  const stOrder = (a, b) => (a.by || '9999').localeCompare(b.by || '9999') || (num(a.have) - num(b.have)) || String(a.name).localeCompare(String(b.name));
+  LI.stockHtml = () => {
+    const all = STK(), f = st().sk || 'all', today = U.today();
+    const list = all.filter(s => f === 'all' || (f === 'need' ? stNeed(s) : s.kind === f)).sort(stOrder);
+    const needN = all.filter(s => stNeed(s) && !stOpen(s)).length;
+    const counts = { all: all.length, groc: all.filter(s => s.kind !== 'use').length, use: all.filter(s => s.kind === 'use').length, need: all.filter(stNeed).length };
+    const seg = '<div class="seg sk-seg" role="group" aria-label="Show">' + [['all', 'All'], ['groc', '🥫 Groceries'], ['use', '🧴 Usables'], ['need', '⏰ Needed soon']].map(x => '<button type="button" data-act="sk-f" data-k="' + x[0] + '" aria-pressed="' + (f === x[0]) + '">' + x[1] + ' <span class="num">' + counts[x[0]] + '</span></button>').join('') + '</div>';
+    const unitSel = (v, attrs) => '<select class="ls-in sk-unit" ' + attrs + ' aria-label="Unit">' + UNITS.map(u => opt(u, u || '—', u === (v || ''))).join('') + '</select>';
+    const rows = list.map(s => {
+      const [cls, txt] = stState(s), open = stOpen(s), A2 = 'data-change="sk-edit" data-id="' + e(s.id) + '"';
+      return '<li class="sk-row s-' + cls + '"><span class="sk-k" title="' + (s.kind === 'use' ? 'Usable' : 'Grocery') + '">' + (s.kind === 'use' ? '🧴' : '🥫') + '</span>' +
+        '<span class="sk-main"><input class="ls-in sk-name" value="' + e(s.name) + '" ' + A2 + ' data-f="name" aria-label="Item"><span class="sk-chip c-' + cls + '">' + e(txt) + '</span></span>' +
+        (open ? '<span class="sk-in" title="On “' + e(open.g.name || 'the list') + '”">' + ED.icon('check') + 'In list</span>' : '<button type="button" class="btn small sk-pull" data-act="sk-pull" data-id="' + e(s.id) + '" title="Put it on the grocery list">' + ED.icon('cart') + 'To list</button>') +
+        '<button type="button" class="icon-btn sm" data-act="sk-more" data-id="' + e(s.id) + '" aria-label="More for ' + e(s.name) + '" title="More">' + ED.icon('more') + '</button>' +
+        '<span class="sk-fields"><label class="sk-f"><span>Have</span><input class="ls-in num sk-have" inputmode="decimal" value="' + e(s.have == null ? '' : s.have) + '" ' + A2 + ' data-f="have" aria-label="Available quantity" placeholder="—">' + unitSel(s.unit, A2 + ' data-f="unit"') + '</label>' +
+        '<label class="sk-f"><span>Needed by</span><input type="date" class="ls-in sk-by" value="' + e(s.by || '') + '" ' + A2 + ' data-f="by" aria-label="Needed by"></label>' +
+        '<label class="sk-f"><span>Get</span><input class="ls-in num sk-buy" value="' + e(s.buy == null ? '' : s.buy) + '" ' + A2 + ' data-f="buy" aria-label="How much to get" placeholder="qty"></label>' +
+        (s.cat ? '<span class="hint sk-cat">' + e(s.cat) + '</span>' : '') + '</span></li>';
+    }).join('');
+    const add = '<form class="sk-add" data-form="sk-add"><div class="sk-ar"><select name="kind" class="field sk-kind" aria-label="Kind">' + opt('groc', '🥫 Grocery', f !== 'use') + opt('use', '🧴 Usable', f === 'use') + '</select>' +
+      '<input name="name" class="field sk-aname" placeholder="Item — e.g. Atta, Detergent, LED bulb" autocomplete="off" aria-label="Item" required>' +
+      '<button type="submit" class="btn small primary">' + ED.icon('plus') + 'Add</button></div>' +
+      '<div class="sk-ar sk-ar2"><label><span>Have</span><input name="have" class="field num" inputmode="decimal" placeholder="qty" aria-label="Available quantity"></label><select name="unit" class="field sk-aunit" aria-label="Unit">' + UNITS.map(u => opt(u, u || 'unit', !u)).join('') + '</select>' +
+      '<label><span>Needed by</span><input name="by" type="date" class="field" aria-label="Needed by"></label><label><span>Get</span><input name="buy" class="field num" placeholder="qty" aria-label="How much to get"></label>' +
+      '<input name="cat" class="field sk-acat" list="sk-cats" placeholder="Category (optional)" aria-label="Category"><datalist id="sk-cats">' + G_CATS.concat(U_CATS).filter((c, i, a) => a.indexOf(c) === i).map(c => '<option value="' + e(c) + '">').join('') + '</datalist></div></form>';
+    const soon = all.filter(s => { const d = stLeft(s); return d != null && d >= 0 && d <= 7; }).length, late = all.filter(s => stState(s)[0] === 'late').length;
+    return '<section class="sk"><div class="sk-h"><h3 class="sk-t"><span aria-hidden="true">🏠</span> Home stock <span class="hint">· groceries &amp; usables</span></h3>' +
+      (needN ? '<button type="button" class="btn small primary" data-act="sk-pull-all">' + ED.icon('cart') + 'Pull ' + U.plural(needN, 'needed item') + ' into the list</button>' : '') + '</div>' +
+      (all.length ? '<div class="sk-sum"><span class="sk-pill c-late">' + late + ' due / finished</span><span class="sk-pill c-soon">' + soon + ' needed this week</span><span class="sk-pill c-ok">' + (all.length - late - soon) + ' fine</span></div>' : '') +
+      add + (all.length ? seg : '') +
+      (rows ? '<ul class="sk-list">' + rows + '</ul>' : all.length ? '<p class="hint">Nothing here for this filter.</p>' : '<p class="hint sk-empty">Keep what you have at home: how much is left, and the date you will need more. Items needed within a week (or finished) can be pulled into the grocery list in one click; when you tick them bought there, the quantity is added back here.</p>') +
+      '</section>';
+  };
+  const stTarget = () => {
+    let g = glist();
+    if (!g) { g = { id: U.uid('gl'), name: 'Groceries — ' + U.fmtShort(U.today()), date: U.today(), items: [], notes: '', createdAt: Date.now(), updatedAt: Date.now() }; LS().groc.push(g); st().groc = g.id; }
+    return g;
+  };
+  const stPull = (s, g) => {
+    if (stOpen(s)) return false;
+    g.items.push({ id: U.uid('gi'), text: s.name, qty: s.buy != null && s.buy !== '' ? String(s.buy) : '', unit: s.unit || '', cat: s.cat || (s.kind === 'use' ? 'Household & cleaning' : 'Other'), done: false, stockId: s.id });
+    touch(g); return true;
+  };
+  F['sk-add'] = f => {
+    const v = n => (f.elements[n] ? f.elements[n].value.trim() : '');
+    if (!v('name')) { f.elements.name.focus(); return; }
+    ED.store.checkpoint('Home stock');
+    STK().push({ id: U.uid('sk'), name: v('name'), kind: v('kind') === 'use' ? 'use' : 'groc', have: v('have') === '' ? '' : num(v('have')), unit: v('unit'), by: U.isKey(v('by')) ? v('by') : '', buy: v('buy'), cat: v('cat'), updatedAt: Date.now() });
+    ED.store.commit();
+    setTimeout(() => { const x = document.querySelector('form[data-form="sk-add"] [name="name"]'); if (x) x.focus(); }, 30);
+  };
+  CH['sk-edit'] = el => {
+    const s = STK().find(x => x.id === el.dataset.id); if (!s) return;
+    const k = el.dataset.f, v = el.value.trim();
+    if (k === 'name' && !v) { el.value = s.name; return; }
+    s[k] = k === 'have' ? (v === '' ? '' : num(v)) : k === 'by' ? (U.isKey(v) ? v : '') : v;
+    s.updatedAt = Date.now(); ED.store.commit();
+  };
+  A['sk-f'] = el => { st().sk = el.dataset.k; ED.app.render(); };
+  A['sk-pull'] = el => {
+    const s = STK().find(x => x.id === el.dataset.id); if (!s) return;
+    ED.store.checkpoint('To the grocery list'); const g = stTarget();
+    if (stPull(s, g)) { ED.store.commit(); ED.ui.undoToast(s.name + ' is on “' + (g.name || 'the list') + '”'); } else ED.ui.toast('Already on the list');
+  };
+  A['sk-pull-all'] = () => {
+    const due = STK().filter(s => stNeed(s) && !stOpen(s)); if (!due.length) return;
+    ED.store.checkpoint('To the grocery list'); const g = stTarget(); let n = 0;
+    due.sort(stOrder).forEach(s => { if (stPull(s, g)) n++; });
+    ED.store.commit(); ED.ui.undoToast(U.plural(n, 'item') + ' added to “' + (g.name || 'the list') + '”');
+  };
+  A['sk-more'] = el => {
+    const s = STK().find(x => x.id === el.dataset.id); if (!s) return;
+    ED.ui.menu(el, [
+      { label: s.kind === 'use' ? 'Make it a grocery' : 'Make it a usable', icon: 'repeat', onClick: () => { s.kind = s.kind === 'use' ? 'groc' : 'use'; s.updatedAt = Date.now(); ED.store.commit(); } },
+      { label: 'Category and notes…', icon: 'pencil', onClick: () => FX().form({ title: s.name, data: s, fields: [{ k: 'cat', label: 'Category', list: G_CATS.concat(U_CATS) }, { k: 'notes', label: 'Notes', type: 'textarea', rows: 2, ph: 'Brand, shop, size…' }], save(v, api) { Object.assign(s, v, { updatedAt: Date.now() }); ED.store.commit(); api.close(); } }) },
+      { label: 'Remove', icon: 'trash', danger: true, onClick: () => { ED.store.checkpoint('Remove from stock'); LS().stock = STK().filter(x => x !== s); LS().groc.forEach(g => (g.items || []).forEach(i => { if (i.stockId === s.id) delete i.stockId; })); ED.store.commit(); ED.ui.undoToast('Removed: ' + s.name); } },
+    ]);
+  };
+  /* bought on the list (or by its task / bill): add it to what you have */
+  LI.stockSync = () => {
+    const l = ED.store.data && ED.store.data.lists; if (!l || !Array.isArray(l.stock) || !l.stock.length || !Array.isArray(l.groc)) return false;
+    let ch = false;
+    l.groc.forEach(g => (g.items || []).forEach(i => {
+      if (!i.stockId) return;
+      const s = l.stock.find(x => x.id === i.stockId);
+      if (!s) { if (i.stockIn) { delete i.stockIn; ch = true; } return; }
+      const same = !i.unit || !s.unit || i.unit === s.unit, q = parseFloat(i.qty);
+      if (i.done && !i.stockIn) {
+        const add = same && q > 0 ? q : 0;
+        i.stockIn = { add, by: s.by || '', have: s.have, on: s.boughtOn || '' };
+        if (add) s.have = Math.round((num(s.have) + add) * 1000) / 1000;
+        if (!s.unit && i.unit) s.unit = i.unit;
+        s.by = ''; s.boughtOn = U.today(); s.updatedAt = Date.now(); ch = true;
+      } else if (!i.done && i.stockIn) {
+        const x = i.stockIn;
+        if (x.add) s.have = Math.max(0, Math.round((num(s.have) - x.add) * 1000) / 1000);
+        if (x.have === '' || x.have == null) { if (!x.add) s.have = x.have; }
+        if (!s.by && x.by) s.by = x.by;
+        s.boughtOn = x.on || ''; s.updatedAt = Date.now(); delete i.stockIn; ch = true;
+      }
+    }));
+    return ch;
+  };
+  ED.store.on((type, d) => { if (type !== 'change' || (d && d.reason === 'stock')) return; if (LI.stockSync()) ED.store.commit({ reason: 'stock' }); });
+
+  /* ---------------- 1.21: saved meal plans, and the meal plan's informatics ----------------
+     mealPlans: [ { id, name, kind: 'week' | 'day', meals: { 0..6: { b|l|s|d: [ {f, q} ] } } (week) | day: { b|l|s|d } (day), note, savedAt, updatedAt } ] */
+  const MICON = { b: '🌅', l: '☀️', s: '🍪', d: '🌙' };
+  LI.MICON = MICON;
+  const PLANS = () => { const l = LS(); if (!Array.isArray(l.mealPlans)) l.mealPlans = []; return l.mealPlans; };
+  const norm = v => Array.isArray(v) ? v : v ? [{ f: String(v), q: 1 }] : [];
+  const objTot = day => { const out = { kcal: 0, p: 0, fat: 0, carb: 0, unk: 0, n: 0 }; MEALS.forEach(m => { const it = norm((day || {})[m[0]]); out.n += it.length; const t = tot(it); ['kcal', 'p', 'fat', 'carb', 'unk'].forEach(k => { out[k] += t[k]; }); }); return out; };
+  const planAvg = p => {
+    const days = p.kind === 'day' ? [p.day || {}] : [0, 1, 2, 3, 4, 5, 6].map(d => (p.meals || {})[d] || {});
+    const t = days.map(objTot), used = t.filter(x => x.n).length || 1;
+    return { kcal: t.reduce((a, x) => a + x.kcal, 0) / used, p: t.reduce((a, x) => a + x.p, 0) / used, n: t.reduce((a, x) => a + x.n, 0), days: t.filter(x => x.n).length };
+  };
+  const copyDay = d => JSON.parse(JSON.stringify(d || {}));
+  const curDay = () => { const s = st(); return s.mday != null ? +s.mday : new Date().getDay(); };
+  LI.savePlan = () => {
+    const day = curDay(), dayHas = objTot(LS().meals[day]).n, weekHas = [0, 1, 2, 3, 4, 5, 6].some(d => objTot(LS().meals[d]).n);
+    if (!weekHas) { ED.ui.toast('Add some foods to the plan first'); return; }
+    ED.ui.modal({
+      title: 'Save this meal plan', cls: 'st-modal',
+      body: '<div class="st-form"><div class="st-grid"><label class="lbl" for="mp-name">Name</label><input id="mp-name" class="field" placeholder="e.g. High-protein week, Navratri fast, Winter menu" value="">' +
+        '<span class="lbl">Save</span><div class="mp-kind"><label class="chip-check"><input type="radio" name="mp-k" value="week" checked><span>The whole week</span></label>' +
+        '<label class="chip-check"><input type="radio" name="mp-k" value="day"' + (dayHas ? '' : ' disabled') + '><span>Only ' + U.DAYS[day] + '</span></label></div>' +
+        '<label class="lbl" for="mp-note">Note</label><input id="mp-note" class="field" placeholder="Optional — when to use it"></div></div>',
+      footer: '<span class="grow"></span><button type="button" class="btn" data-mclose>Cancel</button><button type="button" class="btn primary" data-x="ok">' + ED.icon('check') + 'Save plan</button>',
+      onMount(el, api) {
+        const go = () => {
+          const name = el.querySelector('#mp-name').value.trim(), kind = (el.querySelector('input[name="mp-k"]:checked') || {}).value || 'week';
+          if (!name) { ED.ui.toast('Give the plan a name'); el.querySelector('#mp-name').focus(); return; }
+          ED.store.checkpoint('Save meal plan');
+          const p = { id: U.uid('mp'), name, kind, note: el.querySelector('#mp-note').value.trim(), savedAt: Date.now(), updatedAt: Date.now() };
+          if (kind === 'day') p.day = copyDay(LS().meals[day]); else { p.meals = {}; for (let d = 0; d < 7; d++) p.meals[d] = copyDay(LS().meals[d]); }
+          PLANS().push(p); ED.store.commit(); api.close(); ED.ui.toast('Saved: ' + name + ' — find it under Saved plans');
+        };
+        el.querySelector('[data-x="ok"]').addEventListener('click', go);
+        el.querySelector('#mp-name').addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); go(); } });
+        setTimeout(() => el.querySelector('#mp-name').focus(), 40);
+      },
+    });
+  };
+  LI.usePlan = async (id, how) => {
+    const p = PLANS().find(x => x.id === id); if (!p) return;
+    const day = curDay(), m = LS().meals;
+    if (p.kind === 'week' && how !== 'day') {
+      if (!await ED.ui.confirm({ title: 'Use “' + p.name + '”', message: 'Replace this week’s meals with the saved plan?', ok: 'Use it' })) return;
+      ED.store.checkpoint('Use meal plan'); for (let d = 0; d < 7; d++) m[d] = copyDay((p.meals || {})[d]);
+    } else {
+      const src = p.kind === 'day' ? p.day : (p.meals || {})[day];
+      const targets = how === 'all' ? [0, 1, 2, 3, 4, 5, 6] : [day];
+      ED.store.checkpoint('Use meal plan'); targets.forEach(d => { m[d] = copyDay(src); });
+    }
+    ED.store.commit(); ED.ui.undoToast('Using “' + p.name + '”' + (p.kind === 'day' || how === 'day' ? (how === 'all' ? ' for every day' : ' for ' + U.DAYS[day]) : ' for the week'));
+  };
+  const planCards = () => {
+    const ps = PLANS().slice().sort((a, b) => (b.usedAt || b.savedAt || 0) - (a.usedAt || a.savedAt || 0)), t = LI.targets(), day = curDay();
+    if (!ps.length) return '<p class="hint mp-empty">Save a week or a day you liked with <b>Save plan</b> on the left, and use it again any time.</p>';
+    return '<div class="mp-cards">' + ps.map(p => {
+      const a = planAvg(p), on = t && a.p >= t.p * 0.95;
+      const prev = p.kind === 'day' ? p.day : (p.meals || {})[day];
+      const peek = MEALS.map(m => { const it = norm((prev || {})[m[0]]); return it.length ? '<li><span aria-hidden="true">' + MICON[m[0]] + '</span>' + e(short(it)) + '</li>' : ''; }).join('');
+      return '<article class="mp-card k-' + p.kind + '"><header><b>' + e(p.name) + '</b><span class="mp-badge">' + (p.kind === 'day' ? '1 day' : 'week') + '</span></header>' +
+        '<div class="mp-nums"><span><b class="num">' + Math.round(a.kcal).toLocaleString('en-IN') + '</b> kcal</span><span class="' + (on ? 'ok-text' : '') + '"><b class="num">' + Math.round(a.p) + ' g</b> protein</span><span class="hint">' + U.plural(a.n, 'food') + (p.kind === 'week' ? ' · ' + a.days + '/7 days' : '') + '</span></div>' +
+        (peek ? '<ul class="mp-peek">' + peek + '</ul>' + (p.kind === 'week' ? '<span class="hint mp-pk">' + U.DAY3[day] + ' in this plan</span>' : '') : '') +
+        (p.note ? '<p class="hint mp-note">' + e(p.note) + '</p>' : '') +
+        '<footer>' + (p.kind === 'week' ? '<button type="button" class="btn small primary" data-act="mp-use" data-id="' + e(p.id) + '" data-how="week">Use for the week</button>' : '<button type="button" class="btn small primary" data-act="mp-use" data-id="' + e(p.id) + '" data-how="day">Use for ' + U.DAY3[day] + '</button>') +
+        '<button type="button" class="icon-btn sm" data-act="mp-more" data-id="' + e(p.id) + '" aria-label="More for ' + e(p.name) + '" title="More">' + ED.icon('more') + '</button></footer></article>';
+    }).join('') + '</div>';
+  };
+  /* the informatics: calories and protein by day against the targets, where the calories come from, which meal, top protein foods */
+  LI.mealInsights = () => {
+    const t = LI.targets(), days = wdays(), C = ED.charts;
+    const per = days.map(k => ({ k, d: U.dow(k), x: dayTot(U.dow(k)) })), used = per.filter(r => r.x.kcal || r.x.p);
+    if (!used.length) return '<p class="hint">Add foods to the week to see the insights here.</p>';
+    const n = used.length, avg = used.reduce((a, r) => { a.k += r.x.kcal / n; a.p += r.x.p / n; a.f += r.x.fat / n; a.c += r.x.carb / n; return a; }, { k: 0, p: 0, f: 0, c: 0 });
+    const onP = t ? used.filter(r => r.x.p >= t.p * 0.95).length : 0, onK = t ? used.filter(r => Math.abs(r.x.kcal - t.kcal) <= t.kcal * 0.08).length : 0;
+    const foods = new Map(), meal = { b: 0, l: 0, s: 0, d: 0 };
+    used.forEach(r => MEALS.forEach(m => mealItems(r.d, m[0]).forEach(it => { const f = food(it.f), q = +it.q || 0; if (!f) return; const o = foods.get(f.name) || { p: 0, k: 0, n: 0 }; o.p += (+f.p || 0) * q; o.k += (+f.kcal || 0) * q; o.n++; foods.set(f.name, o); meal[m[0]] += (+f.kcal || 0) * q; })));
+    const tiles = '<div class="tiles xp-tiles ml-itiles">' + FX().tile('Average', Math.round(avg.k).toLocaleString('en-IN') + ' <small>kcal</small>', t ? (avg.k > t.kcal * 1.08 ? Math.round(avg.k - t.kcal) + ' over the target' : avg.k < t.kcal * 0.9 ? Math.round(t.kcal - avg.k) + ' under the target' : 'on target ✓') : 'a day', t && avg.k > t.kcal * 1.08 ? 'warn' : '') +
+      FX().tile('Protein', Math.round(avg.p) + ' <small>g a day</small>', t ? onP + '/' + n + ' days on target' : '', t && onP < n / 2 ? 'warn' : '') +
+      FX().tile('Calories on target', t ? onK + '/' + n : '—', t ? 'days within 8%' : 'enter your numbers') + FX().tile('Variety', String(foods.size), 'different foods this week') + '</div>';
+    const kc = C.columns({ title: 'Calories by day', h: 150, left: 44, color: '#f59e0b', data: per.map(r => ({ label: U.DAY3[r.d], long: U.fmtLong(r.k), value: Math.round(r.x.kcal), total: t ? t.kcal : null, tip: Math.round(r.x.kcal) + ' kcal' + (t ? ' (target ' + t.kcal + ')' : '') })), cur: per.findIndex(r => r.k === U.today()), sub: t ? 'Pale bar: your daily calorie target.' : '' });
+    const pc = C.columns({ title: 'Protein by day (g)', h: 150, left: 44, color: 'var(--s2)', fine: false, data: per.map(r => ({ label: U.DAY3[r.d], long: U.fmtLong(r.k), value: Math.round(r.x.p), total: t ? t.p : null, tip: Math.round(r.x.p) + ' g protein' + (t ? ' (need ' + t.p + ' g)' : '') })), cur: per.findIndex(r => r.k === U.today()), sub: t ? 'Pale bar: the protein you need.' : '' });
+    // where the calories come from (week average) against the usual ranges
+    const kP = avg.p * 4, kF = avg.f * 9, kC = avg.c * 4, kT = kP + kF + kC || 1;
+    const pp = Math.round(kP / kT * 100), pf = Math.round(kF / kT * 100), pcb = Math.max(0, 100 - pp - pf);
+    const ok = (v, a, b) => v >= a && v <= b;
+    const split = '<figure class="chart ml-split"><figcaption><span class="gh">Where the calories come from</span><span class="legend"><i class="lg-g" style="--c:var(--s2)"></i>Protein <i class="lg-g" style="--c:var(--s6)"></i>Fat <i class="lg-g" style="--c:var(--s4)"></i>Carbs</span></figcaption>' +
+      '<div class="ml-stack" role="img" aria-label="Protein ' + pp + '%, fat ' + pf + '%, carbs ' + pcb + '%"><i style="width:' + pp + '%;--c:var(--s2)"><span>' + pp + '%</span></i><i style="width:' + pf + '%;--c:var(--s6)"><span>' + pf + '%</span></i><i style="width:' + pcb + '%;--c:var(--s4)"><span>' + pcb + '%</span></i></div>' +
+      '<ul class="ml-ranges"><li class="' + (ok(pp, 10, 35) ? 'ok-text' : 'short') + '">Protein ' + pp + '% <span class="hint">(10–35%)</span></li><li class="' + (ok(pf, 20, 30) ? 'ok-text' : 'short') + '">Fat ' + pf + '% <span class="hint">(20–30%)</span></li><li class="' + (ok(pcb, 45, 65) ? 'ok-text' : 'short') + '">Carbs ' + pcb + '% <span class="hint">(45–65%)</span></li></ul></figure>';
+    const mt = Object.values(meal).reduce((a, v) => a + v, 0) || 1;
+    const share = C.meters({ title: 'Calories by meal', rows: MEALS.map((m, i) => ({ label: MICON[m[0]] + ' ' + m[1], value: Math.round(meal[m[0]] / mt * 100), total: 100, valueLabel: Math.round(meal[m[0]] / mt * 100) + '% · ' + Math.round(meal[m[0]] / n) + ' kcal', color: ['var(--s4)', 'var(--s2)', 'var(--s5)', 'var(--s1)'][i], tip: Math.round(meal[m[0]] / n) + ' kcal a day on average' })), max: 100 });
+    const top = Array.from(foods.entries()).sort((a, b) => b[1].p - a[1].p).slice(0, 6);
+    const tp = top.length ? C.meters({ title: 'Top protein sources this week', rows: top.map(([nm, o]) => ({ label: nm, value: Math.round(o.p), valueLabel: Math.round(o.p) + ' g · ' + U.plural(o.n, 'time'), color: 'var(--s2)', tip: Math.round(o.k) + ' kcal from it this week' })) }) : '';
+    return tiles + '<div class="ml-charts">' + kc + pc + '</div>' + split + share + tp;
+  };
+  LI.mealPlansHtml = planCards;
+  A['mp-save'] = () => LI.savePlan();
+  A['mp-use'] = el => { const p = PLANS().find(x => x.id === el.dataset.id); if (p) p.usedAt = Date.now(); LI.usePlan(el.dataset.id, el.dataset.how); };
+  A['mp-more'] = el => {
+    const p = PLANS().find(x => x.id === el.dataset.id); if (!p) return; const day = curDay();
+    const items = p.kind === 'week' ? [{ label: 'Use only ' + U.DAYS[day] + ' of it', icon: 'calendar', onClick: () => LI.usePlan(p.id, 'day') }] : [{ label: 'Use for every day', icon: 'repeat', onClick: () => LI.usePlan(p.id, 'all') }];
+    ED.ui.menu(el, items.concat([
+      { label: 'Update it with the plan now', icon: 'sync', onClick: async () => { if (!await ED.ui.confirm({ title: 'Update “' + p.name + '”', message: 'Replace the saved plan with ' + (p.kind === 'day' ? U.DAYS[day] + '’s meals' : 'this week’s meals') + '?', ok: 'Update' })) return; ED.store.checkpoint('Meal plan'); if (p.kind === 'day') p.day = copyDay(LS().meals[day]); else { p.meals = {}; for (let d = 0; d < 7; d++) p.meals[d] = copyDay(LS().meals[d]); } p.updatedAt = Date.now(); ED.store.commit(); ED.ui.toast('Updated'); } },
+      { label: 'Rename / note…', icon: 'pencil', onClick: () => FX().form({ title: 'Saved plan', data: p, fields: [{ k: 'name', label: 'Name', req: true }, { k: 'note', label: 'Note' }], save(v, api) { Object.assign(p, v, { updatedAt: Date.now() }); ED.store.commit(); api.close(); } }) },
+      { label: 'Copy as text', icon: 'copy', onClick: async () => { const lines = [p.name]; const ds = p.kind === 'day' ? [[null, p.day]] : [1, 2, 3, 4, 5, 6, 0].map(d => [d, (p.meals || {})[d]]); ds.forEach(([d, x]) => { if (d != null) lines.push('', U.DAYS[d]); MEALS.forEach(m => { const s2 = short(norm((x || {})[m[0]])); if (s2) lines.push('  ' + m[1] + ': ' + s2); }); }); ED.ui.toast(await U.copy(lines.join('\n')) ? 'Copied' : 'Could not copy'); } },
+      { label: 'Delete', icon: 'trash', danger: true, onClick: () => { ED.store.checkpoint('Delete meal plan'); LS().mealPlans = PLANS().filter(x => x !== p); ED.store.commit(); ED.ui.undoToast('Deleted: ' + p.name); } },
+    ]));
+  };
+  A['mp-open'] = () => { const x = document.getElementById('mp-saved'); if (x && x.scrollIntoView) x.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
 })();

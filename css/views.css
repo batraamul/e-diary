@@ -565,21 +565,39 @@ button.hb-c:not(.fut):hover { border-color: var(--accent); }
 .dx-rs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 .tm-why { color: var(--bad-ink, #b91c1c); font-weight: 600; }
 
-/* 1.20.1: mood card under Habits */
-.mood-card { margin: 8px 0 6px; padding: 10px 12px 8px; border-radius: 14px; border: 1px solid var(--card-border); background: linear-gradient(135deg, color-mix(in srgb, #f59e0b 9%, var(--paper-3)), color-mix(in srgb, #8b5cf6 7%, var(--paper-3))); }
-.mood-h { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-.mood-q { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-serif); font-size: 15px; font-weight: 700; color: var(--ink); }
-.mood-now { font-size: 20px; line-height: 1; }
-.mood-sum { display: inline-flex; gap: 6px; font-size: 13px; opacity: .85; }
-.mood-sum sub { font-size: 9.5px; color: var(--ink-3); margin-left: 1px; font-weight: 700; }
-.mood-off { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border: 1px solid var(--card-border); border-radius: 999px; background: var(--paper-3); color: var(--ink-2); font: inherit; font-size: 11.5px; cursor: pointer; }
+/* 1.20.1: mood card under Habits — 1.21: a colour for each mood, a line about the day, the month as a ribbon */
+.mood-card { --mh: #8b5cf6; position: relative; margin: 8px 0 6px; padding: 12px 14px 10px; border-radius: 16px; border: 1px solid color-mix(in srgb, var(--mh) 30%, var(--card-border)); overflow: hidden;
+  background: radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--mh) 20%, var(--paper-3)) 0%, color-mix(in srgb, var(--mh) 6%, var(--paper-3)) 55%, var(--paper-3) 100%);
+  box-shadow: 0 1px 0 color-mix(in srgb, #fff 50%, transparent) inset, 0 6px 18px -12px color-mix(in srgb, var(--mh) 70%, transparent); transition: background .3s, border-color .3s; }
+.mood-h { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.mood-big { display: grid; place-items: center; flex: none; width: 46px; height: 46px; border-radius: 50%; font-size: 27px; line-height: 1; background: color-mix(in srgb, var(--mh) 22%, var(--paper)); box-shadow: 0 0 0 3px color-mix(in srgb, var(--mh) 35%, transparent), 0 6px 14px -6px var(--mh); animation: mood-pop .35s ease-out; }
+.mood-big.empty { font-size: 22px; background: var(--paper); box-shadow: 0 0 0 2px color-mix(in srgb, var(--mh) 25%, transparent); animation: none; }
+@keyframes mood-pop { 0% { transform: scale(.6); } 70% { transform: scale(1.1); } 100% { transform: scale(1); } }
+.mood-ht { display: flex; flex-direction: column; min-width: 0; line-height: 1.2; }
+.mood-ht b { font-family: var(--font-serif); font-size: 17px; color: var(--ink); }
+.mood-card.set .mood-ht b { color: color-mix(in srgb, var(--mh) 70%, var(--ink)); }
+.mood-k { font-size: 11px; color: var(--ink-3); font-weight: 600; letter-spacing: .02em; }
+.mood-off { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border: 1px solid var(--card-border); border-radius: 999px; background: color-mix(in srgb, var(--paper) 80%, transparent); color: var(--ink-2); font: inherit; font-size: 11.5px; cursor: pointer; }
 .mood-off:hover { border-color: var(--bad, #dc2626); color: var(--bad-ink, #b91c1c); }
 .mood-off .ic { width: 13px; height: 13px; }
-.mood-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(62px, 1fr)); gap: 4px; }
-.mood-b { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 2px 5px; border: 1.5px solid transparent; border-radius: 12px; background: none; color: var(--ink-2); font: inherit; cursor: pointer; transition: transform .12s, background .12s, border-color .12s; }
-.mood-e { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--paper-3); box-shadow: 0 1px 2px color-mix(in srgb, var(--ink) 12%, transparent); font-size: 21px; line-height: 1; filter: saturate(.85); transition: transform .12s; }
-.mood-l { font-size: 10.5px; line-height: 1.15; text-align: center; max-width: 70px; }
-.mood-b:hover .mood-e { transform: scale(1.12); }
-.mood-b.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--paper-3)); color: var(--ink); font-weight: 700; }
-.mood-b.on .mood-e { box-shadow: 0 0 0 2px var(--accent); filter: none; transform: scale(1.08); }
-.mood-card.set .mood-b:not(.on) .mood-e { opacity: .6; }
+.mood-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.mood-b { --h: #8b5cf6; display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px 4px 4px; border: 1.5px solid color-mix(in srgb, var(--h) 30%, var(--card-border)); border-radius: 999px; background: color-mix(in srgb, var(--paper) 85%, transparent); color: var(--ink-2); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; transition: transform .14s, background .14s, border-color .14s, box-shadow .14s; }
+.mood-e { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; background: color-mix(in srgb, var(--h) 16%, var(--paper)); font-size: 17px; line-height: 1; transition: transform .14s; }
+.mood-l { white-space: nowrap; }
+.mood-b:hover { transform: translateY(-1px); border-color: var(--h); box-shadow: 0 4px 10px -4px var(--h); }
+.mood-b:hover .mood-e { transform: scale(1.15) rotate(-6deg); }
+.mood-b.on { background: var(--h); border-color: var(--h); color: #fff; box-shadow: 0 5px 14px -6px var(--h); }
+.mood-b.on .mood-e { background: color-mix(in srgb, #fff 85%, var(--h)); }
+.mood-card.set .mood-b:not(.on) { opacity: .72; } .mood-card.set .mood-b:not(.on):hover { opacity: 1; }
+.mood-note { display: block; width: 100%; margin-top: 8px; padding: 6px 10px; border: 1px dashed color-mix(in srgb, var(--mh) 40%, var(--card-border)); border-radius: 10px; background: color-mix(in srgb, var(--paper) 75%, transparent); color: var(--ink); font: inherit; font-size: 12.5px; font-style: italic; }
+.mood-note:focus { outline: none; border-style: solid; border-color: var(--mh); font-style: normal; }
+.mood-month { margin-top: 10px; padding-top: 8px; border-top: 1px solid color-mix(in srgb, var(--mh) 18%, var(--card-border)); }
+.mood-mh { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 5px; font-size: 12px; } .mood-mh b { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; color: var(--ink-2); } .mood-mh .hint { font-size: 11px; }
+.mood-dots { display: grid; grid-template-columns: repeat(auto-fill, minmax(21px, 1fr)); gap: 3px; }
+.mood-dot { --h: transparent; display: grid; place-items: center; aspect-ratio: 1; min-width: 0; padding: 0; border: 1px solid var(--card-border); border-radius: 50%; background: color-mix(in srgb, var(--paper) 70%, transparent); color: var(--ink-4, var(--ink-3)); font: inherit; font-size: 9px; cursor: pointer; transition: transform .12s; }
+.mood-dot.on { border-color: transparent; background: color-mix(in srgb, var(--h) 30%, var(--paper)); box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--h) 70%, transparent) inset; font-size: 12px; }
+.mood-dot:hover:not(:disabled) { transform: scale(1.18); z-index: 1; }
+.mood-dot.today { box-shadow: 0 0 0 2px var(--accent); }
+.mood-dot.sel { outline: 2px solid var(--mh); outline-offset: 1px; }
+.mood-dot.future { opacity: .35; cursor: default; }
+.mood-dot span { line-height: 1; }

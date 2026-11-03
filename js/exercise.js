@@ -404,6 +404,110 @@
       (wr.length ? '<h4 class="ls-gh">Week by week</h4>' + table : '') +
       '<h4 class="ls-gh">Rides, runs and walks <span class="hint">· ' + U.plural(tot.length, 'ride') + ', ' + r1(totKm) + ' km cycled in all</span></h4>' + rideTab;
   };
+  /* ---------------- 1.21: insights for a day, week, month or year ---------------- */
+  const KC = { Walk: 'var(--s3)', Cycling: 'var(--s2)', Run: 'var(--s6)', Yoga: 'var(--s5)', Strength: 'var(--s7)', HIIT: 'var(--s8)', Swimming: 'var(--s1)' };
+  const kc = k => KC[k] || 'var(--s4)';
+  const PERS = [['day', 'Day'], ['week', 'Week'], ['month', 'Month'], ['year', 'Year']];
+  const pRange = (p, a) => {
+    if (p === 'day') return { from: a, to: a, label: U.fmtLong(a) };
+    if (p === 'week') { const f = U.startOfWeek(a, 1); return { from: f, to: U.addDays(f, 6), label: U.fmtShort(f) + ' – ' + U.fmtShort(U.addDays(f, 6)) }; }
+    if (p === 'month') { const f = U.firstOfMonth(a), [y, m] = U.ymd(f); return { from: f, to: U.addDays(U.addMonths(f, 1), -1), label: U.MONTHS[m - 1] + ' ' + y }; }
+    const y = a.slice(0, 4); return { from: y + '-01-01', to: y + '-12-31', label: y };
+  };
+  const pShift = (p, a, n) => p === 'day' ? U.addDays(a, n) : p === 'week' ? U.addDays(a, 7 * n) : p === 'month' ? U.addMonths(U.firstOfMonth(a), n) : U.addMonths(a.slice(0, 4) + '-01-01', 12 * n);
+  const stats = (from, to) => {
+    const x = XD(), today = U.today(), g = goal();
+    const ds = from > today ? [] : U.range(from, U.diffDays(from, to < today ? to : today) + 1);
+    const o = { ds, n: 0, steps: 0, hit: 0, best: null, walk: 0, cycle: 0, run: 0, mins: 0, kcal: 0, work: 0, kinds: {}, streak: 0, slot: { m: 0, a: 0, e: 0, n: 0 } };
+    let run = 0;
+    ds.forEach(k => {
+      const sN = XR.stepsOn(k);
+      if (x.steps[k]) { o.n++; o.steps += sN; if (sN >= g) { o.hit++; run++; o.streak = Math.max(o.streak, run); } else run = 0; if (!o.best || sN > o.best.v) o.best = { k, v: sN }; } else run = 0;
+      const km = XR.kmOn(k); o.walk += km.walk; o.cycle += km.cycle; o.run += km.run; o.kcal += XR.burnOn(k);
+    });
+    const set = new Set(ds);
+    x.log.forEach(r => {
+      if (!set.has(r.date)) return;
+      o.work++; o.mins += +r.mins || 0;
+      const kd = o.kinds[r.kind] = o.kinds[r.kind] || { n: 0, mins: 0, km: 0 }; kd.n++; kd.mins += +r.mins || 0; kd.km += +r.km || 0;
+      if (r.time) { const h = +String(r.time).slice(0, 2); o.slot[h < 12 ? 'm' : h < 17 ? 'a' : h < 21 ? 'e' : 'n']++; }
+    });
+    o.km = o.walk + o.cycle + o.run; o.avg = o.n ? o.steps / o.n : 0;
+    return o;
+  };
+  const ring = (pct, big, small, color) => {
+    const R = 44, C = 2 * Math.PI * R, v = Math.max(0, Math.min(1, pct));
+    return '<svg viewBox="0 0 110 110" class="xi-ring" role="img" aria-label="' + e(big + ' ' + small) + '"><circle cx="55" cy="55" r="' + R + '" class="xi-rt"/>' +
+      '<circle cx="55" cy="55" r="' + R + '" class="xi-rv" style="stroke:' + (color || 'var(--s3)') + ';stroke-dasharray:' + (C * v) + ' ' + C + '" transform="rotate(-90 55 55)"/>' +
+      '<text x="55" y="55" text-anchor="middle" class="xi-rb">' + e(big) + '</text><text x="55" y="71" text-anchor="middle" class="xi-rs">' + e(small) + '</text></svg>';
+  };
+  const fmin = m => m >= 600 ? Math.round(m / 60) + ' h' : Math.round(m) + ' min';
+  const fkm = v => v >= 100 ? Math.round(v).toLocaleString('en-IN') : String(r1(v));
+  const PNAME = { day: 'the day before', week: 'last week', month: 'last month', year: 'last year' };
+  const delta = (a, b, unit) => { if (!(b > 0)) return ''; const d = Math.round((a - b) / b * 100); if (!isFinite(d) || d === 0) return '<span class="xi-d same">= same</span>'; return '<span class="xi-d ' + (d > 0 ? 'up' : 'down') + '" title="' + (unit || 'Compared with the period before, per day') + '">' + (d > 0 ? '▲ ' : '▼ ') + Math.abs(d) + '%' + (unit ? ' ' + unit : '') + '</span>'; };
+  const insights = () => {
+    const s = st(), p = s.ap || 'week', today = U.today(), a = s.aa && s.aa <= today ? s.aa : today, g = goal(), x = XD(), C = ED.charts;
+    const r = pRange(p, a), o = stats(r.from, r.to), pr = pRange(p, pShift(p, a, -1)), po = stats(pr.from, pr.to);
+    const isNow = r.from <= today && r.to >= today;
+    const head = '<div class="xi-head"><div class="seg xi-seg" role="group" aria-label="Period">' + PERS.map(z => '<button type="button" data-act="xi-p" data-k="' + z[0] + '" aria-pressed="' + (z[0] === p) + '">' + z[1] + '</button>').join('') + '</div>' +
+      '<div class="xi-nav"><button type="button" class="icon-btn sm" data-act="xi-go" data-dir="-1" aria-label="Earlier">' + ED.icon('chevL') + '</button><b>' + e(r.label) + '</b><button type="button" class="icon-btn sm" data-act="xi-go" data-dir="1" aria-label="Later"' + (isNow ? ' disabled' : '') + '>' + ED.icon('chevR') + '</button>' +
+      (isNow ? '' : '<button type="button" class="btn small ghost" data-act="xi-go" data-dir="0">Now</button>') + '</div></div>';
+    if (!o.ds.length) return '<section class="xi">' + head + '<p class="hint">This period has not started yet.</p></section>';
+    const big = p === 'day' ? Math.round(o.steps / g * 100) + '%' : o.n ? Math.round(o.hit / o.n * 100) + '%' : '—';
+    const ringHtml = ring(p === 'day' ? o.steps / g : o.n ? o.hit / o.n : 0, big, p === 'day' ? 'of the goal' : 'days on goal', o.n && (p === 'day' ? o.steps >= g : o.hit / o.n >= 0.7) ? 'var(--good)' : 'var(--s3)');
+    const stat = (ic, lab, val, sub) => '<div class="xi-st"><span class="xi-si" aria-hidden="true">' + ic + '</span><span class="xi-sl">' + lab + '</span><b class="num">' + val + '</b><span class="hint">' + sub + '</span></div>';
+    const hero = '<div class="xi-hero"><div class="xi-rw">' + ringHtml + '<span class="hint">' + (p === 'day' ? XR.stepsOn(a).toLocaleString('en-IN') + ' / ' + g.toLocaleString('en-IN') + ' steps' : o.hit + ' of ' + U.plural(o.n, 'day') + (o.streak > 1 ? ' · best run ' + o.streak : '')) + '</span></div><div class="xi-stats">' +
+      stat('👣', p === 'day' ? 'Steps' : 'Steps a day', (p === 'day' ? o.steps : Math.round(o.avg)).toLocaleString('en-IN'), p === 'day' ? (o.steps >= g ? 'goal met ✓' : (g - o.steps).toLocaleString('en-IN') + ' to go') : (o.steps.toLocaleString('en-IN') + ' in all ') + delta(o.avg, po.avg, 'Steps a day, compared with ' + PNAME[p])) +
+      stat('📏', 'Distance', fkm(o.km) + ' km', 'walk ' + fkm(o.walk) + ' · cycle ' + fkm(o.cycle) + (o.run ? ' · run ' + fkm(o.run) : '') + ' ' + (p === 'day' ? '' : delta(o.km / o.ds.length, po.km / Math.max(1, po.ds.length), 'Km a day, compared with ' + PNAME[p]))) +
+      stat('⏱️', 'Active', fmin(o.mins), U.plural(o.work, 'workout') + (p === 'week' ? (o.mins >= 150 ? ' · 150+ ✓' : ' · aim 150') : '') + ' ' + delta(o.mins / o.ds.length, po.mins / Math.max(1, po.ds.length), 'Active minutes a day, compared with ' + PNAME[p])) +
+      stat('🔥', 'Burned', Math.round(o.kcal).toLocaleString('en-IN') + ' kcal', p === 'day' ? 'steps + workouts' : Math.round(o.kcal / Math.max(1, o.ds.length)) + ' a day') +
+      (p !== 'day' && o.best ? stat('🏆', 'Best day', o.best.v.toLocaleString('en-IN'), U.fmtShort(o.best.k)) : '') + '</div></div>';
+    let charts = '';
+    if (p === 'day') {
+      const rows = x.log.filter(z => z.date === a).sort((m, n) => String(m.time || '99').localeCompare(String(n.time || '99')));
+      const timed = rows.filter(z => z.time);
+      const bars = timed.map(z => { const st0 = U.toMin(z.time), len0 = Math.max(10, +z.mins || 10); return '<i class="xi-hb" style="left:' + (st0 / 14.4) + '%;width:' + Math.max(0.8, len0 / 14.4) + '%;--c:' + kc(z.kind) + '" tabindex="0" data-tip="' + e(z.kind + ' · ' + Math.round(z.mins || 0) + ' min' + (z.km ? ' · ' + z.km + ' km' : '')) + '" data-tipl="' + e(FX().time(z.time)) + '"></i>'; }).join('');
+      const now = a === today ? '<i class="xi-hnow" style="left:' + (U.nowMin() / 14.4) + '%"></i>' : '';
+      charts = '<figure class="chart xi-hours"><figcaption><span class="gh">Hours of the day</span><span class="hint">workouts by the time they started</span></figcaption><div class="chart-box"><div class="xi-hl">' + bars + now + '</div><div class="xi-hx">' + [0, 3, 6, 9, 12, 15, 18, 21, 24].map(h => '<span style="left:' + (h / 24 * 100) + '%">' + (h === 24 ? '' : FX().time(U.pad(h) + ':00').replace(':00', '')) + '</span>').join('') + '</div><div class="chart-tip" hidden></div></div>' +
+        (rows.length ? '<ul class="xi-sess">' + rows.map(z => '<li style="--c:' + kc(z.kind) + '"><span class="num">' + (z.time ? e(FX().time(z.time)) : '—') + '</span><b>' + e(z.title || z.kind) + '</b><span class="hint">' + e([z.mins ? Math.round(z.mins) + ' min' : '', z.km ? z.km + ' km' : '', z.kcal ? z.kcal + ' kcal' : ''].filter(Boolean).join(' · ')) + '</span></li>').join('') + '</ul>' : '<p class="hint">No workouts on this day' + (o.steps ? ' — ' + o.steps.toLocaleString('en-IN') + ' steps, ' + r2(o.walk) + ' km walked.' : '.') + ' Steps are counted for the whole day (the phone file has no hours for them).</p>') + '</figure>';
+    } else if (p === 'week' || p === 'month') {
+      const all = U.range(r.from, U.diffDays(r.from, r.to) + 1);
+      const lab = k => p === 'week' ? U.DAY3[U.dow(k)] : String(+k.slice(8));
+      charts = C.columns({ title: 'Steps by day', h: 160, left: 44, maxLabels: p === 'week' ? 7 : 10, color: 'var(--s3)', cur: all.indexOf(today),
+          data: all.map(k => ({ label: lab(k), long: U.fmtLong(k), value: k <= today ? XR.stepsOn(k) : 0, total: g, future: k > today, tip: k > today ? 'still to come' : XR.stepsOn(k).toLocaleString('en-IN') + ' steps (goal ' + g.toLocaleString('en-IN') + ')' })), sub: 'Pale bar: your daily goal.' }) +
+        C.groups({ title: 'Distance by day (km)', h: 150, left: 40, maxLabels: p === 'week' ? 7 : 10,
+          series: [{ name: 'Walking', color: 'var(--s3)' }, { name: 'Cycling', color: 'var(--s2)' }, { name: 'Running', color: 'var(--s6)' }],
+          legend: C.legend([{ kind: 'g', label: 'Walking', color: 'var(--s3)' }, { kind: 'g', label: 'Cycling', color: 'var(--s2)' }, { kind: 'g', label: 'Running', color: 'var(--s6)' }]),
+          data: all.map(k => { const z = k <= today ? XR.kmOn(k) : { walk: 0, cycle: 0, run: 0 }; return { label: lab(k), long: U.fmtLong(k), values: [r2(z.walk), r2(z.cycle), r2(z.run)], tip: 'walk ' + r2(z.walk) + ' · cycle ' + r2(z.cycle) + ' · run ' + r2(z.run) + ' km' }; }), fmt: v => String(Math.round(v * 10) / 10) });
+    } else {
+      const y = r.from.slice(0, 4), months = Array.from({ length: 12 }, (_, i) => y + '-' + U.pad(i + 1) + '-01');
+      const ms = months.map(f => stats(f, U.addDays(U.addMonths(f, 1), -1)));
+      charts = C.columns({ title: 'Steps a day, month by month', h: 160, left: 44, maxLabels: 12, color: 'var(--s3)', cur: months.indexOf(U.firstOfMonth(today)),
+          data: ms.map((m, i) => ({ label: U.MON[i].slice(0, 3), long: U.MONTHS[i] + ' ' + y, value: Math.round(m.avg), total: g, future: months[i] > today, tip: m.n ? Math.round(m.avg).toLocaleString('en-IN') + ' steps a day · goal met on ' + m.hit + '/' + m.n + ' days' : 'no data' })), sub: 'Average on days with data. Pale bar: your daily goal.' }) +
+        C.groups({ title: 'Distance by month (km)', h: 150, left: 44, maxLabels: 12,
+          series: [{ name: 'Walking', color: 'var(--s3)' }, { name: 'Cycling', color: 'var(--s2)' }, { name: 'Running', color: 'var(--s6)' }],
+          legend: C.legend([{ kind: 'g', label: 'Walking', color: 'var(--s3)' }, { kind: 'g', label: 'Cycling', color: 'var(--s2)' }, { kind: 'g', label: 'Running', color: 'var(--s6)' }]),
+          data: ms.map((m, i) => ({ label: U.MON[i].slice(0, 3), long: U.MONTHS[i] + ' ' + y, values: [Math.round(m.walk), Math.round(m.cycle), Math.round(m.run)], tip: 'walk ' + Math.round(m.walk) + ' · cycle ' + Math.round(m.cycle) + ' · run ' + Math.round(m.run) + ' km · ' + Math.round(m.mins) + ' active min' })) }) +
+        C.heat({ title: 'Every day of ' + y + ' — steps against the goal', days: U.range(r.from, U.diffDays(r.from, r.to) + 1).map(k => ({ k, v: k > today ? null : x.steps[k] ? XR.stepsOn(k) / g : null, future: k > today, tip: x.steps[k] ? XR.stepsOn(k).toLocaleString('en-IN') + ' steps' : 'no data' })), weekStart: 1 });
+    }
+    // what kind of exercise, when in the day, which weekday
+    const kinds = Object.keys(o.kinds).sort((m, n) => o.kinds[n].mins - o.kinds[m].mins);
+    const kindM = kinds.length ? C.meters({ title: 'By activity', rows: kinds.map(k => ({ label: k, value: Math.round(o.kinds[k].mins), color: kc(k), valueLabel: fmin(o.kinds[k].mins) + (o.kinds[k].km ? ' · ' + fkm(o.kinds[k].km) + ' km' : ''), tip: U.plural(o.kinds[k].n, 'session') })) }) : '';
+    const sl = o.slot, sn = sl.m + sl.a + sl.e + sl.n;
+    const slotM = p !== 'day' && sn ? C.meters({ title: 'When you work out', rows: [['🌅 Morning', sl.m, 'var(--s4)', 'before 12 noon'], ['☀️ Afternoon', sl.a, 'var(--s2)', '12 to 5 pm'], ['🌇 Evening', sl.e, 'var(--s7)', '5 to 9 pm'], ['🌙 Night', sl.n, 'var(--s1)', 'after 9 pm']].map(z => ({ label: z[0], value: z[1], total: sn, color: z[2], valueLabel: z[1] + ' · ' + Math.round(z[1] / sn * 100) + '%', tip: U.plural(z[1], 'session') + ', ' + z[3] })), max: sn }) : '';
+    let wdM = '';
+    if (p === 'month' || p === 'year') {
+      const sum = [0, 0, 0, 0, 0, 0, 0], cnt = [0, 0, 0, 0, 0, 0, 0];
+      o.ds.forEach(k => { if (x.steps[k]) { sum[U.dow(k)] += XR.stepsOn(k); cnt[U.dow(k)]++; } });
+      const order = [1, 2, 3, 4, 5, 6, 0], av = order.map(d => cnt[d] ? sum[d] / cnt[d] : 0), top = Math.max(...av);
+      wdM = top ? C.columns({ title: 'Your weekdays — steps a day', h: 130, left: 44, maxLabels: 7, color: 'var(--s1)', cur: av.indexOf(top), data: order.map((d, i) => ({ label: U.DAY3[d], long: U.DAYS[d], value: Math.round(av[i]), tip: Math.round(av[i]).toLocaleString('en-IN') + ' steps on average (' + U.plural(cnt[d], U.DAYS[d]) + ')' })), sub: 'Most active: <b>' + e(U.DAYS[order[av.indexOf(top)]]) + '</b>.' }) : '';
+    }
+    const side = [kindM, slotM, wdM].filter(Boolean);
+    return '<section class="xi">' + head + hero + charts + (side.length ? '<div class="xi-side">' + side.join('') + '</div>' : '') + '</section>';
+  };
+  A['xi-p'] = el => { st().ap = el.dataset.k; ED.app.render(); };
+  A['xi-go'] = el => { const s = st(), d = +el.dataset.dir, today = U.today(); if (!d) s.aa = null; else { const n = pShift(s.ap || 'week', s.aa || today, d); s.aa = n > today ? today : n; } ED.app.render(); };
+
   /* read the phone file again by itself when the page opens, if Google has already given access this session */
   const autoRead = () => { const w = XD().watch; if (tok && Date.now() < tokExp - 60000 && (!w.at || Date.now() - w.at > 15 * 60e3)) XR.fetchDrive(true).catch(() => {}); };
 
@@ -435,7 +539,7 @@
       '<p class="hint">Reads the newest <b>' + e(w.driveName || 'Cycling-backup.json') + '</b> that the phone app saves to Google Drive: steps per day, cycling and exercise sessions with distance and calories, your height, weight and step goal. Days you typed in yourself are kept.</p></div>';
     const log = x.log.slice().sort((a, b) => (b.date + (b.time || '')).localeCompare(a.date + (a.time || ''))).slice(0, 30);
     const logHtml = log.length ? '<ul class="xp-list xr-log">' + log.map(r => '<li><button type="button" class="plain-btn xp-li" data-act="xr-log" data-id="' + e(r.id) + '"><span class="num">' + e(U.fmtDM(r.date)) + '</span><span class="grow"><b>' + e(r.title || r.kind) + '</b><span class="hint"> ' + e([r.mins ? Math.round(r.mins) + ' min' : '', r.km ? r.km + ' km' : '', r.kcal ? r.kcal + ' kcal' : '', r.top ? 'top ' + r.top + ' km/h' : ''].filter(Boolean).join(' · ')) + '</span></span><span class="chip xr-src ' + (r.src === 'watch' ? 'w' : 'm') + '">' + (r.src === 'watch' ? '⌚ phone' : '✍ added') + '</span></button></li>').join('') + '</ul>' : '<p class="hint">No workouts yet. Log one by hand or read the phone app’s backup.</p>';
-    const body = tiles + chart + watchBox + analysis(days) +
+    const body = tiles + '<h3 class="gh fin-gap">Insights</h3>' + insights() + chart + watchBox + analysis(days) +
       '<h3 class="gh fin-gap">Workouts <span class="hint">· from the phone and added by hand</span></h3>' +
       '<div class="row-btns"><button type="button" class="btn small" data-act="xr-log">' + ED.icon('plus') + 'Log a workout</button><button type="button" class="btn small" data-act="xr-steps">' + ED.icon('plus') + 'Add steps for a day</button>' +
       '<label class="xr-goal">Step goal <input type="number" class="field num" min="1000" max="40000" step="500" value="' + g + '" data-change="xr-goal" aria-label="Daily step goal"></label></div>' + logHtml;

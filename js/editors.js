@@ -405,6 +405,9 @@
     const isNew = !ev;
     const P = 'ev' + (++seq);
     const r = draft.repeat;
+    const GCx = ED.gcal, gcCfg = GCx && GCx.pickBtn && ED.store.data.gcal ? ED.store.data.gcal : null;
+    const gcOk = !!(gcCfg && (gcCfg.on || gcCfg.clientId || (GCx.via && GCx.via() === 'connector')));
+    const gcOn0 = !!(gcOk && ev && (GCx.inGoogle('e:' + ev.id) || (!gcCfg.pick && GCx.wants && GCx.wants('e:' + ev.id) && GCx.bodyFor && !!GCx.bodyFor('e:' + ev.id))));
     const REM = [[null, 'None'], [0, 'At start time'], [5, '5 min before'], [10, '10 min before'], [15, '15 min before'], [30, '30 min before'], [60, '1 hour before'], [1440, '1 day before']];
     const body =
       '<div class="ee">' +
@@ -420,6 +423,11 @@
       '<div class="te-row"><label for="' + P + '-loc">Location</label><input id="' + P + '-loc" class="field" value="' + e(draft.location || '') + '" placeholder="Optional"></div>' +
       '<div class="te-row te-row-top"><span class="lbl-inline">Colour</span>' + ED.ui.swatches(P + '-color', draft.color, M.EVENT_COLORS) + '</div>' +
       '<div class="te-row te-row-top"><label for="' + P + '-notes">Notes</label><textarea id="' + P + '-notes" class="field" rows="3">' + e(draft.notes || '') + '</textarea></div>' +
+      // 1.21: also a Daily task, and in Google Calendar (js/evtask.js); the diary calendar always shows it
+      '<div class="te-row te-row-top ee-also"><span class="lbl-inline">Also</span><div class="ee-also-b">' +
+      '<label class="switch"><input id="' + P + '-intask" type="checkbox"' + (draft.inTasks ? ' checked' : '') + '><span class="track"></span><span>' + ED.icon('checkSq') + ' In Daily tasks</span></label>' +
+      (gcOk ? '<label class="switch"><input id="' + P + '-ingc" type="checkbox"' + (gcOn0 ? ' checked' : '') + '><span class="track"></span><span>' + ED.icon('calendar') + ' In Google Calendar</span></label>' : '') +
+      '<span class="hint">Always on the diary’s calendars' + (gcOk ? '' : ' · connect Google Calendar in Settings to copy it there') + '.</span></div></div>' +
       '</div></div>';
     const foot = (ev ? '<button type="button" class="btn danger" data-ee="delete">' + ED.icon('trash') + 'Delete</button>' : '') + (ev && ED.gcal && ED.gcal.pickBtn ? ED.gcal.pickBtn('e:' + ev.id) : '') + '<span class="grow"></span>' +
       (ev && !ED.env.claude ? '<button type="button" class="btn" data-ee="ics">' + ED.icon('calendar') + '.ics</button>' : '') +
@@ -444,8 +452,12 @@
       target.notes = val('notes');
       target.color = ED.ui.readSwatch(api.el, P + '-color') || target.color;
       target.exdates = target.exdates || [];
+      const it = api.el.querySelector('#' + P + '-intask'); if (it) target.inTasks = it.checked;
+      target.updatedAt = Date.now();
       if (isNew && !ev) { D().events.push(target); ev = target; }
       ED.store.commit();
+      const gx = api.el.querySelector('#' + P + '-ingc');
+      if (gx && gx.checked !== gcOn0 && !gx.dataset.done) { gx.dataset.done = '1'; GCx.setPick('e:' + ev.id, gx.checked); }
       if (o.onSaved) o.onSaved(ev);
       return ev;
     };

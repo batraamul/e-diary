@@ -34,17 +34,39 @@
       '<button type="button" class="btn small ghost dx-off" data-act="dx-dayoff" data-k="' + k + '" title="Cancel all of this day’s open tasks, with a reason">' + ED.icon('xCircle') + 'Day off…</button></div>';
   };
 
-  /* 1.20.1: the mood card at the top of Habits — round emoji buttons with their names, the chosen one lit up */
+  /* 1.20.1: the mood card at the top of Habits; 1.21: each mood has its colour, a line about the day, and the month as a ribbon */
+  const HUES = [[/happiest|best|great|amazing|joy/i, '#f43f5e'], [/happy|good|calm|peace|content/i, '#f59e0b'], [/excit|energ|celebr/i, '#d946ef'], [/think|thought|curious|focus/i, '#6366f1'],
+    [/sick|ill|unwell|tired/i, '#10b981'], [/dull|bored|low|sad|down/i, '#64748b'], [/busy|rush|hectic|stress/i, '#0ea5e9'], [/angry|upset|irritat/i, '#ef4444'], [/grate|thank|bless/i, '#84cc16']];
+  const PAL = ['#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6', '#3b82f6', '#84cc16', '#f97316', '#06b6d4'];
+  DX.hue = (lb, i) => { const h = HUES.find(x => x[0].test(lb || '')); return h ? h[1] : PAL[(i || 0) % PAL.length]; };
+  const hueOf = m => { const l = DX.moods(), i = l.findIndex(x => x[1] === m.m); return DX.hue(m.m, i < 0 ? 0 : i); };
   DX.card = k => {
-    const cur = DX.moodOn(k), today = U.today();
+    const cur = DX.moodOn(k), today = U.today(), list = DX.moods();
     const [y, mo] = U.ymd(k), days = U.daysInMonth(y, mo - 1), count = {};
-    for (let i = 1; i <= days; i++) { const m = MD()[y + '-' + U.pad(mo) + '-' + U.pad(i)]; if (m) count[m.e] = (count[m.e] || 0) + 1; }
-    const sum = Object.keys(count).sort((a, b) => count[b] - count[a]).slice(0, 5);
-    return '<div class="mood-card' + (cur ? ' set' : '') + '"><div class="mood-h"><span class="mood-q">' + (cur ? '<span class="mood-now" aria-hidden="true">' + e(cur.e) + '</span>' + e(cur.m) : (k === today ? 'How is your day?' : 'How was the day?')) + '</span>' +
-      (sum.length ? '<span class="mood-sum" title="Moods this month">' + sum.map(x => '<span>' + e(x) + '<sub>' + count[x] + '</sub></span>').join('') + '</span>' : '') +
+    let logged = 0, streak = 0;
+    const dots = [];
+    for (let i = 1; i <= days; i++) {
+      const dk = y + '-' + U.pad(mo) + '-' + U.pad(i), m = MD()[dk];
+      if (m) { logged++; const key = m.e + ' ' + m.m; count[key] = (count[key] || 0) + 1; }
+      dots.push('<button type="button" class="mood-dot' + (m ? ' on' : '') + (dk === k ? ' sel' : '') + (dk === today ? ' today' : '') + (dk > today ? ' future' : '') + '"' + (m ? ' style="--h:' + hueOf(m) + '"' : '') +
+        ' data-act="dx-go" data-k="' + dk + '" title="' + e(U.fmtShort(dk) + (m ? ' — ' + m.m + (m.note ? ': ' + m.note : '') : '')) + '"' + (dk > today ? ' disabled' : '') + '>' + (m ? '<span aria-hidden="true">' + e(m.e) + '</span>' : '<span class="num">' + i + '</span>') + '</button>');
+    }
+    for (let d = today; MD()[d]; d = U.addDays(d, -1)) streak++;
+    const top = Object.keys(count).sort((a, b) => count[b] - count[a])[0];
+    const hue = cur ? hueOf(cur) : '#8b5cf6';
+    const head = cur
+      ? '<span class="mood-big" aria-hidden="true">' + e(cur.e) + '</span><span class="mood-ht"><span class="mood-k">' + (k === today ? 'Today I feel' : 'That day: ') + '</span><b>' + e(cur.m) + '</b></span>'
+      : '<span class="mood-big empty" aria-hidden="true">✨</span><span class="mood-ht"><b>' + (k === today ? 'How is your day?' : 'How was the day?') + '</b><span class="mood-k">Pick a mood — it colours the month below</span></span>';
+    return '<div class="mood-card' + (cur ? ' set' : '') + '" style="--mh:' + hue + '"><div class="mood-h">' + head +
       '<button type="button" class="mood-off" data-act="dx-dayoff" data-k="' + k + '" title="Cancel all of this day’s open tasks, with a reason">' + ED.icon('xCircle') + 'Day off</button></div>' +
-      '<div class="mood-row" role="group" aria-label="Mood of the day">' + DX.moods().map(([em, lb]) => { const on = cur && cur.m === lb; return '<button type="button" class="mood-b' + (on ? ' on' : '') + '" data-act="dx-mood" data-k="' + k + '" data-e="' + e(em) + '" data-l="' + e(lb) + '" aria-pressed="' + !!on + '" title="' + e(lb) + '"><span class="mood-e" aria-hidden="true">' + e(em) + '</span><span class="mood-l">' + e(lb) + '</span></button>'; }).join('') + '</div></div>';
+      '<div class="mood-row" role="group" aria-label="Mood of the day">' + list.map(([em, lb], i) => { const on = cur && cur.m === lb; return '<button type="button" class="mood-b' + (on ? ' on' : '') + '" style="--h:' + DX.hue(lb, i) + '" data-act="dx-mood" data-k="' + k + '" data-e="' + e(em) + '" data-l="' + e(lb) + '" aria-pressed="' + !!on + '" title="' + e(lb) + '"><span class="mood-e" aria-hidden="true">' + e(em) + '</span><span class="mood-l">' + e(lb) + '</span></button>'; }).join('') + '</div>' +
+      (cur ? '<input class="mood-note" data-change="dx-note" data-k="' + k + '" value="' + e(cur.note || '') + '" placeholder="A line about the day (optional) — what made it so?" aria-label="A line about the day" maxlength="140">' : '') +
+      '<div class="mood-month"><div class="mood-mh"><b>' + e(U.MONTHS[mo - 1]) + '</b>' + (logged ? '<span class="hint">' + U.plural(logged, 'day') + ' noted' + (top && count[top] > 1 ? ' · mostly ' + e(top) + ' ×' + count[top] : '') + (streak > 1 ? ' · ' + streak + '-day streak 🔥' : '') + '</span>' : '<span class="hint">no moods yet this month</span>') + '</div>' +
+      '<div class="mood-dots">' + dots.join('') + '</div></div></div>';
   };
+  ED.changes = ED.changes || {};
+  ED.changes['dx-note'] = el => { const m = MD()[el.dataset.k]; if (!m) return; const v = el.value.trim(); if (v) m.note = v; else delete m.note; m.at = Date.now(); ED.store.commit({ silent: true }); };
+  A['dx-go'] = el => { if (U.isKey(el.dataset.k)) ED.go.day(el.dataset.k); };
 
   /* ---------------- cancelling with a reason ---------------- */
   DX.askReason = (title, cur) => new Promise(resolve => {

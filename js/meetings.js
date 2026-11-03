@@ -158,7 +158,7 @@
     return '<li class="mt-arow"><button type="button" class="plain-btn mt-rb" data-act="mt-open" data-key="' + e(x.key) + '" data-k="' + k + '" style="--c:' + e(x.color) + '">' +
       '<span class="mt-t num">' + (x.allDay ? 'All day' : e(FX.time(x.time)) + (x.endTime ? '<span class="hint">' + e(FX.time(x.endTime)) + '</span>' : '')) + '</span>' +
       '<span class="mt-m"><b>' + e(x.title) + '</b><span class="hint">' + e([x.location, x.cal, x.src === 'google' && x.g.attendees.length ? U.plural(x.g.attendees.length, 'guest') : '', x.from ? 'diary ' + x.from : ''].filter(Boolean).join(' · ')) + '</span></span>' +
-      '<span class="mt-b">' + (n && (n.agenda || n.notes) ? '<span class="chip mt-planned">' + ED.icon('doc') + 'planned</span>' : '') + (open ? '<span class="chip">' + open + ' to do</span>' : '') + '</span></button></li>';
+      '<span class="mt-b">' + (inTask(x) ? '<span class="chip mt-task" title="Also in Daily tasks">' + ED.icon('checkSq') + 'task</span>' : '') + (n && (n.agenda || n.notes) ? '<span class="chip mt-planned">' + ED.icon('doc') + 'planned</span>' : '') + (open ? '<span class="chip">' + open + ' to do</span>' : '') + '</span></button></li>';
   }
 
   /* ---------------- action items across meetings ---------------- */
@@ -200,6 +200,7 @@
     ED.ui.modal({
       title: x.title, cls: 'st-modal wide', body,
       footer: (x.src === 'diary' ? '<button type="button" class="btn" data-x="edit">' + ED.icon('pencil') + 'Edit the event</button>' : g && g.link ? '<a class="btn" href="' + e(g.link) + '" target="_blank" rel="noopener noreferrer">' + ED.icon('external') + 'Open in Google Calendar</a>' : '') +
+        taskBtn(x) + (x.src === 'diary' && ED.gcal && ED.gcal.pickBtn ? ED.gcal.pickBtn('e:' + x.id) : '') +
         '<span class="grow"></span><button type="button" class="btn" data-mclose>Close</button><button type="button" class="btn primary" data-x="save">Save the plan</button>',
       onMount(el, api) {
         const list = el.querySelector('.mt-alist');
@@ -207,6 +208,14 @@
           const b = ev.target.closest('[data-mt]'); if (!b) return;
           if (b.dataset.mt === 'rm') b.closest('.mt-a').remove();
           if (b.dataset.mt === 'add') { list.insertAdjacentHTML('beforeend', actRow({ id: U.uid('ma'), text: '', who: '', due: '', done: false })); list.lastElementChild.querySelector('.mt-a-text').focus(); }
+        });
+        el.addEventListener('click', ev => {
+          const tb = ev.target.closest('[data-x="task"]'); if (!tb) return;
+          const EVT = ED.evTask; if (!EVT) return;
+          ED.store.checkpoint('Daily task');
+          if (x.src === 'diary') { const ev = M.event(x.id); const on = !EVT.isIn(ev); EVT.set(ev, on); ED.store.commit(); ED.ui.toast(on ? 'Added to Daily tasks' + (ev.repeat ? ' (repeating like the event)' : ' for ' + U.fmtDM(ev.date)) : 'Taken out of Daily tasks', { icon: 'checkSq' }); }
+          else { const had = EVT.gTask(x.g); if (!had) { EVT.addGoogle(x.g); ED.store.commit(); ED.ui.toast('Added to Daily tasks for ' + U.fmtDM(x.g.date), { icon: 'checkSq' }); } else { api.close(); ED.editors.task({ id: had.id, k: had.date || k }); return; } }
+          tb.outerHTML = taskBtn(x);
         });
         const ed = el.querySelector('[data-x="edit"]');
         if (ed) ed.addEventListener('click', () => { api.close(); ED.editors.event({ id: x.id, k }); });
@@ -228,6 +237,15 @@
       },
     });
   };
+
+  /* 1.21: the event as a Daily task (js/evtask.js) */
+  function taskBtn(x) {
+    const EVT = ED.evTask; if (!EVT) return '';
+    const on = x.src === 'diary' ? EVT.isIn(M.event(x.id)) : !!EVT.gTask(x.g);
+    return '<button type="button" class="btn ghost ev-taskbtn' + (on ? ' on' : '') + '" data-x="task" title="' + (on ? (x.src === 'diary' ? 'It is in Daily tasks. Click to take it out.' : 'It is in Daily tasks. Click to open the task.') : 'Also put it in Daily tasks') + '">' + ED.icon('checkSq') + (on ? 'In Daily tasks ✓' : 'Add to Daily tasks') + '</button>';
+  }
+  const inTask = x => { const EVT = ED.evTask; return !!(EVT && (x.src === 'diary' ? EVT.isIn(M.event(x.id)) : x.g && EVT.gTask(x.g))); };
+  MT.inTask = inTask;
 
   /* choose the Google calendars to show */
   MT.chooseCals = async () => {

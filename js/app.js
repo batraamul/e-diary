@@ -18,6 +18,7 @@
     { id: 'roles', label: 'Roles' },
     { id: 'goals', label: 'Goals' },
     { id: 'mission', label: 'Mis\u00adsion' },
+    { id: 'idealday', label: 'Ideal Day', title: 'Ideal day: your best time-table, season by season' },
     { id: 'career', label: 'Notes & Life', title: 'Notes & Life Planner: notes, progress, travel, grocery, meals, wardrobe' },
     { id: 'exercise', label: 'Exercise', title: 'Exercise plan, steps and workouts — with your phone / watch data' },
     { id: 'welfare', label: 'Welfare & Help', title: 'Welfare & Help: whom you helped and how' },
@@ -40,7 +41,7 @@
   /* the side tabs: related pages share one tab; its pages are chosen in the bar at the top */
   const GROUPS = [
     { id: 'planner', label: 'Planner', title: 'Daily & monthly tasks, events and meetings', views: ['daily', 'weekly', 'monthly', 'yearly', 'events', 'matrix', 'bucket'], names: ['Daily', 'Weekly', 'Monthly', 'Yearly', 'Events', 'Eisenhower', 'Bucket List'] },
-    { id: 'purpose', label: 'Purpose', title: 'Roles, goals and mission', views: ['roles', 'goals', 'mission'], names: ['Roles', 'Goals', 'Mission'] },
+    { id: 'purpose', label: 'Purpose', title: 'Roles, goals, mission and your ideal day', views: ['roles', 'goals', 'mission', 'idealday'], names: ['Roles', 'Goals', 'Mission', 'Ideal Day'] },
     { id: 'life', label: 'Notes & Life', title: 'Notes & Life Planner: notes, progress, travel, grocery, meals, wardrobe, welfare, pooja', views: ['career', 'welfare', 'pooja'], names: ['Notes & Life', 'Welfare & Help', 'Pooja & Vrat'] },
     { id: 'study', label: 'Study', title: 'Study planner', views: ['studyYear', 'studyMonth', 'studyWeek'], names: ['Year', 'Month', 'Week & Day'] },
     { id: 'money', label: 'Fi\u00adnance', title: 'Money records and the financial plan', views: ['finance', 'finplan'], names: ['Money', 'Financial Plan'] },

@@ -591,3 +591,17 @@ There is no automated test runner in the package; test by hand in the browser:
 - `exercise.js`: `XR.stride()` (phone `walkStepM` kept in `watch.stride`), `XR.oddKm`, `XR.fixKm()` in reconcile (keeps `kmWas`).
 - CSS: done tasks — `.st-done .ttitle::after` DONE stamp, no line-through (views.css, calendar.css, components.css, more.css).
 - `app.js` GROUPS: health = health, exercise; interview = interview, exam, projects, mindmap, jobs.
+
+## 1.21 — Home stock, saved meal plans, events as tasks, activity insights, Ideal Day, mood card
+
+| File | What it does | Data |
+|---|---|---|
+| `js/lists.js` | **Home stock** on the Grocery → List summary page (`LI.stockHtml`, `F['sk-add']`, `CH['sk-edit']`, `sk-pull`, `sk-pull-all`, `sk-more`, `sk-f`). A pulled list item carries `stockId`; `LI.stockSync()` (store `change` hook, reason `stock`) adds the bought quantity when the item is done — by the list, its task or its bill — and keeps `item.stockIn {add, by, have, on}` to undo on untick; different units only mark it bought. **Saved meal plans** (`LI.savePlan`, `LI.usePlan(id, 'week'|'day'|'all')`, `mp-*` actions) and `LI.mealInsights()` (calories / protein by day vs target, calorie split vs 10–35 / 20–30 / 45–65 %, calories by meal, top protein foods). | `lists.stock[{ id, name, kind 'groc'|'use', have, unit, by, buy, cat, notes, boughtOn }]`, `lists.mealPlans[{ id, name, kind 'week'|'day', meals{0..6} | day{b,l,s,d}, note, savedAt, usedAt }]` |
+| `js/evtask.js` | `event.inTasks` → task `tk-ev-<event>` (`link.k event`, `eventId`, `linkDate`/`linkTime`/`linkTitle`), same repeat and `exdates`; moving a one-off task moves the event. Off / event deleted → open task removed, a done one is unlinked. Wraps `M.deleteTask` (switch off). `EVT.addGoogle(g)` copies a Google event once (`task.gEvent = gid`). | `events[].inTasks` |
+| `js/idealday.js` | View `idealday` (Purpose group). Seasons (IMD: winter Jan–Feb, summer Mar–May, monsoon Jun–Sep, post-monsoon Oct–Dec; `ideal.months{m: season}` overrides), working day / holiday (`ID.isOff`: Sat, Sun, holiday events). Time-line (0.6 px/min), 24-hour clock, hours by kind, balance check, seasons compared, now/next, `ID.suggest(s, t)`, `ID.put()` → tasks for a date (no duplicates by title + time). | `ideal: { months{}, blocks[{ id, s, t 'work'|'off', from, to, what, cat, notes }] }` (a block whose `to` < `from` crosses midnight) |
+
+- `editors.js` event editor: “Also” row — `#…-intask` (inTasks) and `#…-ingc` (`ED.gcal.setPick('e:<id>')`, shown when Google is set up).
+- `meetings.js`: `taskBtn(x)` in the event dialog (delegated click), `.mt-task` chip in the agenda.
+- `exercise.js`: `insights()` on Activity & watch — `st().ap` day|week|month|year, `st().aa` anchor; `stats(from, to)`, ring, per-day deltas vs the period before, hours strip (day), columns/groups (week, month), month-by-month + heat map (year), by activity, time of day, weekdays.
+- `dayext.js`: mood card redesigned — `DX.hue(label)`, `moods[k].note` (`CH['dx-note']`), month ribbon (`dx-go`).
+- `sync.js`: `lists` adds `stock`, `mealPlans`; `ideal` merged with `nested('ideal', ['blocks'], { months: 1 })`.
