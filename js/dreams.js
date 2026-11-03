@@ -59,16 +59,16 @@
     }).join('');
     const empty = !all.length ? '<div class="dr-empty"><span aria-hidden="true">🌠</span><b>What do you want to be — and by what age?</b><p class="hint">A professor at 50, a marathon at 45, a home in the hills at 55, a book in your name, a family trip abroad… Add a picture that says it, a few lines on why, and the first steps.</p><button type="button" class="btn primary" data-act="dr-new">' + ED.icon('plus') + 'Add my first dream</button></div>' : '';
     const tools = '<button type="button" class="btn small primary" data-act="dr-new">' + ED.icon('plus') + 'Dream</button>' + (DR.ageNow() != null ? '<button type="button" class="icon-btn" data-act="dr-dobedit" aria-label="Birth date" title="Birth date">🎂</button>' : '');
-    return FX().page('dr', 'Dreams', tools, lifeLine() + (all.length ? chips + (cards ? '<div class="dr-cards">' + cards + '</div>' : '<p class="hint">No dream matches these filters.</p>') : empty), 'dr-l');
+    return FX().page('drm', 'Dreams', tools, lifeLine() + (all.length ? chips + (cards ? '<div class="dr-cards">' + cards + '</div>' : '<p class="hint">No dream matches these filters.</p>') : empty), 'dr-l');
   };
 
   /* ---------------- right page ---------------- */
   const right = () => {
     const s = st(), all = DD().list;
     const seg = all.length ? FX().seg('dr-view', s.view, [['dream', 'The dream'], ['overview', 'Overview']], 'Show') : '';
-    if (!all.length) return FX().page('dr dr-r', 'Your dreams', '', '<p class="hint dr-intro">Dreams turn into plans when they have an age, a picture and a first step. Each one can become a <b>goal</b> in Purpose → Goals, so its tasks reach your Daily page.</p>', 'dr-r');
-    if (s.view === 'overview') return FX().page('dr dr-r', 'Your dreams', seg, overview(), 'dr-r');
-    const d = pick(); if (!d) return FX().page('dr dr-r', 'Your dreams', seg, '', 'dr-r');
+    if (!all.length) return FX().page('drm dr-r', 'Your dreams', '', '<p class="hint dr-intro">Dreams turn into plans when they have an age, a picture and a first step. Each one can become a <b>goal</b> in Purpose → Goals, so its tasks reach your Daily page.</p>', 'dr-r');
+    if (s.view === 'overview') return FX().page('drm dr-r', 'Your dreams', seg, overview(), 'dr-r');
+    const d = pick(); if (!d) return FX().page('drm dr-r', 'Your dreams', seg, '', 'dr-r');
     const c = area(d.area), pics = d.pics || [], steps = d.steps || [], g = d.goalId && M.goal(d.goalId), y = yearsTo(d);
     const gallery = pics.length ? '<div class="dr-gal' + (pics.length === 1 ? ' one' : '') + '">' + pics.map((p, i) => '<button type="button" class="dr-gi" data-act="dr-pic" data-id="' + e(d.id) + '" data-i="' + i + '" aria-label="See picture ' + (i + 1) + '"><img src="' + e(p) + '" alt="' + e(d.title) + '"></button>').join('') + '</div>'
       : '<button type="button" class="dr-nopic" data-act="dr-edit" data-id="' + e(d.id) + '">' + ED.icon('image') + 'Add a picture of this dream</button>';
@@ -84,7 +84,7 @@
         : '<p class="hint">Turn it into a goal in Purpose → Goals: its tasks then reach your Daily page.</p><button type="button" class="btn small" data-act="dr-goal" data-id="' + e(d.id) + '">' + ED.icon('target') + 'Make it a goal</button>') + '</div>' +
       '<div class="row-btns dr-acts"><button type="button" class="btn small primary" data-act="dr-edit" data-id="' + e(d.id) + '">' + ED.icon('pencil') + 'Edit</button>' +
       (d.status !== 'done' ? '<button type="button" class="btn small" data-act="dr-won" data-id="' + e(d.id) + '">🏆 Achieved!</button>' : '<button type="button" class="btn small ghost" data-act="dr-won" data-id="' + e(d.id) + '">Not achieved yet</button>') + '</div>';
-    return FX().page('dr dr-r', 'Your dreams', seg, body, 'dr-r');
+    return FX().page('drm dr-r', 'Your dreams', seg, body, 'dr-r');
   };
   const overview = () => {
     const l = DD().list, now = DR.ageNow(), C = ED.charts;

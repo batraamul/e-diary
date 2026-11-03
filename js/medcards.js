@@ -25,22 +25,22 @@
     const l = MC.list(), st = ED.state.mc2 || (ED.state.mc2 = { show: {} });
     const cards = l.map(c => {
       const k = kind(c.kind), d = left(c), pics = (c.pics || []).filter(Boolean);
-      const val = d == null ? '' : d < 0 ? '<span class="mc-v bad">expired ' + e(U.fmtShort(c.validTo)) + '</span>' : d <= 30 ? '<span class="mc-v warn">renew — ends in ' + U.plural(d, 'day') + '</span>' : '<span class="mc-v ok">valid till ' + e(U.fmtShort(c.validTo)) + '</span>';
+      const val = d == null ? '' : d < 0 ? '<span class="hc-v bad">expired ' + e(U.fmtShort(c.validTo)) + '</span>' : d <= 30 ? '<span class="hc-v warn">renew — ends in ' + U.plural(d, 'day') + '</span>' : '<span class="hc-v ok">valid till ' + e(U.fmtShort(c.validTo)) + '</span>';
       const shown = !!st.show[c.id];
-      return '<article class="mc-card" style="--c:' + k[3] + '"><div class="mc-face">' +
-        '<div class="mc-top"><span class="mc-k">' + k[2] + ' ' + e(k[1]) + '</span>' + val + '</div>' +
-        '<b class="mc-name">' + e(c.name || k[1]) + '</b>' +
-        (c.number ? '<button type="button" class="mc-num num" data-act="mc-show" data-id="' + e(c.id) + '" title="' + (shown ? 'Hide' : 'Show') + ' the number">' + e(shown ? c.number : mask(c.number)) + '</button>' : '') +
-        '<div class="mc-row"><span><i>For</i>' + e(c.holder || '—') + '</span>' + (c.issuer ? '<span><i>' + (c.kind === 'hospital' ? 'Hospital' : 'Insurer / issued by') + '</i>' + e(c.issuer) + '</span>' : '') + '</div>' +
-        (pics.length ? '<div class="mc-pics">' + pics.map((p, i) => '<button type="button" class="mc-pic" data-act="mc-pic" data-id="' + e(c.id) + '" data-i="' + i + '" aria-label="See the ' + (i ? 'back' : 'front') + ' of the card"><img src="' + e(p) + '" alt="' + (i ? 'Back' : 'Front') + ' of ' + e(c.name || k[1]) + '"><span>' + (i ? 'Back' : 'Front') + '</span></button>').join('') + '</div>' : '') +
-        '</div><dl class="mc-dl">' + [['Helpline', c.phone ? '<a href="tel:' + e(String(c.phone).replace(/[^\d+]/g, '')) + '">' + e(c.phone) + '</a>' : ''], ['Cover', c.sum ? '₹' + e(Number(c.sum).toLocaleString('en-IN')) : ''], ['Members', e(c.members || '')], ['TPA', e(c.tpa || '')], ['Valid', c.validFrom || c.validTo ? e([c.validFrom ? U.fmtShort(c.validFrom) : '', c.validTo ? U.fmtShort(c.validTo) : ''].filter(Boolean).join(' → ')) : ''], ['Notes', e(c.notes || '').replace(/\n/g, '<br>')]]
+      return '<article class="hc-card" style="--c:' + k[3] + '"><div class="hc-face">' +
+        '<div class="hc-top"><span class="hc-k">' + k[2] + ' ' + e(k[1]) + '</span>' + val + '</div>' +
+        '<b class="hc-name">' + e(c.name || k[1]) + '</b>' +
+        (c.number ? '<button type="button" class="hc-num num" data-act="mc-show" data-id="' + e(c.id) + '" title="' + (shown ? 'Hide' : 'Show') + ' the number">' + e(shown ? c.number : mask(c.number)) + '</button>' : '') +
+        '<div class="hc-row"><span><i>For</i>' + e(c.holder || '—') + '</span>' + (c.issuer ? '<span><i>' + (c.kind === 'hospital' ? 'Hospital' : 'Insurer / issued by') + '</i>' + e(c.issuer) + '</span>' : '') + '</div>' +
+        (pics.length ? '<div class="hc-pics">' + pics.map((p, i) => '<button type="button" class="hc-pic" data-act="mc-pic" data-id="' + e(c.id) + '" data-i="' + i + '" aria-label="See the ' + (i ? 'back' : 'front') + ' of the card"><img src="' + e(p) + '" alt="' + (i ? 'Back' : 'Front') + ' of ' + e(c.name || k[1]) + '"><span>' + (i ? 'Back' : 'Front') + '</span></button>').join('') + '</div>' : '') +
+        '</div><dl class="hc-dl">' + [['Helpline', c.phone ? '<a href="tel:' + e(String(c.phone).replace(/[^\d+]/g, '')) + '">' + e(c.phone) + '</a>' : ''], ['Cover', c.sum ? '₹' + e(Number(c.sum).toLocaleString('en-IN')) : ''], ['Members', e(c.members || '')], ['TPA', e(c.tpa || '')], ['Valid', c.validFrom || c.validTo ? e([c.validFrom ? U.fmtShort(c.validFrom) : '', c.validTo ? U.fmtShort(c.validTo) : ''].filter(Boolean).join(' → ')) : ''], ['Notes', e(c.notes || '').replace(/\n/g, '<br>')]]
           .filter(x => x[1]).map(x => '<dt>' + x[0] + '</dt><dd>' + x[1] + '</dd>').join('') + '</dl>' +
-        '<div class="mc-acts"><button type="button" class="btn small ghost" data-act="mc-edit" data-id="' + e(c.id) + '">' + ED.icon('pencil') + 'Edit</button><button type="button" class="btn small ghost" data-act="mc-copy" data-id="' + e(c.id) + '">' + ED.icon('copy') + 'Copy</button></div></article>';
+        '<div class="hc-acts"><button type="button" class="btn small ghost" data-act="mc-edit" data-id="' + e(c.id) + '">' + ED.icon('pencil') + 'Edit</button><button type="button" class="btn small ghost" data-act="mc-copy" data-id="' + e(c.id) + '">' + ED.icon('copy') + 'Copy</button></div></article>';
     }).join('');
     const exp = MC.expiring();
-    return '<h3 class="gh fin-gap mc-h">My medical cards <span class="hint">· insurance, CGHS, ABHA, hospital cards</span><button type="button" class="btn small primary" data-act="mc-edit">' + ED.icon('plus') + 'Add a card</button></h3>' +
+    return '<h3 class="gh fin-gap hc-h">My medical cards <span class="hint">· insurance, CGHS, ABHA, hospital cards</span><button type="button" class="btn small primary" data-act="mc-edit">' + ED.icon('plus') + 'Add a card</button></h3>' +
       (exp.length ? '<div class="notice warn">' + ED.icon('info') + '<span class="grow">' + e(exp.map(c => (c.name || kind(c.kind)[1]) + (left(c) < 0 ? ' has expired' : ' ends in ' + U.plural(left(c), 'day'))).join(' · ')) + '.</span></div>' : '') +
-      (cards ? '<div class="mc-grid">' + cards + '</div>' : '<p class="hint mc-empty">Keep every family member’s cards here with photos of both sides — handy at the hospital desk. Numbers are hidden until you click them.</p>');
+      (cards ? '<div class="hc-grid">' + cards + '</div>' : '<p class="hint hc-empty">Keep every family member’s cards here with photos of both sides — handy at the hospital desk. Numbers are hidden until you click them.</p>');
   };
 
   MC.edit = id => {

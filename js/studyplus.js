@@ -29,17 +29,31 @@
     const R = 20, C = 2 * Math.PI * R, f = pm ? Math.min(1, dm / pm) : 0;
     const ring = '<svg viewBox="0 0 50 50" class="sp-ring" aria-hidden="true"><circle cx="25" cy="25" r="' + R + '" class="t"/><circle cx="25" cy="25" r="' + R + '" class="v" style="stroke-dasharray:' + (C * f) + ' ' + C + '" transform="rotate(-90 25 25)"/><text x="25" y="29" text-anchor="middle">' + (pm ? Math.round(f * 100) + '%' : '—') + '</text></svg>';
     const tr = s => ST.track(s.trackId);
-    const nextHtml = next ? '<div class="sp-next" style="--c:' + ST.color(tr(next)) + '"><span class="sp-nl">Next</span>' +
-      '<button type="button" class="stick" data-act="study-toggle" data-sid="' + e(next.id) + '" aria-pressed="false" aria-label="Mark ' + e((ST.short(tr(next)) + ' ' + (next.topic || '')).trim()) + ' done" title="Mark done">' + ED.tasksUI.statusIcon('open') + '</button>' +
-      '<span class="sp-nt"><b>' + e(ST.short(tr(next))) + (next.topic ? ' — ' + e(next.topic) : '') + '</b><span class="hint">' + e([ST.timeOf(next) ? ED.fx.time(ST.timeOf(next)) : '', fm(next.min), ST.sourceText(next)].filter(Boolean).join(' · ')) + '</span></span></div>'
-      : list.length ? '<div class="sp-next done"><span aria-hidden="true">🎉</span><b>All of today’s sessions are done.</b></div>' : '<div class="sp-next none"><span class="hint">Nothing planned today' + (sp.a && today < sp.a ? ' — the plan starts ' + e(U.fmtShort(sp.a)) : '') + '.</span></div>';
+    // 1.22.1: every session of today, the next one marked; click a row to open it, tick to mark it done
+    const rows = list.map(s => { const t = tr(s), isNext = next && s.id === next.id, what = s.topic || ST.sourceText(s);
+      return '<li class="sp-s' + (s.done ? ' done' : '') + (isNext ? ' next' : '') + '" style="--c:' + ST.color(t) + '" data-sid="' + e(s.id) + '">' +
+        '<button type="button" class="stick' + (s.done ? ' on' : '') + '" data-act="study-toggle" data-sid="' + e(s.id) + '" aria-pressed="' + !!s.done + '" aria-label="' + (s.done ? 'Done — click to undo: ' : 'Mark done: ') + e(ST.short(t)) + '" title="' + (s.done ? 'Done — click to undo' : 'Mark done') + '">' + ED.tasksUI.statusIcon(s.done ? 'done' : 'open') + '</button>' +
+        '<button type="button" class="plain-btn sp-sb" data-act="study-open" title="Open: change the topic, time or minutes, add notes"><b>' + e(ST.short(t)) + '</b><span>' + (what ? e(what) : '<i>no topic yet — click to add one</i>') + '</span></button>' +
+        '<span class="sp-sm num">' + (isNext ? '<i class="sp-nexttag">next</i>' : '') + (ST.timeOf(s) ? e(ED.fx.time(ST.timeOf(s))) + ' · ' : '') + fm(s.min) + '</span></li>'; }).join('');
+    const nextHtml = list.length ? '<ul class="sp-list" aria-label="Today’s sessions">' + rows + '</ul>' + (!next ? '<p class="sp-alldone">🎉 All of today’s sessions are done.</p>' : '')
+      : '<div class="sp-next none"><span class="hint">Nothing planned today' + (sp.a && today < sp.a ? ' — the plan starts ' + e(U.fmtShort(sp.a)) : '') + '. Studied anyway? Use <b>Log study time</b>.</span></div>';
+    const acts = '<div class="sp-acts" role="group" aria-label="Study actions">' +
+      '<button type="button" class="btn small primary" data-act="study-add" data-date="' + today + '">' + ED.icon('plus') + 'Add a session</button>' +
+      '<button type="button" class="btn small" data-act="study-log">' + ED.icon('clock') + 'Log study time</button>' +
+      '<button type="button" class="btn small" data-act="sp-sched">' + ED.icon('calendar') + 'Add to the schedule</button>' +
+      '<button type="button" class="btn small ghost" data-act="sp-plan">' + ED.icon('gear') + 'Subjects, slots &amp; times</button></div>';
+    const fresh = !ST.sessions().some(x => x.done);
+    const how = '<details class="sp-how"' + (fresh ? ' open' : '') + '><summary>How the Study planner works</summary><ol>' +
+      '<li><b>The plan</b> — subjects, daily time slots and weeks. Import it from Excel, or make it with <b>Plan ▾ → Make a new plan</b>; change it with <b>Subjects, slots &amp; times</b>.</li>' +
+      '<li><b>Each day’s sessions</b> appear here, on <b>Week &amp; Day</b> and on your <b>Daily page</b>. <b>Add a session</b> for something extra; <b>Add to the schedule</b> for many at once.</li>' +
+      '<li><b>Tick</b> a session when it is done. Click it to type the minutes you really spent, the topic or a note. Studied without a plan? <b>Log study time</b>.</li>' +
+      '<li><b>Year</b> and <b>Month</b> show the progress; the <b>Insights</b> tab says whether you will finish on time.</li></ol></details>';
     const lateHtml = late.length ? '<div class="sp-late" role="status"><span aria-hidden="true">⏳</span><span class="grow"><b>' + U.plural(late.length, 'earlier session') + ' still open</b> <span class="hint">(' + fm(sum(late, s => s.min)) + ') — the oldest is from ' + e(U.fmtShort(late[0].date)) + '.</span></span>' +
       '<button type="button" class="btn small" data-act="study-day" data-date="' + late[0].date + '" data-go="studyWeek">Open that day</button></div>' : '';
     return '<section class="sp-card" aria-label="Today in your study plan">' + flow +
       '<div class="sp-today">' + ring + '<div class="sp-tt"><span class="sp-tl">Today</span><b>' + (list.length ? U.plural(list.length, 'session') + ' · ' + fm(pm) : 'A free day') + '</b><span class="hint">' + (list.length ? done.length + ' done · ' + fm(dm) + ' covered' : 'nothing planned') + '</span></div>' +
       (which !== 'week' || ED.state.study && ED.state.study.day && ED.state.study.day !== today ? '<button type="button" class="btn small ghost sp-open" data-act="study-day" data-date="' + today + '" data-go="studyWeek">' + ED.icon('today') + 'Open today</button>' : '') + '</div>' +
-      nextHtml + lateHtml +
-      '<p class="hint sp-help">One plan feeds every page: tick a session on any of them — or on your Daily page — and the graphs, the calendar and the figures all update.</p></section>';
+      nextHtml + lateHtml + acts + how + '</section>';
   };
 
   /* ---------------- the Insights tab ---------------- */
@@ -98,6 +112,9 @@
       pa.map(x => { const r = x.re / x.pl; return '<tr><td><span class="trk" style="--c:' + ST.color(x.t) + '"><i class="sw"></i>' + e(ST.short(x.t)) + '</span></td><td class="num">' + x.n + '</td><td class="num">' + fm(x.pl) + '</td><td class="num">' + fm(x.re) + '</td><td class="num ' + (r < 0.9 ? 'fin-bad' : r > 1.1 ? 'ok-text' : '') + '">' + Math.round(r * 100) + '%</td></tr>'; }).join('') + '</tbody></table>' : '';
     return '<p class="hint sp-intro">Figures from the same sessions as every other Study page. Each chart has <b>Show the numbers</b> for a table.</p>' + tiles + fcHtml + weekdays + tod + behHtml + paHtml;
   };
+
+  A['sp-sched'] = () => ST.bulkAdd();
+  A['sp-plan'] = () => ST.editPlan();
 
   /* larger text on the Study pages */
   const apply = () => { const s = ED.store.data && ED.store.data.settings; document.documentElement.classList.toggle('study-large', !!(s && s.studyLarge)); };

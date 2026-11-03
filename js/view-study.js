@@ -151,7 +151,7 @@
       let tab = st().ytab || 'insights';
       if (tab === 'notes') tab = st().ytab = 'research';      // 1.17: Notes became Research papers (the plan's notes are under Subjects)
       // 1.22: Insights first (js/studyplus.js); tabs hidden in Settings → Pages & parts leave the bar
-      const tabs = [['insights', 'Insights'], ['subjects', 'Subjects'], ['matrix', 'Track matrix'], ['sources', 'Books & lectures'], ['topics', 'Topics'], ['research', 'Research papers'], ['bits', 'Science bits']].filter(x => x[0] === 'subjects' || ((!ED.part || ED.part('study.' + x[0])) && (x[0] !== 'insights' || ED.studyPlus)));
+      const tabs = [['insights', 'Insights'], ['subjects', 'Subjects'], ['matrix', 'Subjects by week'], ['sources', 'Books & lectures'], ['topics', 'Topics'], ['research', 'Research papers'], ['bits', 'Science bits']].filter(x => x[0] === 'subjects' || ((!ED.part || ED.part('study.' + x[0])) && (x[0] !== 'insights' || ED.studyPlus)));
       if (!tabs.some(x => x[0] === tab)) tab = 'subjects';
       const seg = '<div class="seg st-seg" role="group" aria-label="Show">' + tabs.map(x =>
         '<button type="button" data-act="study-ytab" data-tab="' + x[0] + '" aria-pressed="' + (tab === x[0]) + '">' + e(x[1]) + '</button>').join('') + '</div>';
@@ -488,7 +488,11 @@
     const late = k === U.today() ? ST.overdue(k) : [];
     if (!l.length && !late.length) return '';
     const d = ST.stats(l); const sm = ST.studied(k);
-    const row = (s, old) => { const tr = ST.track(s.trackId); const t = ST.timeOf(s); return '<li class="st-row' + (s.done ? ' done' : '') + (old ? ' st-late' : '') + '" data-sid="' + e(s.id) + '">' + tick(s) + trackChip(tr, s.kind) + '<button type="button" class="plain-btn st-row-t" data-act="study-open">' + e(s.topic || '—') + '</button><span class="hint num">' + (old ? e(U.fmtDM(s.date)) + ' · ' : t ? e(U.fmtTime(t, S().h12)) + ' · ' : '') + s.min + '′</span></li>'; };
+    // 1.22.1: subject and topic on two lines (nothing cut short); no "—" when a session has no topic yet
+    const row = (s, old) => { const tr = ST.track(s.trackId); const t = ST.timeOf(s); const what = s.topic || ST.sourceText(s);
+      return '<li class="st-row st-row2' + (s.done ? ' done' : '') + (old ? ' st-late' : '') + '" data-sid="' + e(s.id) + '">' + tick(s) +
+        '<button type="button" class="plain-btn st-row-b" data-act="study-open" title="Open this session">' + trackChip(tr, s.kind) + '<span class="st-row-t' + (what ? '' : ' none') + '">' + (what ? e(what) : 'no topic yet — click to add one') + '</span></button>' +
+        '<span class="hint num st-row-m">' + (old ? e(U.fmtDM(s.date)) : t ? e(U.fmtTime(t, S().h12)) : '') + '<b>' + ST.fmtMin(s.min) + '</b></span></li>'; };
     return '<section class="tgroup st-dgroup"><h3 class="tgroup-h st-dg-h"><button type="button" class="plain-btn" data-act="study-day" data-date="' + k + '" data-go="studyWeek">' + ED.icon('book') + 'Study plan</button><span class="hint num">' + (l.length ? d.done + '/' + d.n + ' · ' + h1(sm) + ' of ' + h1(d.min) + ' h' : 'nothing planned today') + '</span></h3>' +
       (l.length ? '<ul class="tlist st-dlist">' + l.map(s => row(s, false)).join('') + '</ul>' : '') +
       (late.length ? '<details class="st-due"' + ((ED.state.studyDueOpen != null ? ED.state.studyDueOpen : late.length <= 5) ? ' open' : '') + '><summary><b>Due from earlier days</b> <span class="hint num">· ' + late.length + ' not ticked</span></summary>' +

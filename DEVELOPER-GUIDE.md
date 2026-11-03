@@ -620,3 +620,7 @@ There is no automated test runner in the package; test by hand in the browser:
 - `app.js`: `ED.ALLGROUPS`; `ED.GROUPS` is now a getter of the shown pages (`ED.shown(id)`, Daily always); `go.tab` and `render` move off a hidden page; group lookups by id.
 - Parts checked in `view-mission.js` (life.*), `view-daily.js` (daily.study, daily.habits, daily.quote), `view-study.js` (study.*), `health.js` (health.*), `exercise.js` (exercise.insights); `mobile.js` filters the bottom bar.
 - `sync.js`: `dreams` (`list`), `health.cards`, `lists.watch`.
+
+### 1.22.1
+- Class clash fixed: medical cards now use `hc-*` (`mc-*` belongs to the mini calendar in calendar.css); the Dreams page frame is `drm` (`.dr` is the Daily right page). New prefixes must be checked against `git grep` of css/js before use.
+- `view-study.js ST.dailyGroup`: two-line rows (`st-row2`, `st-row-b`, `st-row-m`); `studyplus.js` compass: `sp-list` of today's sessions, `sp-acts` (`study-add`, `study-log`, `sp-sched` → `ST.bulkAdd`, `sp-plan` → `ST.editPlan`), `sp-how`.
