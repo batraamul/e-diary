@@ -444,7 +444,11 @@
   const fmin = m => m >= 600 ? Math.round(m / 60) + ' h' : Math.round(m) + ' min';
   const fkm = v => v >= 100 ? Math.round(v).toLocaleString('en-IN') : String(r1(v));
   const PNAME = { day: 'the day before', week: 'last week', month: 'last month', year: 'last year' };
-  const delta = (a, b, unit) => { if (!(b > 0)) return ''; const d = Math.round((a - b) / b * 100); if (!isFinite(d) || d === 0) return '<span class="xi-d same">= same</span>'; return '<span class="xi-d ' + (d > 0 ? 'up' : 'down') + '" title="' + (unit || 'Compared with the period before, per day') + '">' + (d > 0 ? '▲ ' : '▼ ') + Math.abs(d) + '%' + (unit ? ' ' + unit : '') + '</span>'; };
+  // 1.22.2: the badge shows only the arrow and the %; the full comparison is in its tooltip, and a short "vs last week" line sits under it
+  const SHORT = { day: 'vs the day before', week: 'vs last week', month: 'vs last month', year: 'vs last year' };
+  const delta = (a, b, title) => { if (!(b > 0)) return ''; const d = Math.round((a - b) / b * 100); const p = (ED.state.xr || {}).ap || 'week';
+    if (!isFinite(d) || d === 0) return '<span class="xi-dw"><span class="xi-d same">= same</span><small>' + SHORT[p] + '</small></span>';
+    return '<span class="xi-dw" title="' + e(title || 'Compared with the period before, per day') + '"><span class="xi-d ' + (d > 0 ? 'up' : 'down') + '">' + (d > 0 ? '▲ ' : '▼ ') + Math.abs(d) + '%</span><small>' + SHORT[p] + '</small></span>'; };
   const insights = () => {
     const s = st(), p = s.ap || 'week', today = U.today(), a = s.aa && s.aa <= today ? s.aa : today, g = goal(), x = XD(), C = ED.charts;
     const r = pRange(p, a), o = stats(r.from, r.to), pr = pRange(p, pShift(p, a, -1)), po = stats(pr.from, pr.to);

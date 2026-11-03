@@ -448,3 +448,12 @@
 .drm .dr-areasel { width: auto; min-width: 180px; flex: 0 1 auto; }
 .wl .wl-ksel { width: auto; min-width: 160px; flex: 0 1 auto; } .wl .wl-add select.field { padding-right: 22px; }
 @media (max-width: 560px) { .dr-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .dr-ph { font-size: 30px; } }
+/* 1.22.2: activity figures never cut off */
+.xi-st { min-width: 0; overflow: hidden; }
+.xi-st .hint { display: block; white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
+.xi-st b { overflow-wrap: anywhere; }
+.xi-dw { display: flex; align-items: center; flex-wrap: wrap; gap: 2px 5px; margin-top: 3px; }
+.xi-dw small { font-size: 10px; color: var(--ink-3); white-space: nowrap; }
+.xi-d { margin-left: 0; }
+.xi-sl { padding-right: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xi-stats { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }

@@ -511,3 +511,6 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 - **Fixed**: the small month calendar on the Daily page had fallen into one long column (1.22's medical-card styles used the same name as the calendar). The Dreams page no longer borrows the Daily page's styles either.
 - **Daily page → Study plan**: each session shows the full subject name and, under it, the topic (or the book / task) — no more “—”; a session without a topic says *no topic yet — click to add one*.
 - **Study → today card**: all of today's sessions with tick boxes (the next one marked), click any to change its topic, time or minutes; buttons for **Add a session**, **Log study time**, **Add to the schedule** and **Subjects, slots & times** (no longer only in the Plan menu); a short **How the Study planner works**. “Track matrix” is now **Subjects by week**.
+
+### v1.22.2 — Fix: activity figures cut off
+- Activity & watch → Insights: the ▲▼ badges showed a long sentence that ran out of the boxes. They now show only the percentage, with a short “vs last week / month / year” under it (the full comparison is in the tooltip), and every figure wraps instead of being cut off — on any screen width.
