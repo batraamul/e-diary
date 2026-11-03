@@ -39,6 +39,7 @@
       : '<div class="sp-next none"><span class="hint">Nothing planned today' + (sp.a && today < sp.a ? ' — the plan starts ' + e(U.fmtShort(sp.a)) : '') + '. Studied anyway? Use <b>Log study time</b>.</span></div>';
     const acts = '<div class="sp-acts" role="group" aria-label="Study actions">' +
       '<button type="button" class="btn small primary" data-act="study-add" data-date="' + today + '">' + ED.icon('plus') + 'Add a session</button>' +
+      '<button type="button" class="btn small" data-act="sa-open">' + ED.icon('pencil') + 'Adjust the plan</button>' +
       '<button type="button" class="btn small" data-act="study-log">' + ED.icon('clock') + 'Log study time</button>' +
       '<button type="button" class="btn small" data-act="sp-sched">' + ED.icon('calendar') + 'Add to the schedule</button>' +
       '<button type="button" class="btn small ghost" data-act="sp-plan">' + ED.icon('gear') + 'Subjects, slots &amp; times</button></div>';
@@ -49,7 +50,7 @@
       '<li><b>Tick</b> a session when it is done. Click it to type the minutes you really spent, the topic or a note. Studied without a plan? <b>Log study time</b>.</li>' +
       '<li><b>Year</b> and <b>Month</b> show the progress; the <b>Insights</b> tab says whether you will finish on time.</li></ol></details>';
     const lateHtml = late.length ? '<div class="sp-late" role="status"><span aria-hidden="true">⏳</span><span class="grow"><b>' + U.plural(late.length, 'earlier session') + ' still open</b> <span class="hint">(' + fm(sum(late, s => s.min)) + ') — the oldest is from ' + e(U.fmtShort(late[0].date)) + '.</span></span>' +
-      '<button type="button" class="btn small" data-act="study-day" data-date="' + late[0].date + '" data-go="studyWeek">Open that day</button></div>' : '';
+      '<button type="button" class="btn small primary" data-act="sa-open" data-k="catch">Catch up…</button><button type="button" class="btn small" data-act="study-day" data-date="' + late[0].date + '" data-go="studyWeek">Open that day</button></div>' : '';
     return '<section class="sp-card" aria-label="Today in your study plan">' + flow +
       '<div class="sp-today">' + ring + '<div class="sp-tt"><span class="sp-tl">Today</span><b>' + (list.length ? U.plural(list.length, 'session') + ' · ' + fm(pm) : 'A free day') + '</b><span class="hint">' + (list.length ? done.length + ' done · ' + fm(dm) + ' covered' : 'nothing planned') + '</span></div>' +
       (which !== 'week' || ED.state.study && ED.state.study.day && ED.state.study.day !== today ? '<button type="button" class="btn small ghost sp-open" data-act="study-day" data-date="' + today + '" data-go="studyWeek">' + ED.icon('today') + 'Open today</button>' : '') + '</div>' +

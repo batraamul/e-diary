@@ -624,3 +624,13 @@ There is no automated test runner in the package; test by hand in the browser:
 ### 1.22.1
 - Class clash fixed: medical cards now use `hc-*` (`mc-*` belongs to the mini calendar in calendar.css); the Dreams page frame is `drm` (`.dr` is the Daily right page). New prefixes must be checked against `git grep` of css/js before use.
 - `view-study.js ST.dailyGroup`: two-line rows (`st-row2`, `st-row-b`, `st-row-m`); `studyplus.js` compass: `sp-list` of today's sessions, `sp-acts` (`study-add`, `study-log`, `sp-sched` → `ST.bulkAdd`, `sp-plan` → `ST.editPlan`), `sp-how`.
+
+## 1.23 — Live values, Adjust the plan, Aartis & Mantras
+
+| File | What it does | Data |
+|---|---|---|
+| `js/marketvals.js` | `MV.refresh({ ids, quiet })`: FD/RD maths (`MV.fdAt`, `MV.rdAt`), MF via `api.mfapi.in` (`/mf/search?q=`, `/mf/<code>/latest`, `/mf/<code>?startDate=&endDate=`; CORS open), shares via the user's Apps Script (`MV.SCRIPT`, GOOGLEFINANCE in a sheet it creates). Transfers to/from the holding after `unitsOn` → `mk.lots[recordId] = { u, nav, d, a }` (next published NAV); NAV-pending amounts count at cost. Writes `value` + `valueAt` (no double counting with `FN.hValue`). Wraps `views.finance.mount` for the 6-hour auto refresh. Hooks: `finance.js r_assets` (`bar`, `btn`, `note`), `finlinks.js sipsHtml` (`sipNote`). | `holding.mk { kind mf|px|fd|rd, code, sname, units, unitsOn, sym, qty, rate, comp q|m|h|y|s, inst, lots, nav, navOn, price, at, err }`, `finance.mkAt`, `finance.mkAuto`, `finance.priceUrl` |
+| `js/studyadjust.js` | `SA.plan(kind, v)` (dry run → `{ moves, dels, mins, times, adds, msg }`) and `SA.apply(kind, v)` for `catch` / `off` / `add` / `drop` / `change` / `load`; open sessions only; re-weeks, `ST.extendWeeks`, sorts; one checkpoint. `SA.open(kind)` dialog; entry points in `studyplus.js` (`sa-open`) and `study.js` Plan menu. | — |
+| `js/aarti.js` | Pooja tab `aarti` (`AR.html`), reader `AR.read(id)` (modes hi/en/both/meaning, size and theme in localStorage `e-diary-aarti-*`, Wake Lock, jaap counter — document keydown while open), `AR.edit`, `AR.addStarters()`. `--font-deva` stack (system Devanagari fonts, nothing downloaded). | `pooja.texts[{ id, title, titleHi, kind, deity, hi, en, meaning, notes, link, when, fav }]`, `pooja.japa{ date: { id: n } }` |
+
+- `sync.js`: `pooja` lists add `texts`, deep `japa: 2`. `visibility.js`: part `pooja.aarti`.

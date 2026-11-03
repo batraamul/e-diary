@@ -15,6 +15,7 @@
     career: [['life.graph', 'Progress'], ['life.travel', 'Travel & Tour'], ['life.grocery', 'Grocery & home stock'], ['life.meals', 'Weekly meals'], ['life.wardrobe', 'Wardrobe'], ['life.watch', 'Watch list']],
     studyYear: [['study.insights', 'Insights tab'], ['study.matrix', 'Track matrix tab'], ['study.sources', 'Books & lectures tab'], ['study.topics', 'Topics tab'], ['study.research', 'Research papers tab'], ['study.bits', 'Science bits tab'], ['study.compass', 'Today’s study card at the top of each Study page']],
     health: [['health.vitals', 'Readings tab'], ['health.reports', 'Reports tab'], ['health.card', 'Medical cards tab']],
+    pooja: [['pooja.aarti', 'Aartis & Mantras tab']],
     exercise: [['exercise.insights', 'Activity insights (day / week / month / year)']],
   };
   VS.PARTS = PARTS;

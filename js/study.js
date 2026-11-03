@@ -1487,6 +1487,7 @@
     }
     if (p || sh.length) items.push({ label: 'My plans (' + (sh.length + (p ? 1 : 0)) + ')…', icon: 'list', onClick: () => ST.myPlans() });
     if (p) items.push({ sep: true },
+      { label: 'Adjust the plan — catch up, days off, add / drop a subject…', icon: 'pencil', onClick: () => ED.studyAdjust && ED.studyAdjust.open() },
       { label: 'Add to the schedule (slots, subjects, days)…', icon: 'calendar', onClick: () => ST.bulkAdd() },
       { label: 'Log study time…', icon: 'clock', onClick: () => A['study-log']({ dataset: {} }) },
       { label: 'Change many sessions (move, change, delete)…', icon: 'pencil', onClick: () => ST.bulkChange() },

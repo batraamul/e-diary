@@ -97,7 +97,7 @@
     out.maps = nested('maps', ['list']) || undefined;
     out.jobs = nested('jobs', ['items', 'sites']) || undefined;
     // 1.16: Pooja & Vrat, Exercise, Welfare & Help
-    out.pooja = nested('pooja', ['daily', 'custom'], { skip: 1, vratEnd: 1 }) || undefined;
+    out.pooja = nested('pooja', ['daily', 'custom', 'texts'], { skip: 1, vratEnd: 1, japa: 2 }) || undefined;
     out.exercise = nested('exercise', ['log'], { steps: 1, ticks: 2, watch: 1 }) || undefined;
     out.welfare = nested('welfare', ['list']) || undefined;
     // 1.17: Research papers

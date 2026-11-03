@@ -382,10 +382,13 @@
       '<p class="hint">Only your poojas and the vrats you keep go into the Daily planner as tasks, under the role <b>' + e(((D().roles.find(r => r.id === p.roleId)) || {}).name || 'Spiritual & Pooja') + '</b> (rename it on the Roles page). Deleting a pooja’s task takes it out of the planner (switch it on again here); deleting a vrat or festival task skips that day only.</p></div>';
   };
   const right = () => {
-    const s = st(), tab = s.tab || 'poojas';
-    const seg = FX().seg('pj-tab', tab, [['poojas', 'My poojas'], ['vrats', 'Vrats'], ['set', 'Settings']], 'Show');
-    const body = tab === 'vrats' ? vratsTab() : tab === 'set' ? setTab() : poojasTab();
-    return '<div class="xp pj-r"><div class="pg-head st-head"><h2 class="pg-title">' + ({ poojas: 'My everyday poojas', vrats: 'Vrats (fasts)', set: 'Pooja settings' })[tab] + '</h2>' + seg + '</div><div class="st-scroll scroll" data-keep-scroll="pj-r-' + tab + '">' + body + '</div></div>';
+    const s = st(); let tab = s.tab || 'poojas';
+    // 1.23: Aartis & Mantras (js/aarti.js); hidden in Settings → Pages & parts if you like
+    const showAr = ED.aarti && (!ED.part || ED.part('pooja.aarti'));
+    if (tab === 'aarti' && !showAr) tab = 'poojas';
+    const seg = FX().seg('pj-tab', tab, [['poojas', 'My poojas'], ['vrats', 'Vrats']].concat(showAr ? [['aarti', 'Aartis & Mantras']] : []).concat([['set', 'Settings']]), 'Show');
+    const body = tab === 'vrats' ? vratsTab() : tab === 'set' ? setTab() : tab === 'aarti' ? ED.aarti.html() : poojasTab();
+    return '<div class="xp pj-r"><div class="pg-head st-head"><h2 class="pg-title">' + ({ poojas: 'My everyday poojas', vrats: 'Vrats (fasts)', aarti: 'Aartis & Mantras', set: 'Pooja settings' })[tab] + '</h2>' + seg + '</div><div class="st-scroll scroll" data-keep-scroll="pj-r-' + tab + '">' + body + '</div></div>';
   };
 
   ED.views = ED.views || {};
