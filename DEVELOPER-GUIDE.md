@@ -605,3 +605,18 @@ There is no automated test runner in the package; test by hand in the browser:
 - `exercise.js`: `insights()` on Activity & watch — `st().ap` day|week|month|year, `st().aa` anchor; `stats(from, to)`, ring, per-day deltas vs the period before, hours strip (day), columns/groups (week, month), month-by-month + heat map (year), by activity, time of day, weekdays.
 - `dayext.js`: mood card redesigned — `DX.hue(label)`, `moods[k].note` (`CH['dx-note']`), month ribbon (`dx-go`).
 - `sync.js`: `lists` adds `stock`, `mealPlans`; `ideal` merged with `nested('ideal', ['blocks'], { months: 1 })`.
+
+## 1.22 — Dreams, medical cards, watch list, Study clarity, Pages & parts
+
+| File | What it does | Data |
+|---|---|---|
+| `js/pics.js` | `PI.editor(host, list, { max } | { slots: ['Front','Back'] })` → `{ get() }` (photos via `U.imageToDataURL(f, 900, 0.8)`, or an https address); `PI.view(list, i, title)`. | — |
+| `js/dreams.js` | View `dreams` (Purpose). Life line, cards, filters, detail, overview; `DR.ageNow()`, `DR.dateAt(age)`; **Make it a goal** pushes a goal (due = that birthday) and sets `goalId`. | `dreams: { dob, list[{ id, title, age, area, status dream|working|done, pics[], notes, why, steps[{ id, text, done }], goalId, doneOn }] }` |
+| `js/medcards.js` | `MC.html()` appended to Health → Medical cards (`health.js card()`); masked numbers (`ED.state.mc2.show`), expiry ≤ 30 days flagged. | `health.cards[{ id, kind, name, holder, number, issuer, phone, validFrom, validTo, sum, members, tpa, notes, pics[front, back] }]` |
+| `js/watchlist.js` | Notes & Life mode `watch` (`WL.left(head)`, `WL.right()`); `wl-next` episode/season roll-over; `WL.reconcile` → repeating task `tk-wl-<id>` (`link.k watch`, weekly `days`) while `inPlan`; off → removed or stopped (`repeat.until`) if it has ticks; wraps `M.deleteTask` and `task-open` (link icon opens the list). | `lists.watch[{ id, title, kind, platform, status, season, seasons, ep, eps, mins, cnt, rating, by, pic, link, days, time, inPlan, doneOn }]` |
+| `js/studyplus.js` | `SP.compass(which)` (inserted by `view-study.js` into the three left pages), `SP.insights()` (Year tab `insights`, now first/default), `settings.studyLarge` → `html.study-large`; wraps `settings.tab_look`. | `settings.studyLarge` |
+| `js/visibility.js` | Settings tab `pages`; `ED.part(key)`; `VS.PARTS`. | `settings.hidden{ viewId: 1, 'part:<key>': 1 }` |
+
+- `app.js`: `ED.ALLGROUPS`; `ED.GROUPS` is now a getter of the shown pages (`ED.shown(id)`, Daily always); `go.tab` and `render` move off a hidden page; group lookups by id.
+- Parts checked in `view-mission.js` (life.*), `view-daily.js` (daily.study, daily.habits, daily.quote), `view-study.js` (study.*), `health.js` (health.*), `exercise.js` (exercise.insights); `mobile.js` filters the bottom bar.
+- `sync.js`: `dreams` (`list`), `health.cards`, `lists.watch`.

@@ -19,6 +19,7 @@
     { id: 'goals', label: 'Goals' },
     { id: 'mission', label: 'Mis\u00adsion' },
     { id: 'idealday', label: 'Ideal Day', title: 'Ideal day: your best time-table, season by season' },
+    { id: 'dreams', label: 'Dreams', title: 'Dreams: what you want to be, and by what age' },
     { id: 'career', label: 'Notes & Life', title: 'Notes & Life Planner: notes, progress, travel, grocery, meals, wardrobe' },
     { id: 'exercise', label: 'Exercise', title: 'Exercise plan, steps and workouts — with your phone / watch data' },
     { id: 'welfare', label: 'Welfare & Help', title: 'Welfare & Help: whom you helped and how' },
@@ -39,19 +40,24 @@
   ];
   ED.SECTIONS = SECTIONS;
   /* the side tabs: related pages share one tab; its pages are chosen in the bar at the top */
-  const GROUPS = [
+  const ALLG = [
     { id: 'planner', label: 'Planner', title: 'Daily & monthly tasks, events and meetings', views: ['daily', 'weekly', 'monthly', 'yearly', 'events', 'matrix', 'bucket'], names: ['Daily', 'Weekly', 'Monthly', 'Yearly', 'Events', 'Eisenhower', 'Bucket List'] },
-    { id: 'purpose', label: 'Purpose', title: 'Roles, goals, mission and your ideal day', views: ['roles', 'goals', 'mission', 'idealday'], names: ['Roles', 'Goals', 'Mission', 'Ideal Day'] },
-    { id: 'life', label: 'Notes & Life', title: 'Notes & Life Planner: notes, progress, travel, grocery, meals, wardrobe, welfare, pooja', views: ['career', 'welfare', 'pooja'], names: ['Notes & Life', 'Welfare & Help', 'Pooja & Vrat'] },
+    { id: 'purpose', label: 'Purpose', title: 'Roles, goals, mission, dreams and your ideal day', views: ['roles', 'goals', 'mission', 'dreams', 'idealday'], names: ['Roles', 'Goals', 'Mission', 'Dreams', 'Ideal Day'] },
+    { id: 'life', label: 'Notes & Life', title: 'Notes & Life Planner: notes, progress, travel, grocery, meals, wardrobe, watch list, welfare, pooja', views: ['career', 'welfare', 'pooja'], names: ['Notes & Life', 'Welfare & Help', 'Pooja & Vrat'] },
     { id: 'study', label: 'Study', title: 'Study planner', views: ['studyYear', 'studyMonth', 'studyWeek'], names: ['Year', 'Month', 'Week & Day'] },
     { id: 'money', label: 'Fi\u00adnance', title: 'Money records and the financial plan', views: ['finance', 'finplan'], names: ['Money', 'Financial Plan'] },
     { id: 'interview', label: 'Inter\u00adview & Exams', title: 'Interviews, exams, projects, mind maps and Govt jobs', views: ['interview', 'exam', 'projects', 'mindmap', 'jobs'], names: ['Interviews', 'Exam Preparation', 'Projects', 'Mind Maps', 'Govt Jobs'] },
     { id: 'health', label: 'Health', title: 'Health, medicine, treatment and exercise', views: ['health', 'exercise'], names: ['Health', 'Exercise'] },
     { id: 'vault', label: 'Pass\u00adwords', title: 'Passwords and important websites', views: ['vault'] },
   ];
-  ED.GROUPS = GROUPS;
-  const groupOf = id => GROUPS.find(g => g.views.indexOf(id) >= 0) || GROUPS[0];
-  const lastIn = g => (ED.state.groupLast && ED.state.groupLast[g.id]) || g.views[0];
+  ED.ALLGROUPS = ALLG;
+  /* 1.22: pages hidden in Settings → Pages & parts are left out of the tabs (their data stays). The Daily page always shows. */
+  ED.hidden = () => { const d = ED.store && ED.store.data; return (d && d.settings && d.settings.hidden) || {}; };
+  ED.shown = id => id === 'daily' || !ED.hidden()[id];
+  const GROUPS_V = () => ALLG.map(g => { const ix = g.views.map((v, i) => i).filter(i => ED.shown(g.views[i])); return ix.length === g.views.length ? g : Object.assign({}, g, { views: ix.map(i => g.views[i]), names: g.names ? ix.map(i => g.names[i]) : g.names }); }).filter(g => g.views.length);
+  Object.defineProperty(ED, 'GROUPS', { get: GROUPS_V, configurable: true });
+  const groupOf = id => GROUPS_V().find(g => g.views.indexOf(id) >= 0) || GROUPS_V()[0];
+  const lastIn = g => { const l = ED.state.groupLast && ED.state.groupLast[g.id]; return l && g.views.indexOf(l) >= 0 ? l : g.views[0]; };
 
   ED.state = {
     tab: 'daily', date: U.today(), sel: null, mc: {}, cal: {}, scroll: {},
@@ -64,6 +70,7 @@
   ED.go = {
     tab(id) {
       if (!ED.views[id]) return;
+      if (!ED.shown(id)) { const g = ALLG.find(x => x.views.indexOf(id) >= 0); id = (g && g.views.find(v => ED.shown(v) && ED.views[v])) || 'daily'; }
       const from = SECTIONS.findIndex(s => s.id === ED.state.tab), to = SECTIONS.findIndex(s => s.id === id);
       if (from !== to) anim = to > from ? 'fwd' : 'back';
       ED.state.tab = id;
@@ -162,17 +169,17 @@
     },
 
     tabs() {
-      const cur = GROUPS.indexOf(groupOf(ED.state.tab));
-      const n = GROUPS.length;
+      const cur = GROUPS_V().findIndex(g => g.id === groupOf(ED.state.tab).id);
+      const n = GROUPS_V().length;
       const tip = (s, i) => e((s.title || s.label).replace(/\u00ad/g, '')) + (i < 9 ? ' (' + (i + 1) + ')' : '');
       const tab = (s, i, side) => '<button type="button" class="tab' + (i === cur ? ' current' : '') + '" data-sec="' + s.views[0] + '" data-act="tab" data-tab="' + lastIn(s) + '"' +
         ' style="top:calc(' + i + ' * (100% / ' + n + ') + 2px);height:calc(100% / ' + n + ' - 4px)"' + (i === cur ? ' aria-current="page"' : '') + ' title="' + tip(s, i) + '"><span>' + e(s.label) + '</span></button>';
-      this.els.tl.innerHTML = GROUPS.map((s, i) => i < cur ? tab(s, i, 'l') : '').join('');
-      this.els.tr.innerHTML = GROUPS.map((s, i) => i >= cur ? tab(s, i, 'r') : '').join('');
+      this.els.tl.innerHTML = GROUPS_V().map((s, i) => i < cur ? tab(s, i, 'l') : '').join('');
+      this.els.tr.innerHTML = GROUPS_V().map((s, i) => i >= cur ? tab(s, i, 'r') : '').join('');
       this.els.tl.classList.toggle('many', n > 7); this.els.tr.classList.toggle('many', n > 7);
       this.els.tl.classList.toggle('lots', n > 12); this.els.tr.classList.toggle('lots', n > 12);
       const bd = document.getElementById('binder'); if (bd) bd.classList.toggle('many-tabs', n > 7);
-      this.els.strip.innerHTML = GROUPS.map((s, i) => '<button type="button" class="tab' + (i === cur ? ' current' : '') + '" data-sec="' + s.views[0] + '" data-act="tab" data-tab="' + lastIn(s) + '"' + (i === cur ? ' aria-current="page"' : '') + ' title="' + tip(s, i) + '"><span>' + e(s.label.replace(/\u00ad/g, '')) + '</span></button>').join('');
+      this.els.strip.innerHTML = GROUPS_V().map((s, i) => '<button type="button" class="tab' + (i === cur ? ' current' : '') + '" data-sec="' + s.views[0] + '" data-act="tab" data-tab="' + lastIn(s) + '"' + (i === cur ? ' aria-current="page"' : '') + ' title="' + tip(s, i) + '"><span>' + e(s.label.replace(/\u00ad/g, '')) + '</span></button>').join('');
       const curTab = this.els.strip.querySelector('.current');
       if (curTab && curTab.scrollIntoView && this.els.strip.scrollWidth > this.els.strip.clientWidth) { try { curTab.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (err) { /* ignore */ } }
     },
@@ -190,6 +197,7 @@
     render() {
       if (!ED.store.data) return;
       this.raf = 0;
+      if (!ED.shown(ED.state.tab)) { const g = ALLG.find(x => x.views.indexOf(ED.state.tab) >= 0); ED.state.tab = (g && g.views.find(x => ED.shown(x) && ED.views[x])) || 'daily'; }
       const v = ED.views[ED.state.tab] || ED.views.daily;
       const active = document.activeElement;
       const focusId = active && active.id && this.els.spread && this.els.spread.contains(active) && !active.isContentEditable ? active.id : null;
@@ -456,7 +464,7 @@
       }
       if (ev.key === 'e' || ev.key === 'E') { ev.preventDefault(); ED.editors.event({ create: { date: ED.state.date } }); return; }
       if (ev.key === '?') { ED.settings.help(); return; }
-      if (/^[0-9]$/.test(ev.key)) { const i = ev.key === '0' ? 9 : +ev.key - 1; if (GROUPS[i]) { ED.go.tab(lastIn(GROUPS[i])); return; } }
+      if (/^[0-9]$/.test(ev.key)) { const i = ev.key === '0' ? 9 : +ev.key - 1; if (GROUPS_V()[i]) { ED.go.tab(lastIn(GROUPS_V()[i])); return; } }
       const v = ED.views[ED.state.tab];
       if (v && v.key && v.key(ev)) { ev.preventDefault(); return; }
       if (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight') {

@@ -20,8 +20,9 @@
       const diff = U.diffDays(today, k);
       const rel = diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : diff === -1 ? 'Yesterday' : diff > 0 ? 'In ' + diff + ' days' : Math.abs(diff) + ' days ago';
       const groups = ED.tasksUI.groups(occs, { date: k });
-      const studyG = ED.study && ED.study.plan() ? ED.study.dailyGroup(k) : '';
-      const habitG = ED.habits ? ED.habits.dailyGroup(k) : '';
+      const part = x => !ED.part || ED.part(x);    // 1.22: parts hidden in Settings → Pages & parts
+      const studyG = ED.study && ED.study.plan() && part('daily.study') ? ED.study.dailyGroup(k) : '';
+      const habitG = ED.habits && part('daily.habits') ? ED.habits.dailyGroup(k) : '';
       const hiddenDone = !S().showCompleted && occs.some(o => !M.isPending(o.st) && o.st !== 'delegated');
 
       const main =
@@ -86,7 +87,7 @@
       const k = ED.state.date;
       return '<div class="dr">' +
         '<div class="banner">' +
-        '<p class="quote">' + V.quoteHtml(k) + '</p>' +
+        (!ED.part || ED.part('daily.quote') ? '<p class="quote">' + V.quoteHtml(k) + '</p>' : '') +
         (ED.env.claude ? '' : '<div class="wx" id="wx">' + V.weatherHtml(k) + '</div>') +
         '</div>' +
         '<div class="dnotes">' +

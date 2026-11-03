@@ -28,7 +28,7 @@
     if (!nav) { nav = document.createElement('nav'); nav.id = 'm-nav'; nav.setAttribute('aria-label', 'Main'); document.body.appendChild(nav); }
     const tab = ED.state.tab, g = groupOf(tab).id;
     const cur = id => id === 'daily' ? tab === 'daily' : id === 'weekly' ? g === 'planner' && tab !== 'daily' : id === 'career' ? g === 'life' : id === 'finance' ? g === 'money' : id === 'more' ? !['planner', 'life', 'money'].includes(g) : false;
-    nav.innerHTML = NAV.map(x => '<button type="button" class="m-nb' + (cur(x[0]) ? ' on' : '') + '" data-mnav="' + x[0] + '"' + (cur(x[0]) ? ' aria-current="page"' : '') + '>' + ED.icon(x[2]) + '<span>' + e(x[1]) + '</span></button>').join('');
+    nav.innerHTML = NAV.filter(x => x[0] === 'more' || !ED.shown || ED.shown(x[0])).map(x => '<button type="button" class="m-nb' + (cur(x[0]) ? ' on' : '') + '" data-mnav="' + x[0] + '"' + (cur(x[0]) ? ' aria-current="page"' : '') + '>' + ED.icon(x[2]) + '<span>' + e(x[1]) + '</span></button>').join('');
     const showFab = g === 'planner' || tab === 'daily';
     if (showFab && !fab) { fab = document.createElement('button'); fab.id = 'm-fab'; fab.type = 'button'; fab.setAttribute('aria-label', 'Add a task'); fab.innerHTML = ED.icon('plus'); document.body.appendChild(fab); fab.addEventListener('click', () => A['task-new']()); }
     if (!showFab && fab) fab.remove();

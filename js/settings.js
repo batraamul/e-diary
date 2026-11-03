@@ -8,7 +8,7 @@
   const sw = (id, on, label, hint) => '<div class="set-row"><label class="switch" for="' + id + '"><input id="' + id + '" type="checkbox"' + (on ? ' checked' : '') + '><span class="track"></span><span>' + e(label) + '</span></label>' + (hint ? '<p class="hint">' + hint + '</p>' : '') + '</div>';
 
   const TABS = [
-    ['general', 'General', 'gear'], ['look', 'Appearance', 'palette'], ['categories', 'Categories', 'list'], ['weather', 'Weather & Quotes', 'wPartly'],
+    ['general', 'General', 'gear'], ['look', 'Appearance', 'palette'], ['pages', 'Pages & parts', 'eye'], ['categories', 'Categories', 'list'], ['weather', 'Weather & Quotes', 'wPartly'],
     ['reminders', 'Reminders', 'bell'], ['gcal', 'Google Calendar', 'calendar'], ['data', 'Backup & Sync', 'cloud'], ['lock', 'Password lock', 'lock'], ['help', 'Install & Help', 'help'],
   ];
 
@@ -96,6 +96,8 @@
     },
 
     /* ---------------- Google Calendar (js/gcal.js) ---------------- */
+    tab_pages() { return ED.visibility ? ED.visibility.settingsHtml() : ''; },   // 1.22 (js/visibility.js)
+    bind_pages(b) { if (ED.visibility) ED.visibility.bindSettings(b); },
     tab_gcal() { return ED.gcal ? ED.gcal.settingsHtml() : ''; },
     bind_gcal(b) { if (ED.gcal) ED.gcal.bindSettings(b); },
 
@@ -285,7 +287,7 @@
     /* ---------------- See my data ---------------- */
     viewData() {
       const d = D();
-      const NAMES = { pooja: 'Pooja & Vrat (poojas, vrats, settings)', exercise: 'Exercise plan, workouts and steps', welfare: 'Welfare & Help', research: 'Research papers and saved Science bits', moods: 'Mood of each day', ideal: 'Ideal day (time blocks for each season)', projects: 'Projects (steps, milestones, procurement, tools, log)', meta: 'About this diary', settings: 'Settings', tasks: 'Tasks', events: 'Events', categories: 'Categories', roles: 'Roles', goals: 'Goals', values: 'Values', dayNotes: 'Daily notes (by date)', mission: 'Mission statement', notebooks: 'Notebooks', notes: 'Notes', quotes: 'Your quotes', study: 'Study planner', finance: 'Finance and financial plan', sites: 'Important websites', vault: 'Password log (encrypted)', gcal: 'Google Calendar links', habits: 'Habits', interview: 'Interview preparation', health: 'Health', meetings: 'Meeting plans' };
+      const NAMES = { pooja: 'Pooja & Vrat (poojas, vrats, settings)', exercise: 'Exercise plan, workouts and steps', welfare: 'Welfare & Help', research: 'Research papers and saved Science bits', moods: 'Mood of each day', dreams: 'Dreams (with pictures)', ideal: 'Ideal day (time blocks for each season)', projects: 'Projects (steps, milestones, procurement, tools, log)', meta: 'About this diary', settings: 'Settings', tasks: 'Tasks', events: 'Events', categories: 'Categories', roles: 'Roles', goals: 'Goals', values: 'Values', dayNotes: 'Daily notes (by date)', mission: 'Mission statement', notebooks: 'Notebooks', notes: 'Notes', quotes: 'Your quotes', study: 'Study planner', finance: 'Finance and financial plan', sites: 'Important websites', vault: 'Password log (encrypted)', gcal: 'Google Calendar links', habits: 'Habits', interview: 'Interview preparation', health: 'Health', meetings: 'Meeting plans' };
       const count = v => Array.isArray(v) ? U.plural(v.length, 'item') : v && typeof v === 'object' ? U.plural(Object.keys(v).length, 'entry', 'entries') : '';
       const size = v => { try { return new Blob([JSON.stringify(v)]).size; } catch (err) { return 0; } };
       const keys = Object.keys(d).sort((a, b) => size(d[b]) - size(d[a]));

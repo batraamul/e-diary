@@ -13,6 +13,7 @@
   const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
 
   /* ---------- shared bits ---------- */
+  const compass = which => ED.studyPlus && (!ED.part || ED.part('study.compass')) ? ED.studyPlus.compass(which) : '';   // 1.22: today's card (js/studyplus.js)
   const menuBtn = '<button type="button" class="btn small" data-act="study-menu" aria-haspopup="menu">' + ED.icon('book') + 'Plan ' + ED.icon('chevD') + '</button>';
   const trackChip = (tr, extra) => '<span class="trk" style="--c:' + ST.color(tr) + '"><i class="sw"></i>' + e(ST.short(tr)) + (extra ? '<span class="hint"> · ' + e(extra) + '</span>' : '') + '</span>';
   const tick = s => '<button type="button" class="stick' + (s.done ? ' on' : '') + '" data-act="study-toggle" data-sid="' + e(s.id) + '" aria-pressed="' + !!s.done + '" aria-label="' + (s.done ? 'Done — click to undo' : 'Mark done') + '" title="' + (s.done ? 'Done' : 'Mark done') + '">' + ED.tasksUI.statusIcon(s.done ? 'done' : 'open') + '</button>';
@@ -143,16 +144,19 @@
       const heat = CH.heat({ title: 'Every day of the plan', days: hd, weekStart: 1, act: 'study-day', go: 'studyWeek', sub: 'Darker = more of that day’s planned hours studied. Click a day to open it.' });
       return '<div class="study st-year">' +
         '<div class="pg-head st-head"><div class="st-titles"><h2 class="pg-title">' + e(p.title) + '</h2><p class="hint st-sub">' + e(p.subtitle || '') + '</p></div>' + menuBtn + '</div>' +
-        '<div class="st-scroll scroll" data-keep-scroll="st-year">' + tiles + burn + daily + weekly + heat + '</div></div>';
+        '<div class="st-scroll scroll" data-keep-scroll="st-year">' + compass('year') + tiles + burn + daily + weekly + heat + '</div></div>';
     },
     right() {
       const p = ST.plan();
-      let tab = st().ytab || 'subjects';
+      let tab = st().ytab || 'insights';
       if (tab === 'notes') tab = st().ytab = 'research';      // 1.17: Notes became Research papers (the plan's notes are under Subjects)
-      const seg = '<div class="seg st-seg" role="group" aria-label="Show">' + [['subjects', 'Subjects'], ['matrix', 'Track matrix'], ['sources', 'Books & lectures'], ['topics', 'Topics'], ['research', 'Research papers'], ['bits', 'Science bits']].map(x =>
+      // 1.22: Insights first (js/studyplus.js); tabs hidden in Settings → Pages & parts leave the bar
+      const tabs = [['insights', 'Insights'], ['subjects', 'Subjects'], ['matrix', 'Track matrix'], ['sources', 'Books & lectures'], ['topics', 'Topics'], ['research', 'Research papers'], ['bits', 'Science bits']].filter(x => x[0] === 'subjects' || ((!ED.part || ED.part('study.' + x[0])) && (x[0] !== 'insights' || ED.studyPlus)));
+      if (!tabs.some(x => x[0] === tab)) tab = 'subjects';
+      const seg = '<div class="seg st-seg" role="group" aria-label="Show">' + tabs.map(x =>
         '<button type="button" data-act="study-ytab" data-tab="' + x[0] + '" aria-pressed="' + (tab === x[0]) + '">' + e(x[1]) + '</button>').join('') + '</div>';
-      const body = tab === 'research' ? (ED.research ? ED.research.html() : '') : tab === 'bits' ? (ED.scibits ? ED.scibits.html() : '') : (yearly[tab] || yearly.subjects)(p);
-      return '<div class="study st-year-r' + (tab === 'research' || tab === 'bits' ? ' st-rs' : '') + '"><div class="pg-head"><h2 class="pg-title">' + (tab === 'research' ? 'Research papers' : tab === 'bits' ? 'Science bits' : 'Year at a glance') + '</h2>' + seg + '</div><div class="st-scroll scroll" data-keep-scroll="st-yr-' + tab + '">' + body + '</div></div>';
+      const body = tab === 'insights' ? ED.studyPlus.insights() : tab === 'research' ? (ED.research ? ED.research.html() : '') : tab === 'bits' ? (ED.scibits ? ED.scibits.html() : '') : (yearly[tab] || yearly.subjects)(p);
+      return '<div class="study st-year-r' + (tab === 'research' || tab === 'bits' ? ' st-rs' : '') + '"><div class="pg-head"><h2 class="pg-title">' + (tab === 'research' ? 'Research papers' : tab === 'bits' ? 'Science bits' : tab === 'insights' ? 'Study insights' : 'Year at a glance') + '</h2>' + seg + '</div><div class="st-scroll scroll" data-keep-scroll="st-yr-' + tab + '">' + body + '</div></div>';
     },
     subjects(p) {
       const ts = ST.trackStats();
@@ -302,7 +306,7 @@
         '<h2 class="pg-title">' + e(U.MONTHS[mo - 1] + ' ' + y) + '</h2>' +
         '<button type="button" class="cp-arrow" data-act="study-month" data-dir="1" aria-label="Next month">' + ED.icon('chevR') + '</button></div>' + menuBtn + '</div>' +
         '<p class="hint st-sub">' + e(p.title) + '</p>' +
-        '<div class="st-scroll scroll" data-keep-scroll="st-month">' + tiles + chart + meters + wl + '</div></div>';
+        '<div class="st-scroll scroll" data-keep-scroll="st-month">' + compass('month') + tiles + chart + meters + wl + '</div></div>';
     },
     right() {
       const m = monthKey();
@@ -370,7 +374,7 @@
           l.map(s => { const tr = ST.track(s.trackId); return '<div class="st-row' + (s.done ? ' done' : '') + '" data-sid="' + e(s.id) + '">' + tick(s) + trackChip(tr, s.kind) + '<button type="button" class="plain-btn st-row-t" data-act="study-open">' + e(s.topic || '—') + '</button><span class="hint num">' + (s.done && ST.spent(s) !== s.min ? ST.spent(s) + '/' : '') + s.min + '′</span></div>'; }).join('') +
           '</section>';
       }).join('');
-      return '<div class="study st-week">' + head + meta + '<div class="st-scroll scroll" data-keep-scroll="st-week">' + chart + topics + '<div class="st-days">' + days + '</div></div></div>';
+      return '<div class="study st-week">' + head + meta + '<div class="st-scroll scroll" data-keep-scroll="st-week">' + compass('week') + chart + topics + '<div class="st-days">' + days + '</div></div></div>';
     },
     right() {
       const k = ST.focusDay();

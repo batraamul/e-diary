@@ -243,3 +243,47 @@
 /* 1.15: Change many sessions — weekday ticks */
 .bc-days { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; }
 .bc-days .chk { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+
+/* ---------- 1.22: the today card, Insights, larger text ---------- */
+.sp-card { margin: 2px 0 12px; padding: 10px 12px; border: 1px solid var(--card-border); border-radius: 14px; background: linear-gradient(170deg, color-mix(in srgb, var(--s1) 7%, var(--paper-3)), var(--paper-3) 60%); }
+.sp-flow { display: flex; align-items: stretch; gap: 4px; flex-wrap: wrap; margin-bottom: 8px; }
+.sp-step { display: flex; flex-direction: column; align-items: flex-start; gap: 0; padding: 4px 9px; border: 1px solid var(--card-border); border-radius: 9px; background: var(--paper); color: var(--ink-2); font: inherit; font-size: 12px; cursor: pointer; line-height: 1.2; }
+.sp-step span { font-size: 13px; } .sp-step small { font-size: 10px; color: var(--ink-3); }
+.sp-step.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--paper)); color: var(--ink); }
+.sp-step:hover { border-color: var(--accent); }
+.sp-arr { align-self: center; color: var(--ink-3); font-weight: 700; }
+.sp-today { display: flex; align-items: center; gap: 10px; }
+.sp-ring { width: 50px; height: 50px; flex: none; } .sp-ring .t { fill: none; stroke: var(--chart-track); stroke-width: 6; } .sp-ring .v { fill: none; stroke: var(--s3); stroke-width: 6; stroke-linecap: round; } .sp-ring text { font-size: 11px; font-weight: 800; fill: var(--ink); }
+.sp-tt { display: flex; flex-direction: column; flex: 1; min-width: 0; } .sp-tl, .sp-nl { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); } .sp-tt b { font-size: 14px; }
+.sp-next { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding: 6px 10px; border-radius: 10px; border-left: 4px solid var(--c, var(--card-border)); background: var(--paper); }
+.sp-next .stick { flex: none; } .sp-nt { display: flex; flex-direction: column; min-width: 0; } .sp-nt b { font-size: 13px; } .sp-next.done, .sp-next.none { border-left-color: var(--good); }
+.sp-late { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; padding: 6px 10px; border-radius: 10px; background: var(--warn-bg); color: var(--warn-ink); border: 1px solid var(--warn-bd); font-size: 12.5px; }
+.sp-late .hint { color: inherit; opacity: .85; }
+.sp-help { margin: 6px 0 0; font-size: 11.5px; }
+.sp-intro { margin: 0 0 8px; }
+.sp-fc-t { margin: 0 0 10px; line-height: 1.55; font-size: 13px; }
+.sp-line { position: relative; height: 54px; margin: 0 40px 6px; }
+.sp-line .bar { position: absolute; left: 0; right: 0; top: 10px; height: 8px; border-radius: 4px; background: var(--chart-track); }
+.sp-line .done { position: absolute; left: 0; top: 10px; height: 8px; border-radius: 4px; background: var(--s1); }
+.sp-line .pin { position: absolute; top: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; padding-top: 22px; font-size: 10.5px; color: var(--ink-3); white-space: nowrap; }
+.sp-line .pin::before { content: ''; position: absolute; top: 4px; width: 3px; height: 20px; border-radius: 2px; background: var(--ink-3); }
+.sp-line .pin b { font-size: 10.5px; color: var(--ink-2); } .sp-line .pin.t::before { background: var(--ink); } .sp-line .pin.f.bad::before { background: var(--bad); } .sp-line .pin.f.good::before { background: var(--good); }
+.sp-line .pin.f { top: 26px; padding-top: 14px; } .sp-line .pin.f::before { top: -6px; height: 18px; }
+.sp-line { height: 70px; }
+.sp-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
+.sp-ok { padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--good) 10%, var(--paper-3)); font-weight: 600; }
+/* keyboard focus on the study pages */
+.study :is(button, a, input, select, textarea):focus-visible, .sp-card :is(button, a):focus-visible { outline: 2.5px solid var(--accent); outline-offset: 2px; }
+/* Settings → Appearance → Larger text on the Study pages */
+html.study-large .study { font-size: 16px; }
+html.study-large .study .hint { color: var(--ink-2); font-size: 13px; }
+html.study-large .study :is(.tile-v) { font-size: 26px; }
+html.study-large .study :is(.stick) { transform: scale(1.25); }
+html.study-large .study :is(.st-table td, .st-table th, .mt-name, .mt-v, .legend, .chart-sub) { font-size: 14px; }
+html.study-large .study :is(.trk, .sp-step, .sp-nt b, .sp-tt b) { font-size: 15px; }
+html.study-large .study .wk-chart text { font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { .study *, .sp-card * { transition: none !important; animation: none !important; } }
+@media (max-width: 600px) {
+  .sp-flow { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; } .sp-arr, .sp-step small, .sp-help { display: none; }
+  .sp-step { align-items: center; text-align: center; padding: 4px 2px; } .sp-step b { font-size: 11px; }
+}

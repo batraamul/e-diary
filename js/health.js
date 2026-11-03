@@ -118,10 +118,12 @@
     },
 
     right() {
-      const tab = st().tab || 'visits';
-      const seg = FX.seg('hl-tab', tab, [['visits', 'Appointments'], ['vitals', 'Readings'], ['reports', 'Reports'], ['card', 'Medical card']]);
+      let tab = st().tab || 'visits';
+      const tabs = [['visits', 'Appointments'], ['vitals', 'Readings'], ['reports', 'Reports'], ['card', 'Medical cards']].filter(x => x[0] === 'visits' || !ED.part || ED.part('health.' + x[0]));   // 1.22: hidden tabs
+      if (!tabs.some(x => x[0] === tab)) tab = 'visits';
+      const seg = FX.seg('hl-tab', tab, tabs);
       const body = tab === 'vitals' ? vitals() : tab === 'reports' ? reports() : tab === 'card' ? card() : visits();
-      return '<div class="xp hl-r"><div class="pg-head"><h2 class="pg-title">' + ({ visits: 'Doctor’s appointments', vitals: 'Health readings', reports: 'Reports', card: 'Medical card' })[tab] + '</h2>' + seg + '</div><div class="st-scroll scroll" data-keep-scroll="hl-r-' + tab + '">' + body + '</div></div>';
+      return '<div class="xp hl-r"><div class="pg-head"><h2 class="pg-title">' + ({ visits: 'Doctor’s appointments', vitals: 'Health readings', reports: 'Reports', card: 'Medical cards' })[tab] + '</h2>' + seg + '</div><div class="st-scroll scroll" data-keep-scroll="hl-r-' + tab + '">' + body + '</div></div>';
     },
     mount(L, R) { CH.bind(R); },
   };
@@ -177,7 +179,8 @@
       f('blood', 'Blood group') + f('allergies', 'Allergies') + f('conditions', 'Long-term conditions') +
       '<div class="hl-cf"><span class="hint">Current medicines</span><b>' + (meds.length ? meds.map(m => e(m.name + (m.dose ? ' ' + m.dose : '') + ((m.times || []).length ? ' × ' + m.times.length + '/day' : ''))).join('<br>') : '<span class="hint">—</span>') + '</b></div>' +
       f('contact', 'Emergency contact') + f('doctor', 'Family doctor') + f('insurance', 'Health insurance / CGHS no.') + f('notes', 'Other notes') + '</div>' +
-      '<div class="row-btns"><button type="button" class="btn small primary" data-act="hl-card">' + ED.icon('pencil') + 'Edit the card</button><button type="button" class="btn small" data-act="hl-card-copy">' + ED.icon('copy') + 'Copy as text</button></div>';
+      '<div class="row-btns"><button type="button" class="btn small primary" data-act="hl-card">' + ED.icon('pencil') + 'Edit the card</button><button type="button" class="btn small" data-act="hl-card-copy">' + ED.icon('copy') + 'Copy as text</button></div>' +
+      (ED.medCards ? ED.medCards.html() : '');   // 1.22: insurance, CGHS, ABHA and hospital cards with photos (js/medcards.js)
   }
 
   /* ---------------- editors ---------------- */

@@ -90,9 +90,9 @@
     out.gcal = nested('gcal', []) || { map: {} };
     out.habits = nested('habits', ['list'], { log: 2 }) || { list: [], log: {} };
     out.interview = nested('interview', ['list', 'qs', 'docs', 'mocks'], { log: 1 }) || undefined;
-    out.health = nested('health', ['meds', 'treats', 'visits', 'vitals', 'reports'], { taken: 2, dueOff: 1 }) || undefined;
+    out.health = nested('health', ['meds', 'treats', 'visits', 'vitals', 'reports', 'cards'], { taken: 2, dueOff: 1 }) || undefined;
     out.meetings = nested('meetings', [], { calInfo: 1, notes: 1 }) || undefined;
-    out.lists = nested('lists', ['trips', 'groc', 'foods', 'stock', 'mealPlans'], { meals: 1 }) || undefined;
+    out.lists = nested('lists', ['trips', 'groc', 'foods', 'stock', 'mealPlans', 'watch'], { meals: 1 }) || undefined;
     out.exam = nested('exam', ['list', 'topics', 'mocks'], { log: 1 }) || undefined;
     out.maps = nested('maps', ['list']) || undefined;
     out.jobs = nested('jobs', ['items', 'sites']) || undefined;
@@ -106,6 +106,8 @@
     out.projects = nested('projects', ['list']) || undefined;
     // 1.21: Ideal day — blocks merge one by one; which month is in which season by the later edit
     out.ideal = nested('ideal', ['blocks'], { months: 1 }) || undefined;
+    // 1.22: Dreams; the watch list sits in lists (watch)
+    out.dreams = nested('dreams', ['list']) || undefined;
     // deletion markers from both sides (js/store.js markGone): an item deleted anywhere stays deleted, unless it was
     // changed again after it was deleted
     const gone = Object.assign({}, (remote.meta && remote.meta.gone) || {});

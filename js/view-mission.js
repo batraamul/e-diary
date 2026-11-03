@@ -131,16 +131,19 @@
     id: 'career', label: 'Notes & Life',
     left() {
       const c = C();
+      if (c.mode && c.mode !== 'notes' && ED.part && !ED.part('life.' + c.mode)) c.mode = 'notes';   // 1.22: hidden in Settings → Pages & parts
       const nb = c.nb === 'all' ? null : M.notebook(c.nb);
       const head = '<div class="pg-head"><h2 class="pg-title">Notes &amp; Life Planner</h2>' +
-        '<div class="seg" role="group" aria-label="View"><button type="button" data-act="career-mode" data-mode="notes" aria-pressed="' + (['graph', 'travel', 'grocery', 'meals', 'wardrobe'].indexOf(c.mode) < 0) + '">' + ED.icon('doc') + ' Notes</button>' +
-        '<button type="button" data-act="career-mode" data-mode="graph" aria-pressed="' + (c.mode === 'graph') + '">' + ED.icon('chart') + ' Progress</button>' +
-        '<button type="button" data-act="career-mode" data-mode="travel" aria-pressed="' + (c.mode === 'travel') + '">' + ED.icon('compass') + ' Travel &amp; Tour</button>' +
-        '<button type="button" data-act="career-mode" data-mode="grocery" aria-pressed="' + (c.mode === 'grocery') + '">' + ED.icon('list') + ' Grocery</button>' +
-        '<button type="button" data-act="career-mode" data-mode="meals" aria-pressed="' + (c.mode === 'meals') + '">' + ED.icon('calendar') + ' Weekly meals</button>' +
-        (ED.wardrobe ? '<button type="button" data-act="career-mode" data-mode="wardrobe" aria-pressed="' + (c.mode === 'wardrobe') + '">' + ED.icon('user') + ' Wardrobe</button>' : '') + '</div></div>';
+        '<div class="seg" role="group" aria-label="View"><button type="button" data-act="career-mode" data-mode="notes" aria-pressed="' + (['graph', 'travel', 'grocery', 'meals', 'wardrobe', 'watch'].indexOf(c.mode) < 0) + '">' + ED.icon('doc') + ' Notes</button>' +
+        (!ED.part || ED.part('life.graph') ? '<button type="button" data-act="career-mode" data-mode="graph" aria-pressed="' + (c.mode === 'graph') + '">' + ED.icon('chart') + ' Progress</button>' : '') +
+        (!ED.part || ED.part('life.travel') ? '<button type="button" data-act="career-mode" data-mode="travel" aria-pressed="' + (c.mode === 'travel') + '">' + ED.icon('compass') + ' Travel &amp; Tour</button>' : '') +
+        (!ED.part || ED.part('life.grocery') ? '<button type="button" data-act="career-mode" data-mode="grocery" aria-pressed="' + (c.mode === 'grocery') + '">' + ED.icon('list') + ' Grocery</button>' : '') +
+        (!ED.part || ED.part('life.meals') ? '<button type="button" data-act="career-mode" data-mode="meals" aria-pressed="' + (c.mode === 'meals') + '">' + ED.icon('calendar') + ' Weekly meals</button>' : '') +
+        (ED.wardrobe && (!ED.part || ED.part('life.wardrobe')) ? '<button type="button" data-act="career-mode" data-mode="wardrobe" aria-pressed="' + (c.mode === 'wardrobe') + '">' + ED.icon('user') + ' Wardrobe</button>' : '') +
+        (ED.watch && (!ED.part || ED.part('life.watch')) ? '<button type="button" data-act="career-mode" data-mode="watch" aria-pressed="' + (c.mode === 'watch') + '">' + ED.icon('eye') + ' Watch list</button>' : '') + '</div></div>';
       if (c.mode === 'meals' && ED.lists) return ED.lists.mealMonthLeft(head);
       if (c.mode === 'wardrobe' && ED.wardrobe) return ED.wardrobe.left(head);
+      if (c.mode === 'watch' && ED.watch) return ED.watch.left(head);
       if (c.mode === 'travel' && ED.lists) return ED.lists.travelLeft(head);
       if (c.mode === 'grocery' && ED.lists) return ED.lists.grocLeft(head);
       if (c.mode === 'graph') return '<div class="career">' + head + '<div class="graph scroll" data-keep-scroll="graph">' + graphHtml() + '</div></div>';
@@ -174,6 +177,7 @@
       if (c.mode === 'grocery' && ED.lists) return ED.lists.grocRight();
       if (c.mode === 'meals' && ED.lists) return ED.lists.mealMonthRight();
       if (c.mode === 'wardrobe' && ED.wardrobe) return ED.wardrobe.right();
+      if (c.mode === 'watch' && ED.watch) return ED.watch.right();
       const n = c.noteId && M.note(c.noteId);
       if (!n) {
         return '<div class="note-empty-wrap"><button type="button" class="note-empty" data-act="note-new">' +
@@ -195,7 +199,7 @@
       noteCtl = null;
       bindChart(left); bindChart(right);
       const c = C();
-      if (c.mode === 'graph' || c.mode === 'travel' || c.mode === 'grocery' || c.mode === 'meals' || c.mode === 'wardrobe') return;
+      if (c.mode === 'graph' || c.mode === 'travel' || c.mode === 'grocery' || c.mode === 'meals' || c.mode === 'wardrobe' || c.mode === 'watch') return;
       const n = c.noteId && M.note(c.noteId);
       if (!n) return;
       const title = right.querySelector('#ne-title');
