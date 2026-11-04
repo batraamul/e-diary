@@ -215,8 +215,25 @@
     });
     return (SCHED[y] = { out, info });
   };
+  /* symbols only (Settings → My pictures → "Only the symbols"): the drawings, the least recently shown first, never two days running */
+  const SYM = {};
+  WM.symYear = y => {
+    if (SYM[y]) return SYM[y];
+    const items = WM.items(), dr = items.map((it, i) => i).filter(i => items[i].kind === 'drawn'), last = {}, out = {}, info = {};
+    let prev = -1, n = 0;
+    for (let k = y + '-01-01'; k.slice(0, 4) === String(y); k = U.addDays(k, 1)) {
+      const inf = info[k] = WM.dayInfo(k); n++;
+      // all the day's themes may give a symbol; the one shown longest ago wins (the day's first theme breaks ties)
+      const rank = i => { const r = inf.themes.indexOf(items[i].theme); return r < 0 ? 99 : r; };
+      let pool = dr.filter(i => i !== prev && rank(i) < 99);
+      if (!pool.length) pool = dr.filter(i => i !== prev);
+      pool.sort((a, b) => (last[a] || -1) - (last[b] || -1) || rank(a) - rank(b) || ((hash(y + k + a) % 97) - (hash(y + k + b) % 97)));
+      const pick = pool[0]; last[pick] = n; prev = pick; out[k] = pick;
+    }
+    return (SYM[y] = { out, info });
+  };
   WM.drawn = k => {                      // the picture of the day (drawing or photograph), with its line
-    const S0 = WM.year(+k.slice(0, 4)), it = WM.items()[S0.out[k]], inf = S0.info[k];
+    const S0 = WM.mode() === 'drawn' ? WM.symYear(+k.slice(0, 4)) : WM.year(+k.slice(0, 4)), it = WM.items()[S0.out[k]], inf = S0.info[k];
     const line = inf.line || (it.kind === 'drawn' ? LINES[it.id] : TLINE[it.theme]) || '';
     return { id: it.kind === 'drawn' ? it.id : 'photo', key: it.key, item: it, theme: it.theme, line, why: inf.why, month: inf.month };
   };
@@ -307,7 +324,7 @@
     if (!WM.on()) return '';
     const x = WM.pick(k), w = U.dow(k), v = dayNo(k) % 3;
     const isPhoto = x.own || x.item.kind === 'photo';
-    const main = x.own ? photoHtml(x.own, x.line, '') : x.item.kind === 'photo' ? photoHtml(x.item.img.u, x.line, FALLBACK[x.theme] || 'temple') : WM.svg(x.id, x.line);
+    const main = x.own ? photoHtml(x.own, x.line, '') : x.item.kind === 'photo' ? photoHtml(x.item.img.u, x.line, FALLBACK[x.theme] || 'temple').replace('<img ', '<img data-f="' + e(x.item.img.f) + '" ') : WM.svg(x.id, x.line);
     return '<div class="wm v' + v + (isPhoto ? ' photo' : '') + (daily ? ' daily' : '') + '" data-wm="' + e(x.own ? 'own' : x.key) + '" aria-hidden="true">' + main + (daily ? yantraSvg(w, 'wm-yantra') : '') + '</div>';
   };
   WM.paint = viewId => {
@@ -320,6 +337,7 @@
     if (!lay) { lay = document.createElement('div'); lay.className = 'pg-wm'; pg.insertBefore(lay, pg.firstChild); }
     if (lay.dataset.key === key) return;
     lay.dataset.key = key; lay.innerHTML = WM.html(k, viewId === 'daily');
+    if (ED.luckDrive) ED.luckDrive.swap(lay);          // a copy kept in your Google Drive is used when chosen
   };
   const credit = it => it && it.kind === 'photo' ? it.img : null;
   /* the line at the foot of the Daily page: mantra of the day · today's numbers · whose picture */
@@ -352,28 +370,41 @@
     });
   };
   /* all 365 pictures of a year, month by month (tap one to open that day) */
-  WM.yearDialog = y => {
-    const S0 = WM.year(y), items = WM.items();
-    let m = +(U.today().slice(0, 4) == y ? U.today().slice(5, 7) : 1);
+  WM.sched = y => (WM.mode() === 'drawn' ? WM.symYear(y) : WM.year(y));
+  /* the pictures of any year (month by month), the symbols, and keeping the pictures in Google Drive */
+  WM.yearDialog = (y, tab) => {
+    const items = WM.items();
+    let m = +(U.today().slice(0, 4) == y ? U.today().slice(5, 7) : 1), t = tab || 'year';
+    const cell = (k, it, inf) => '<button type="button" class="wm-cell" data-k="' + k + '" title="' + e((it.kind === 'photo' ? it.img.t : it.id) + (inf.why ? ' — ' + inf.why : '')) + '"><span class="wm-cd">' + (+k.slice(8)) + ' ' + U.DAY3[U.dow(k)] + '</span>' +
+      (it.kind === 'photo' ? '<img src="' + e(it.img.u) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'), { className: \'wm-cs wm-off\', textContent: \'🛕\' }))">' : '<span class="wm-cs">' + WM.svg(it.id, '') + '</span>') +
+      '<span class="wm-ct">' + e(inf.why || (it.kind === 'photo' ? it.img.t : (LINES[it.id] || TLINE[it.theme] || ''))) + '</span></button>';
     const draw = el => {
-      const mm = String(m).padStart(2, '0'), days = Object.keys(S0.out).filter(k => k.slice(5, 7) === mm).sort();
-      el.querySelector('.wm-ym').textContent = U.MONTHS[m - 1] + ' ' + y;
-      el.querySelector('.wm-grid').innerHTML = days.map(k => { const it = items[S0.out[k]], inf = S0.info[k];
-        return '<button type="button" class="wm-cell" data-k="' + k + '" title="' + e((it.kind === 'photo' ? it.img.t : it.id) + (inf.why ? ' — ' + inf.why : '')) + '"><span class="wm-cd">' + (+k.slice(8)) + ' ' + U.DAY3[U.dow(k)] + '</span>' +
-          (it.kind === 'photo' ? '<img src="' + e(it.img.u) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'), { className: \'wm-cs wm-off\', textContent: \'🛕\' }))">' : '<span class="wm-cs">' + WM.svg(it.id, '') + '</span>') +
-          '<span class="wm-ct">' + e(inf.why || (it.kind === 'photo' ? it.img.t : (TLINE[it.theme] || ''))) + '</span></button>'; }).join('');
+      const S0 = WM.sched(y);
+      U.$$('.wm-tabs [data-t]', el).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.t === t)));
+      const body = el.querySelector('.wm-ybody');
+      if (t === 'year') {
+        const mm = String(m).padStart(2, '0'), days = Object.keys(S0.out).filter(k => k.slice(5, 7) === mm).sort(), uniq = new Set(Object.values(S0.out)).size;
+        body.innerHTML = '<p class="hint">' + (WM.mode() === 'drawn' ? 'Symbols only (chosen in My pictures): the ' + items.filter(x => x.kind === 'drawn').length + ' drawings in turn.' : uniq + ' different pictures for the ' + Object.keys(S0.out).length + ' days of ' + y + ' — temples, Jyotirlingas, Shakti Peeths, deities, sacred rivers, the Armed Forces and the symbols; festivals get their own. Each year has its own order.') + '</p>' +
+          '<div class="wm-ynav"><button type="button" class="btn small ghost" data-x="py">' + ED.icon('chevL') + (y - 1) + '</button><button type="button" class="icon-btn" data-x="prev" aria-label="Previous month">' + ED.icon('chevL') + '</button><b class="wm-ym">' + U.MONTHS[m - 1] + ' ' + y + '</b><button type="button" class="icon-btn" data-x="next" aria-label="Next month">' + ED.icon('chevR') + '</button><button type="button" class="btn small ghost" data-x="ny">' + (y + 1) + ED.icon('chevR') + '</button></div>' +
+          '<div class="wm-grid">' + days.map(k => cell(k, items[S0.out[k]], S0.info[k])).join('') + '</div>';
+      } else if (t === 'sym') {
+        body.innerHTML = '<p class="hint">The symbols drawn for the diary — shown on their days, and whenever a photograph cannot load. Choose “Only the symbols” in My pictures to see only these.</p><div class="wm-grid wm-syms">' +
+          items.filter(x => x.kind === 'drawn').map(x => '<div class="wm-cell"><span class="wm-cs">' + WM.svg(x.id, '') + '</span><span class="wm-ct" lang="sa">' + e(LINES[x.id] || '') + '</span></div>').join('') + '</div>';
+      } else body.innerHTML = ED.luckDrive ? ED.luckDrive.panel(y) : '<p class="hint">Google Drive is not available here.</p>';
+      if (t === 'drive' && ED.luckDrive) ED.luckDrive.bind(body, y, () => draw(el));
     };
-    const uniq = new Set(Object.values(S0.out)).size;
     ED.ui.modal({
-      title: 'Pictures of ' + y, cls: 'st-modal wide wm-modal wm-yearm',
-      body: '<p class="hint">' + uniq + ' different pictures for the ' + Object.keys(S0.out).length + ' days of ' + y + ' — temples, Jyotirlingas, Shakti Peeths, deities, sacred rivers and the Armed Forces; festivals get their own.</p>' +
-        '<div class="wm-ynav"><button type="button" class="icon-btn" data-x="prev" aria-label="Previous month">' + ED.icon('chevL') + '</button><b class="wm-ym"></b><button type="button" class="icon-btn" data-x="next" aria-label="Next month">' + ED.icon('chevR') + '</button></div><div class="wm-grid"></div>',
+      title: 'Pictures of the days', cls: 'st-modal wide wm-modal wm-yearm',
+      body: '<div class="seg wm-tabs" role="group" aria-label="Show">' + [['year', 'Year by month'], ['sym', 'Symbols'], ['drive', 'Keep in Google Drive']].map(x => '<button type="button" data-t="' + x[0] + '">' + x[1] + '</button>').join('') + '</div><div class="wm-ybody"></div>',
       onMount(el, api) {
         draw(el);
         el.addEventListener('click', ev => {
-          const b = ev.target.closest('[data-x],[data-k]'); if (!b) return;
-          if (b.dataset.x === 'prev') { m = m === 1 ? 12 : m - 1; draw(el); }
-          if (b.dataset.x === 'next') { m = m === 12 ? 1 : m + 1; draw(el); }
+          const b = ev.target.closest('[data-x],[data-k],[data-t]'); if (!b || b.closest('.wm-drv')) return;
+          if (b.dataset.t) { t = b.dataset.t; draw(el); return; }
+          if (b.dataset.x === 'prev') { if (m === 1) { m = 12; y--; } else m--; draw(el); }
+          if (b.dataset.x === 'next') { if (m === 12) { m = 1; y++; } else m++; draw(el); }
+          if (b.dataset.x === 'py') { y--; draw(el); }
+          if (b.dataset.x === 'ny') { y++; draw(el); }
           if (b.dataset.k) { api.close(); ED.state.tab = 'daily'; ED.go.date(b.dataset.k); }
         });
       },
@@ -390,7 +421,7 @@
     ED.ui.modal({
       title: 'Pictures for the Daily page', cls: 'st-modal wide wm-modal',
       body: '<p>Add your own pictures — photos from this device or an image address. They are shown very faint behind your Daily notes, on the day you choose or in turn with the drawings. Festivals and Armed Forces days keep their own drawing.</p>' +
-        '<div class="seg wm-mode" role="group" aria-label="Which pictures">' + [['mix', 'Mine and the drawings, in turn'], ['mine', 'Only mine'], ['drawn', 'Only the drawings']].map(m => '<button type="button" data-mode="' + m[0] + '" aria-pressed="' + (WM.mode() === m[0]) + '">' + m[1] + '</button>').join('') + '</div>' +
+        '<div class="seg wm-mode" role="group" aria-label="Which pictures">' + [['mix', 'Mine with the pictures of the day'], ['mine', 'Only mine'], ['drawn', 'Only the symbols (drawings)']].map(m => '<button type="button" data-mode="' + m[0] + '" aria-pressed="' + (WM.mode() === m[0]) + '">' + m[1] + '</button>').join('') + '</div>' +
         '<div class="wm-pics"></div><div class="row-btns"><label class="btn small">' + ED.icon('image') + 'Add photos<input type="file" accept="image/*" multiple hidden data-x="file"></label>' +
         '<input class="field wm-url" type="url" placeholder="…or an image address (https://…)" aria-label="Image address"><button type="button" class="btn small" data-x="url">Add</button></div>' +
         '<p class="hint">Photos are made small (about 700 px) so the diary stays light to sync. Up to 30. Use pictures you are free to use.</p>',

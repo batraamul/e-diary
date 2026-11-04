@@ -1,6 +1,6 @@
 /* E-Diary — offline support. Serves the app from a local cache and refreshes it in the background.
    Change VERSION whenever you edit the app so installed copies pick up the new files. */
-const VERSION = 'e-diary-1.24.2';
+const VERSION = 'e-diary-1.24.3';
 const ASSETS = [
   './',
   './index.html',
@@ -92,6 +92,7 @@ const ASSETS = [
   './js/roadmap.js',
   './js/wmimages.js',
   './js/watermark.js',
+  './js/luckdrive.js',
   './js/letters.js',
   './js/studylink.js',
   './js/purchases.js',
@@ -129,7 +130,7 @@ self.addEventListener('fetch', event => {
     event.respondWith((async () => {
       const c = await caches.open('edpics-1');
       const hit = await c.match(req); if (hit) return hit;
-      try { const res = await fetch(req); if (res && (res.ok || res.type === 'opaque')) event.waitUntil(c.put(req, res.clone())); return res; }
+      try { const res = await fetch(req); if (res && (res.ok || res.type === 'opaque')) event.waitUntil(c.put(req, res.clone()).then(() => c.keys()).then(ks => Promise.all(ks.slice(0, Math.max(0, ks.length - 150)).map(k => c.delete(k))))); return res; }   // only the latest 150 kept (space)
       catch (e) { return new Response('', { status: 504 }); }
     })());
     return;

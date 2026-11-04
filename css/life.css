@@ -738,3 +738,10 @@ tr.st-clash::after { display: none; }
 .wm-ct { font-size: 10.5px; line-height: 1.25; color: var(--ink-3); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 @media (max-width: 560px) { .wm-modal .wm-day { grid-template-columns: 1fr; } .wm-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); } }
 .wm-off { font-size: 28px; opacity: .4; }
+.wm-tabs { margin-bottom: 8px; flex-wrap: wrap; }
+.wm-ynav { flex-wrap: wrap; }
+.wm-syms .wm-cell { cursor: default; }
+.wm-drv-y { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 8px 0 4px; }
+.wm-bar { height: 8px; border-radius: 4px; background: var(--chart-track, color-mix(in srgb, var(--ink) 10%, transparent)); overflow: hidden; margin-bottom: 8px; }
+.wm-bar i { display: block; height: 100%; background: #16a34a; }
+.wm-drv .switch { margin: 6px 0; }
