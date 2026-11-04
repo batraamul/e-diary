@@ -1,6 +1,6 @@
 /* E-Diary — offline support. Serves the app from a local cache and refreshes it in the background.
    Change VERSION whenever you edit the app so installed copies pick up the new files. */
-const VERSION = 'e-diary-1.24.1';
+const VERSION = 'e-diary-1.24.2';
 const ASSETS = [
   './',
   './index.html',
@@ -90,6 +90,7 @@ const ASSETS = [
   './js/aarti.js',
   './js/studyedit.js',
   './js/roadmap.js',
+  './js/wmimages.js',
   './js/watermark.js',
   './js/letters.js',
   './js/studylink.js',
@@ -123,6 +124,16 @@ self.addEventListener('fetch', event => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+  // 1.24.2: pictures of the day (Wikimedia Commons) — kept once seen, so the page has its picture offline too
+  if (url.hostname === 'upload.wikimedia.org' || url.hostname === 'thumb.wikimedia.org') {
+    event.respondWith((async () => {
+      const c = await caches.open('edpics-1');
+      const hit = await c.match(req); if (hit) return hit;
+      try { const res = await fetch(req); if (res && (res.ok || res.type === 'opaque')) event.waitUntil(c.put(req, res.clone())); return res; }
+      catch (e) { return new Response('', { status: 504 }); }
+    })());
+    return;
+  }
   if (url.origin !== self.location.origin) return; // weather and sync go straight to the network
 
   // Network first: the diary is served from this computer (localhost), so the newest files are always

@@ -85,7 +85,7 @@
 
     right() {
       const k = ED.state.date;
-      return '<div class="dr">' + (ED.watermark ? ED.watermark.html(k) : '') +
+      return '<div class="dr">' +
         '<div class="banner">' +
         (!ED.part || ED.part('daily.quote') ? '<p class="quote">' + V.quoteHtml(k) + '</p>' : '') +
         (ED.env.claude ? '' : '<div class="wx" id="wx">' + V.weatherHtml(k) + '</div>') +

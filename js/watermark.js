@@ -139,45 +139,89 @@
     kedar: 'जय बाबा केदार', nandi: 'ॐ तत्पुरुषाय विद्महे', bilva: 'त्रिदलं त्रिगुणाकारं', rudraksha: 'ॐ नमः शिवाय', ganga: 'हर हर गंगे', trishul: 'हर हर महादेव', om: 'ॐ',
     sanjeevani: 'ॐ हं हनुमते नमः', ramnaam: 'श्री राम जय राम जय जय राम', modak: 'गणपति बप्पा मोरया', shubh: 'शुभ लाभ', shankh: 'ॐ नमो नारायणाय', tulsi: 'तुलसी माता की जय',
     peepal: 'मूलतो ब्रह्मरूपाय', guru: 'ॐ बृहस्पतये नमः', lakshmi: 'ॐ श्रीं महालक्ष्म्यै नमः', shriyantra: 'ॐ श्रीं ह्रीं श्रीं', navy: 'शं नो वरुणः', army: 'सेवा परमो धर्मः',
-    airforce: 'नभः स्पृशं दीप्तम्', satellite: 'वयं राष्ट्रे जागृयाम', radar: 'धर्मो रक्षति रक्षितः', konark: 'ॐ आदित्याय नमः', sunrise: 'ॐ सूर्याय नमः', navdurga: 'ॐ दुं दुर्गायै नमः', toran: 'शुभ दीपावली',
+    airforce: 'नभः स्पृशं दीप्तम्', satellite: 'वयं राष्ट्रे जागृयाम', radar: 'धर्मो रक्षति रक्षितः', konark: 'ॐ आदित्याय नमः', sunrise: 'ॐ सूर्याय नमः', navdurga: 'ॐ दुं दुर्गायै नमः', toran: 'शुभ मंगल',
   });
   WM.ART = ART;
 
-  /* ---------------- which drawing on which day ---------------- */
-  const POOL = {
-    0: ['surya', 'kartikeya', 'konark', 'sunrise', 'surya', 'om'],                                  // Sunday — Surya, Kartikeya
-    1: ['shiv', 'kedar', 'nandi', 'bilva', 'rudraksha', 'trishul', 'ganga', 'om'],                  // Monday — Shiva
-    2: ['hanuman', 'sanjeevani', 'ramnaam', 'hanuman', 'trishul'],                                  // Tuesday — Hanuman
-    3: ['ganesh', 'modak', 'shubh', 'ganesh', 'om'],                                                // Wednesday — Ganesh
-    4: ['temple', 'guru', 'peepal', 'shankh', 'tulsi', 'kedar'],                                    // Thursday — Guru, temples
-    5: ['parvati', 'lakshmi', 'shriyantra', 'navdurga', 'parvati', 'lakshmi'],                      // Friday — Devi, Lakshmi
-    6: ['forces', 'intel', 'navy', 'army', 'airforce', 'satellite', 'radar'],                       // Saturday — Armed Forces & Intelligence
-  };
+  /* ---------------- 1.24.2: a different picture on each of the 365 days ----------------
+     Items = photographs and paintings from Wikimedia Commons (js/wmimages.js — free licences, credited) + the drawings.
+     Every item has a theme. For each year a schedule is made once (the same on every device): day by day, the first
+     theme in that day's list that still has an unused item gives the picture — festival → Armed Forces day → the
+     month (Shravan: Shiva, Kartik: Vishnu and the Ganga …) → the weekday (Monday Shiva, Tuesday Hanuman and the
+     Shakti Peeths, Wednesday Ganesh, Thursday Vishnu and temples, Friday Devi and Lakshmi, Saturday the Armed Forces
+     and Hanuman, Sunday Surya and Kartikeya). No item is used twice in a year while any is left. */
+  const DRAWN_THEME = { shiv: 'shiv', kedar: 'shiv', nandi: 'shiv', bilva: 'shiv', rudraksha: 'shiv', trishul: 'shiv', om: 'guru', ganga: 'ganga', temple: 'temple',
+    hanuman: 'hanuman', sanjeevani: 'hanuman', ramnaam: 'ram', ram: 'ram', ganesh: 'ganesh', modak: 'ganesh', shubh: 'ganesh', shankh: 'vishnu', guru: 'guru', peepal: 'guru',
+    tulsi: 'vishnu', parvati: 'devi', navdurga: 'devi', shriyantra: 'devi', lakshmi: 'lakshmi', surya: 'surya', konark: 'surya', sunrise: 'surya', kartikeya: 'kartikeya',
+    krishna: 'krishna', forces: 'forces', army: 'forces', navy: 'forces', airforce: 'forces', intel: 'intel', satellite: 'intel', radar: 'intel', diya: 'diya', toran: 'diya' };
+  const TLINE = { shiv: 'ॐ नमः शिवाय', kailash: 'ॐ नमः शिवाय · कैलाश', ganga: 'हर हर गंगे', devi: 'जय माता दी', lakshmi: 'ॐ श्रीं महालक्ष्म्यै नमः', saraswati: 'ॐ ऐं सरस्वत्यै नमः',
+    ganesh: 'ॐ गं गणपतये नमः', hanuman: 'ॐ हं हनुमते नमः', vishnu: 'ॐ नमो नारायणाय', krishna: 'जय श्री कृष्ण', ram: 'श्री राम जय राम जय जय राम', surya: 'ॐ सूर्याय नमः',
+    kartikeya: 'ॐ शरवणभवाय नमः', guru: 'गुरुर्ब्रह्मा गुरुर्विष्णुः', temple: 'हर हर महादेव', forces: 'जय हिन्द', intel: 'वयं राष्ट्रे जागृयाम', diya: 'शुभं करोति कल्याणम्' };
+  const WEEK = [['surya', 'kartikeya', 'temple', 'guru', 'ganga', 'vishnu'], ['shiv', 'kailash', 'ganga'], ['hanuman', 'devi', 'kartikeya', 'ram'], ['ganesh', 'krishna', 'saraswati', 'vishnu'], ['vishnu', 'temple', 'guru', 'ram', 'krishna'], ['devi', 'lakshmi', 'saraswati'], ['forces', 'intel', 'hanuman', 'devi']];
+  const MONTH = { Chaitra: ['ram', 'devi'], Vaishakha: ['vishnu', 'lakshmi'], Jyeshtha: ['ganga', 'hanuman'], Ashadha: ['vishnu', 'guru'], Shravana: ['shiv', 'kailash'], Bhadrapada: ['ganesh', 'krishna'],
+    Ashwin: ['devi', 'ram'], Kartik: ['vishnu', 'ganga', 'diya'], Margashirsha: ['krishna', 'vishnu'], Pausha: ['surya', 'temple'], Magha: ['ganga', 'saraswati'], Phalguna: ['shiv', 'krishna'] };
   const FEST = [
-    [/Shivaratri/, ['shiv', 'rudraksha', 'bilva', 'trishul'], 'ॐ नमः शिवाय · महाशिवरात्रि'], [/Ganesh/, ['ganesh', 'modak'], 'गणपति बप्पा मोरया'],
-    [/Navratri|Durga Ashtami|Maha Navami/, ['navdurga', 'parvati', 'shriyantra'], 'जय माता दी'], [/Dussehra|Ram Navami/, ['ram', 'ramnaam'], 'श्री राम जय राम जय जय राम'],
-    [/Dhanteras/, ['lakshmi'], 'शुभ धनतेरस'], [/Diwali/, ['toran', 'diya', 'lakshmi'], 'शुभ दीपावली'], [/Govardhan|Bhai Dooj/, ['diya', 'shubh'], 'शुभं करोति कल्याणम्'],
-    [/Dev Deepawali|Kartik Purnima/, ['ganga', 'diya'], 'देव दीपावली'], [/Janmashtami/, ['krishna'], 'जय श्री कृष्ण'], [/Hanuman Jayanti/, ['hanuman', 'sanjeevani'], 'जय बजरंगबली'],
-    [/Holi/, ['krishna'], 'होली की शुभकामनाएँ'], [/Guru Purnima/, ['guru'], 'गुरुर्ब्रह्मा गुरुर्विष्णुः'], [/Raksha Bandhan/, ['shubh'], 'रक्षाबंधन'], [/Hindu New Year|Gudi Padwa|Ugadi/, ['toran', 'om'], 'नव वर्ष मंगलमय हो'],
+    [/Shivaratri/, ['shiv', 'kailash'], 'ॐ नमः शिवाय · महाशिवरात्रि'], [/Ganesh Chaturthi|Anant Chaturdashi/, ['ganesh'], 'गणपति बप्पा मोरया'],
+    [/Navratri|Durga Ashtami|Maha Navami|Ghatasthapana/, ['devi'], 'जय माता दी'], [/Dussehra|Vijayadashami|Ram Navami/, ['ram'], 'श्री राम जय राम जय जय राम'],
+    [/Dhanteras/, ['lakshmi'], 'शुभ धनतेरस'], [/Diwali|Lakshmi Puja/, ['lakshmi', 'diya'], 'शुभ दीपावली'], [/Govardhan/, ['krishna'], 'गोवर्धन पूजा'], [/Bhai Dooj/, ['diya'], 'भाई दूज'],
+    [/Dev Deepawali|Kartik Purnima/, ['ganga', 'diya'], 'देव दीपावली'], [/Janmashtami/, ['krishna'], 'जय श्री कृष्ण'], [/Hanuman Jayanti/, ['hanuman'], 'जय बजरंगबली'],
+    [/Holi/, ['krishna'], 'होली की शुभकामनाएँ'], [/Guru Purnima/, ['guru'], 'गुरुर्ब्रह्मा गुरुर्विष्णुः'], [/Raksha Bandhan/, ['diya'], 'रक्षाबंधन'],
+    [/Makar Sankranti|Pongal|Chhath/, ['surya'], 'ॐ सूर्याय नमः'], [/Vasant Panchami|Basant/, ['saraswati'], 'ॐ ऐं सरस्वत्यै नमः'], [/Ganga Dussehra/, ['ganga'], 'हर हर गंगे'],
+    [/Akshaya Tritiya/, ['lakshmi'], 'अक्षय तृतीया'], [/Rath Yatra/, ['vishnu'], 'जय जगन्नाथ'], [/Nag Panchami/, ['shiv'], 'ॐ नमः शिवाय'], [/Hindu New Year|Gudi Padwa|Ugadi/, ['devi'], 'नव वर्ष मंगलमय हो'],
   ];
-  const FORCES = { '01-15': ['army', 'Army Day'], '01-26': ['forces', 'Republic Day'], '07-26': ['army', 'Kargil Vijay Diwas'], '08-15': ['forces', 'Independence Day'], '10-08': ['airforce', 'Air Force Day'], '12-04': ['navy', 'Navy Day'], '12-16': ['army', 'Vijay Diwas'] };
+  const FORCES = { '01-15': 'Army Day', '01-26': 'Republic Day', '07-26': 'Kargil Vijay Diwas', '08-15': 'Independence Day', '10-08': 'Air Force Day', '12-04': 'Navy Day', '12-16': 'Vijay Diwas', '12-07': 'Armed Forces Flag Day' };
   const dayNo = k => U.diffDays('2020-01-01', k);
-  const wkNo = k => Math.floor((dayNo(k) + 3) / 7);
-  /* the drawing for a day: festival → Armed Forces days → Shravan / Kartik → the weekday's family, a different one each week */
-  const drawn0 = k => {
+  WM.items = () => {
+    if (WM._items) return WM._items;
+    const l = [];
+    (ED.WM_IMAGES || []).forEach((x, i) => l.push({ key: 'p' + i, kind: 'photo', theme: x.k, img: x }));
+    Object.keys(ART).forEach(id => l.push({ key: 'd-' + id, kind: 'drawn', theme: DRAWN_THEME[id] || 'temple', id }));
+    return (WM._items = l);
+  };
+  const hash = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
+  const rng = seed => () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  WM.dayInfo = k => {
     let d = {}; try { d = ED.panchang ? ED.panchang.day(k) : {}; } catch (err) { d = {}; }
-    const f = (d.festivals || []).join(' · '), w = U.dow(k), n = dayNo(k), wk = wkNo(k), at = (l, i) => l[((i % l.length) + l.length) % l.length];
-    for (const x of FEST) if (x[0].test(f)) { const id = at(x[1], Math.floor(n / 365)); return { id, line: x[2], why: (d.festivals || []).find(y => x[0].test(y)) || '' }; }
-    const fd = FORCES[k.slice(5)]; if (fd) return { id: fd[0], line: 'जय हिन्द · ' + fd[1], why: fd[1] };
-    if (/Shravan/.test(d.month || '') && w !== 6) { const id = at(['shiv', 'kedar', 'bilva', 'nandi', 'rudraksha', 'ganga', 'trishul', 'om'], n); return { id, line: LINES[id] + ' · श्रावण', why: '', month: 'Shravan' }; }
-    if (/Kartik/.test(d.month || '') && w !== 1 && w !== 6) { const id = at(['diya', 'ganga', 'tulsi', 'toran', 'diya', 'shankh'], n); return { id, line: (id === 'diya' ? 'कार्तिक मास · दीपदान' : LINES[id]), why: '', month: 'Kartik' }; }
-    const id = at(POOL[w], wk); return { id, line: LINES[id], why: '', pool: POOL[w], i: wk };
+    const fs = d.festivals || [], w = U.dow(k), month = String(d.month || '');
+    for (const x of FEST) { const f = fs.find(y => x[0].test(y)); if (f) return { themes: x[1], line: x[2], why: f, strong: true }; }
+    const fd = FORCES[k.slice(5)]; if (fd) return { themes: ['forces'], line: 'जय हिन्द · ' + fd, why: fd, strong: true };
+    const mk = Object.keys(MONTH).find(m => month.indexOf(m) === 0 || (m === 'Shravana' && /Shravan/.test(month)));
+    const mt = mk ? MONTH[mk] : [], wt = WEEK[w];
+    // the weekday's deity leads; in Shravan every day but Saturday is Shiva's
+    const themes = mk === 'Shravana' && w !== 6 ? mt.concat(wt) : wt.concat(mt);
+    return { themes, line: '', why: '', month: mk || '' };
   };
-  WM.drawn = k => {                      // never the same drawing two days running
-    const x = drawn0(k);
-    if (x.pool && drawn0(U.addDays(k, -1)).id === x.id) { const id = x.pool[(x.i + 1) % x.pool.length]; return { id, line: LINES[id], why: '' }; }
-    delete x.pool; delete x.i; return x;
+  const SCHED = {};
+  WM.year = y => {
+    if (SCHED[y]) return SCHED[y];
+    const items = WM.items(), byTheme = {};
+    items.forEach((it, i) => { (byTheme[it.theme] = byTheme[it.theme] || []).push(i); });
+    Object.keys(byTheme).forEach(t => { const r = rng(hash(y + ':' + t)), a = byTheme[t]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); const x = a[i]; a[i] = a[j]; a[j] = x; } });
+    const used = new Set(), out = {}, ptr = {};
+    const next = t => { const a = byTheme[t] || []; let p = ptr[t] || 0; while (p < a.length && used.has(a[p])) p++; ptr[t] = p; return p < a.length ? a[p] : null; };
+    // festivals and Armed Forces days first, so they always get their own picture
+    const days = []; for (let k = y + '-01-01'; k.slice(0, 4) === String(y); k = U.addDays(k, 1)) days.push(k);
+    const info = {}; days.forEach(k => { info[k] = WM.dayInfo(k); });
+    // ordinary days in a shuffled order, so a weekday's deity is spread over the whole year (not used up by October)
+    const all = Object.keys(byTheme), r = rng(hash('all' + y)), rest = days.filter(k => !info[k].strong);
+    for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); const x = rest[i]; rest[i] = rest[j]; rest[j] = x; }
+    const order = days.filter(k => info[k].strong).concat(rest);
+    order.forEach(k => {
+      let pick = null;
+      for (const t of info[k].themes) { pick = next(t); if (pick != null) break; }
+      if (pick == null) { const ts = all.slice().sort(() => r() - .5); for (const t of ts) { pick = next(t); if (pick != null) break; } }
+      if (pick == null) pick = Math.floor(r() * items.length);       // more days than pictures: allow a repeat
+      used.add(pick); out[k] = pick;
+    });
+    return (SCHED[y] = { out, info });
   };
+  WM.drawn = k => {                      // the picture of the day (drawing or photograph), with its line
+    const S0 = WM.year(+k.slice(0, 4)), it = WM.items()[S0.out[k]], inf = S0.info[k];
+    const line = inf.line || (it.kind === 'drawn' ? LINES[it.id] : TLINE[it.theme]) || '';
+    return { id: it.kind === 'drawn' ? it.id : 'photo', key: it.key, item: it, theme: it.theme, line, why: inf.why, month: inf.month };
+  };
+  /* drawing to show if a photograph cannot load (offline) */
+  const FALLBACK = { shiv: 'shiv', kailash: 'shiv', ganga: 'ganga', devi: 'parvati', lakshmi: 'lakshmi', saraswati: 'guru', ganesh: 'ganesh', hanuman: 'hanuman', vishnu: 'shankh', krishna: 'krishna', ram: 'ram', surya: 'surya', kartikeya: 'kartikeya', guru: 'guru', temple: 'temple', forces: 'forces', intel: 'intel', diya: 'diya' };
 
   /* ---------------- mantra of the day, graha of the weekday, magic squares, numbers ---------------- */
   WM.MANTRAS = [
@@ -247,43 +291,91 @@
   };
   WM.pick = k => {
     const dr = WM.drawn(k);
-    const own = !dr.why ? WM.ownFor(k) : null;            // festivals and Armed Forces days keep their own drawing
+    const own = !dr.why ? WM.ownFor(k) : null;            // festivals and Armed Forces days keep their own picture
     return Object.assign({}, dr, own ? { own: own.src, ownTitle: own.title || '' } : {});
   };
 
   WM.on = () => S().watermark !== false;
+  WM.allPages = () => S().wmAll !== false;
   WM.lineOn = () => S().luckLine !== false;
   WM.svg = (id, line) => '<svg viewBox="0 0 400 420" aria-hidden="true" focusable="false">' + (ART[id] || ART.shiv)() +
     (line ? '<text x="200" y="408" text-anchor="middle" font-size="24" fill="currentColor" font-family="Noto Serif Devanagari, Tiro Devanagari Hindi, Nirmala UI, Kohinoor Devanagari, Mangal, serif">' + e(line) + '</text>' : '') + '</svg>';
-  WM.html = k => {
+  const photoHtml = (src, line, fb) => '<div class="wm-ph"><img class="wm-own" src="' + e(src) + '" alt="" draggable="false" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.add(\'fail\')">' +
+    (fb ? '<div class="wm-fb">' + WM.svg(fb, '') + '</div>' : '') + '</div><span class="wm-line">' + e(line || '') + '</span>';
+  /* the picture layer: on the Daily page (with the yantra) and, if chosen, behind every right-hand page */
+  WM.html = (k, daily) => {
     if (!WM.on()) return '';
-    const x = WM.pick(k), w = U.dow(k), v = dayNo(k) % 3;      // three layouts so even a repeated drawing sits differently
-    const main = x.own ? '<img class="wm-own" src="' + e(x.own) + '" alt="" draggable="false"><span class="wm-line">' + e(x.line || '') + '</span>' : WM.svg(x.id, x.line);
-    return '<div class="wm v' + v + (x.own ? ' own' : '') + '" data-wm="' + (x.own ? 'own' : x.id) + '" aria-hidden="true">' + main + yantraSvg(w, 'wm-yantra') + '</div>';
+    const x = WM.pick(k), w = U.dow(k), v = dayNo(k) % 3;
+    const isPhoto = x.own || x.item.kind === 'photo';
+    const main = x.own ? photoHtml(x.own, x.line, '') : x.item.kind === 'photo' ? photoHtml(x.item.img.u, x.line, FALLBACK[x.theme] || 'temple') : WM.svg(x.id, x.line);
+    return '<div class="wm v' + v + (isPhoto ? ' photo' : '') + (daily ? ' daily' : '') + '" data-wm="' + e(x.own ? 'own' : x.key) + '" aria-hidden="true">' + main + (daily ? yantraSvg(w, 'wm-yantra') : '') + '</div>';
   };
-  /* the line at the foot of the Daily page: mantra of the day · today's numbers */
+  WM.paint = viewId => {
+    const pg = document.querySelector('.spread > .page-right'); if (!pg) return;
+    let lay = pg.querySelector(':scope > .pg-wm');
+    const show = WM.on() && (viewId === 'daily' || WM.allPages());
+    if (!show) { if (lay) lay.remove(); return; }
+    const k = viewId === 'daily' || U.isKey(ED.state.date) ? ED.state.date : U.today();
+    const key = k + '|' + (viewId === 'daily') + '|' + WM.mode() + '|' + ((ED.store.data.luck && ED.store.data.luck.pics || []).length);
+    if (!lay) { lay = document.createElement('div'); lay.className = 'pg-wm'; pg.insertBefore(lay, pg.firstChild); }
+    if (lay.dataset.key === key) return;
+    lay.dataset.key = key; lay.innerHTML = WM.html(k, viewId === 'daily');
+  };
+  const credit = it => it && it.kind === 'photo' ? it.img : null;
+  /* the line at the foot of the Daily page: mantra of the day · today's numbers · whose picture */
   WM.stripHtml = k => {
     if (!WM.lineOn()) return '';
-    const m = WM.mantra(k), gr = WM.GRAHA[U.dow(k)], pn = WM.personal(k);
-    return '<button type="button" class="wm-strip" data-act="wm-today" data-date="' + k + '" title="Mantra, graha and numbers of the day">' +
+    const m = WM.mantra(k), gr = WM.GRAHA[U.dow(k)], pn = WM.personal(k), x = WM.pick(k), c = !x.own && credit(x.item);
+    return '<button type="button" class="wm-strip" data-act="wm-today" data-date="' + k + '" title="Mantra, picture and numbers of the day">' +
       '<span class="wm-s-m" lang="sa">🕉 ' + e(m[0].length > 46 ? m[0].slice(0, 44) + '…' : m[0]) + '</span>' +
-      '<span class="wm-s-n">' + e(gr[0]) + ' yantra ' + (gr[3] * 3 + 12) + ' · Shubh ank ' + WM.dayNumber(k) + (pn ? ' · your day ' + pn : '') + '</span></button>';
+      '<span class="wm-s-n">' + (c ? '📷 ' + e(c.t) + ' · ' : x.why ? e(x.why) + ' · ' : '') + e(gr[0]) + ' yantra ' + (gr[3] * 3 + 12) + ' · Shubh ank ' + WM.dayNumber(k) + (pn ? ' · your day ' + pn : '') + '</span></button>';
   };
   WM.today = k => {
-    const m = WM.mantra(k), w = U.dow(k), gr = WM.GRAHA[w], dn = WM.dayNumber(k), pn = WM.personal(k), x = WM.drawn(k);
+    const m = WM.mantra(k), w = U.dow(k), gr = WM.GRAHA[w], dn = WM.dayNumber(k), pn = WM.personal(k), x = WM.pick(k), c = !x.own && credit(x.item);
+    const art = x.own ? '<img src="' + e(x.own) + '" alt="' + e(x.ownTitle || 'Your picture') + '">' : c ? '<img src="' + e(c.u) + '" alt="' + e(c.t) + '" referrerpolicy="no-referrer">' : WM.svg(x.id, '');
+    const cr = c ? '<p class="wm-credit"><b>' + e(c.t) + '</b><br>' + (c.a ? 'Photo / art: ' + e(c.a) + ' · ' : '') + e(c.l) + ' · <a href="https://commons.wikimedia.org/wiki/File:' + encodeURIComponent(c.f) + '" target="_blank" rel="noopener noreferrer">Wikimedia Commons</a> (shown faded on the page)</p>' : x.own && x.ownTitle ? '<p class="wm-credit"><b>' + e(x.ownTitle) + '</b> — your picture</p>' : '';
     ED.ui.modal({
-      title: 'Today’s mantra and numbers', cls: 'st-modal wm-modal',
-      body: '<div class="wm-day"><div class="wm-art">' + WM.svg(x.id, '') + '</div><div>' +
+      title: 'Today’s picture, mantra and numbers', cls: 'st-modal wm-modal',
+      body: '<div class="wm-day"><div class="wm-art' + (c || x.own ? ' ph' : '') + '">' + art + cr + '</div><div>' +
         '<p class="hint">' + e(U.fmtLong(k)) + (x.why || x.month ? ' · ' + e(x.why || x.month) : '') + '</p>' +
         '<h3 class="wm-h">Mantra of the day</h3><p class="wm-big" lang="sa">' + e(m[0]) + '</p><p class="wm-tr">' + e(m[1]) + '</p><p>' + e(m[2]) + '</p>' +
         '<h3 class="wm-h">' + e(U.DAYS[w]) + ' — ' + e(gr[0]) + ' (' + gr[1] + ')</h3><p class="wm-big" lang="sa">' + e(gr[2]) + '</p>' +
         '<div class="wm-yrow">' + yantraSvg(w, 'wm-ybig') + '<p class="hint">The ' + e(gr[0]) + ' yantra — every row, column and diagonal adds up to <b>' + (gr[3] * 3 + 12) + '</b>.</p></div>' +
         '<h3 class="wm-h">Numbers</h3><p><b>Shubh ank of the day: ' + dn + '</b> — ' + e(WM.NUMS[dn]) + '.' + (pn ? '<br><b>Your personal day: ' + pn + '</b> — ' + e(WM.NUMS[pn]) + '.' : '<br><span class="hint">Add your birth date in Purpose → Dreams to see your personal day number.</span>') + ' <b>१०८</b> — chant a mala of 108.</p>' +
         '<p class="hint">Traditional prayers and numbers for faith and a focused start; the effort is yours. 🙏</p></div></div>',
-      footer: '<button type="button" class="btn ghost" data-x="pics">' + ED.icon('image') + 'My pictures</button><span class="grow"></span>' + (ED.views.pooja ? '<button type="button" class="btn" data-x="japa">Count the jaap</button>' : '') + '<button type="button" class="btn primary" data-mclose>🙏 Done</button>',
+      footer: '<button type="button" class="btn small ghost" data-x="pics">' + ED.icon('image') + 'My pictures</button><button type="button" class="btn small ghost" data-x="year">' + ED.icon('calendar') + 'The year’s pictures</button><span class="grow"></span>' + (ED.views.pooja ? '<button type="button" class="btn" data-x="japa">Count the jaap</button>' : '') + '<button type="button" class="btn primary" data-mclose>🙏 Done</button>',
       onMount(el, api) {
         el.querySelector('[data-x="pics"]').addEventListener('click', () => { api.close(); WM.picsDialog(); });
+        el.querySelector('[data-x="year"]').addEventListener('click', () => { api.close(); WM.yearDialog(+k.slice(0, 4)); });
         const j = el.querySelector('[data-x="japa"]'); if (j) j.addEventListener('click', () => { api.close(); (ED.state.pj = ED.state.pj || {}).tab = 'aarti'; ED.go.tab('pooja'); });
+      },
+    });
+  };
+  /* all 365 pictures of a year, month by month (tap one to open that day) */
+  WM.yearDialog = y => {
+    const S0 = WM.year(y), items = WM.items();
+    let m = +(U.today().slice(0, 4) == y ? U.today().slice(5, 7) : 1);
+    const draw = el => {
+      const mm = String(m).padStart(2, '0'), days = Object.keys(S0.out).filter(k => k.slice(5, 7) === mm).sort();
+      el.querySelector('.wm-ym').textContent = U.MONTHS[m - 1] + ' ' + y;
+      el.querySelector('.wm-grid').innerHTML = days.map(k => { const it = items[S0.out[k]], inf = S0.info[k];
+        return '<button type="button" class="wm-cell" data-k="' + k + '" title="' + e((it.kind === 'photo' ? it.img.t : it.id) + (inf.why ? ' — ' + inf.why : '')) + '"><span class="wm-cd">' + (+k.slice(8)) + ' ' + U.DAY3[U.dow(k)] + '</span>' +
+          (it.kind === 'photo' ? '<img src="' + e(it.img.u) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'), { className: \'wm-cs wm-off\', textContent: \'🛕\' }))">' : '<span class="wm-cs">' + WM.svg(it.id, '') + '</span>') +
+          '<span class="wm-ct">' + e(inf.why || (it.kind === 'photo' ? it.img.t : (TLINE[it.theme] || ''))) + '</span></button>'; }).join('');
+    };
+    const uniq = new Set(Object.values(S0.out)).size;
+    ED.ui.modal({
+      title: 'Pictures of ' + y, cls: 'st-modal wide wm-modal wm-yearm',
+      body: '<p class="hint">' + uniq + ' different pictures for the ' + Object.keys(S0.out).length + ' days of ' + y + ' — temples, Jyotirlingas, Shakti Peeths, deities, sacred rivers and the Armed Forces; festivals get their own.</p>' +
+        '<div class="wm-ynav"><button type="button" class="icon-btn" data-x="prev" aria-label="Previous month">' + ED.icon('chevL') + '</button><b class="wm-ym"></b><button type="button" class="icon-btn" data-x="next" aria-label="Next month">' + ED.icon('chevR') + '</button></div><div class="wm-grid"></div>',
+      onMount(el, api) {
+        draw(el);
+        el.addEventListener('click', ev => {
+          const b = ev.target.closest('[data-x],[data-k]'); if (!b) return;
+          if (b.dataset.x === 'prev') { m = m === 1 ? 12 : m - 1; draw(el); }
+          if (b.dataset.x === 'next') { m = m === 12 ? 1 : m + 1; draw(el); }
+          if (b.dataset.k) { api.close(); ED.state.tab = 'daily'; ED.go.date(b.dataset.k); }
+        });
       },
     });
   };
@@ -324,14 +416,16 @@
   const A = (ED.actions = ED.actions || {});
   A['wm-today'] = el => WM.today(el.dataset.date || U.today());
   A['wm-pics'] = () => WM.picsDialog();
+  A['wm-year'] = () => WM.yearDialog(+(U.isKey(ED.state.date) ? ED.state.date : U.today()).slice(0, 4));
 
   /* settings: Appearance */
   if (ED.settings && ED.settings.tab_look) {
     const t0 = ED.settings.tab_look, b0 = ED.settings.bind_look;
     ED.settings.tab_look = () => t0() + '<h3 class="set-h">Daily page</h3>' +
       '<div class="set-row"><label class="switch" for="sg-wm"><input id="sg-wm" type="checkbox"' + (WM.on() ? ' checked' : '') + '><span class="track"></span><span>Light picture on the Daily page</span></label><p class="hint">A very light picture behind your daily notes, different each day — the Shiv Pariwar, temples, festivals of the Hindu calendar, the Armed Forces — with the weekday’s graha yantra in the corner.</p></div>' +
+      '<div class="set-row"><label class="switch" for="sg-wa"><input id="sg-wa" type="checkbox"' + (WM.allPages() ? ' checked' : '') + '><span class="track"></span><span>Also behind every right-hand page</span></label><p class="hint">The picture of the day shows faintly behind the right-hand page of every section too (on the Daily page it is a little stronger).</p></div>' +
       '<div class="set-row"><label class="switch" for="sg-wl"><input id="sg-wl" type="checkbox"' + (WM.lineOn() ? ' checked' : '') + '><span class="track"></span><span>Mantra and numbers of the day</span></label><p class="hint">A line at the foot of the Daily page; tap it for the meaning, the graha mantra, the yantra and your numbers.</p></div>' +
-      '<div class="set-row"><button type="button" class="btn small" data-act="wm-pics">' + ED.icon('image') + 'My pictures for the Daily page…</button></div>';
-    ED.settings.bind_look = b => { b0(b); const x = b.querySelector('#sg-wm'); if (x) x.addEventListener('change', () => { S().watermark = x.checked; ED.store.commit(); }); const y = b.querySelector('#sg-wl'); if (y) y.addEventListener('change', () => { S().luckLine = y.checked; ED.store.commit(); }); };
+      '<div class="set-row row-btns"><button type="button" class="btn small" data-act="wm-pics">' + ED.icon('image') + 'My pictures…</button><button type="button" class="btn small" data-act="wm-year">' + ED.icon('calendar') + 'The year’s 365 pictures…</button></div>';
+    ED.settings.bind_look = b => { b0(b); const x = b.querySelector('#sg-wm'); if (x) x.addEventListener('change', () => { S().watermark = x.checked; ED.store.commit(); WM.paint(ED.state.tab); }); const z = b.querySelector('#sg-wa'); if (z) z.addEventListener('change', () => { S().wmAll = z.checked; ED.store.commit(); }); const y = b.querySelector('#sg-wl'); if (y) y.addEventListener('change', () => { S().luckLine = y.checked; ED.store.commit(); }); };
   }
 })();

@@ -215,6 +215,7 @@
       const turn = anim && ED.cover ? ED.cover.beginTurn(anim) : null;
       L.innerHTML = v.left();
       R.innerHTML = v.right();
+      if (ED.watermark) { try { ED.watermark.paint(v.id); } catch (err) { console.warn('[e-diary] picture of the day', err); } }
       this.restoreScroll();
       mounted = v;
       if (v.mount) v.mount(L, R);
