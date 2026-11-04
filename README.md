@@ -557,3 +557,7 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 ### v1.24.4 — Choose the picture for any date
 - **Your choice wins**: tap the mantra line on the Daily page → *Choose the picture*, or in *Pictures of the days* switch to “✎ Tap a day to choose its picture”. Search (Kedarnath, Kamakhya, Om…) or filter by deity — Shiva, Devi & Shakti Peeths, Ganesh, Hanuman, Vishnu, Krishna, Ram, Surya, Armed Forces, the symbols or your own pictures — from about 640.
 - For **only that date** or **every year on that date** (a birthday, an anniversary, your kuldevi’s day). Festivals can be changed too (their greeting stays). Chosen days show ★ in the year view; *Back to the diary’s choice* undoes it. Choices sync to your other devices.
+
+### v1.24.5 — Opens faster, especially on phones
+- After the first visit the diary’s files now come straight from the phone’s own copy instead of being downloaded again on every open (a new version is fetched in the background; it shows on the next open, or press *Reload* when offered).
+- The picture of the day no longer delays the page: the year’s 365-day plan is worked out once in the background and kept on the device, so the page appears first and the picture a moment later (and at once from then on).

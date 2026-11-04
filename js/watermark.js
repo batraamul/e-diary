@@ -180,7 +180,9 @@
   };
   const hash = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
   const rng = seed => () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-  WM.dayInfo = k => {
+  const DI = {};
+  WM.dayInfo = k => DI[k] || (DI[k] = dayInfo0(k));
+  const dayInfo0 = k => {
     let d = {}; try { d = ED.panchang ? ED.panchang.day(k) : {}; } catch (err) { d = {}; }
     const fs = d.festivals || [], w = U.dow(k), month = String(d.month || '');
     for (const x of FEST) { const f = fs.find(y => x[0].test(y)); if (f) return { themes: x[1], line: x[2], why: f, strong: true }; }
@@ -192,8 +194,33 @@
     return { themes, line: '', why: '', month: mk || '' };
   };
   const SCHED = {};
+  /* 1.24.5: a year's schedule needs the Hindu calendar of all its days (about a second on a phone), so it is kept in
+     this browser (localStorage "ed-wm-<kind>-<year>") and, the first time, made after the page is shown */
+  const sig = () => WM.items().length + '.' + Object.keys(ART).length + '.' + ((ED.WM_IMAGES || [])[0] || {}).f;
+  const slim = info => { const o = {}; Object.keys(info).forEach(k => { const x = info[k]; o[k] = [x.why || '', x.line || '', x.month || '']; }); return o; };
+  const fat = o => { const info = {}; Object.keys(o).forEach(k => { info[k] = { why: o[k][0], line: o[k][1], month: o[k][2] }; }); return info; };
+  const keep = (kind, y, S0) => { try { localStorage.setItem('ed-wm-' + kind + '-' + y, JSON.stringify({ sig: sig(), out: S0.out, info: slim(S0.info) })); } catch (err) { /* full or private */ } };
+  const kept = (kind, y) => { try { const j = JSON.parse(localStorage.getItem('ed-wm-' + kind + '-' + y) || 'null'); if (j && j.sig === sig() && j.out) return { out: j.out, info: fat(j.info || {}) }; } catch (err) { /* ignore */ } return null; };
+  WM.ready = y => { y = +y; const mem = WM.mode() === 'drawn' ? SYM : SCHED, kind = WM.mode() === 'drawn' ? 's' : 'y'; if (mem[y]) return true; const k = kept(kind, y); if (k) { mem[y] = k; return true; } return false; };
+  let building = null;
+  WM.later = (y, then) => {                     // make the year's schedule after the page is on screen
+    if (building) { building.then(then); return; }
+    // the calendar of the year in small steps (the page stays responsive), then the schedule
+    building = new Promise(res => {
+      let k = y + '-01-01';
+      const step = () => {
+        const t0 = Date.now();
+        while (k.slice(0, 4) === String(y) && Date.now() - t0 < 25) { WM.dayInfo(k); k = U.addDays(k, 1); }
+        if (k.slice(0, 4) === String(y)) { setTimeout(step, 16); return; }
+        try { WM.sched(+y); } catch (err) { console.warn(err); } building = null; res();
+      };
+      setTimeout(step, 600);
+    });
+    building.then(then);
+  };
   WM.year = y => {
     if (SCHED[y]) return SCHED[y];
+    { const k = kept('y', y); if (k) return (SCHED[y] = k); }
     const items = WM.items(), byTheme = {};
     items.forEach((it, i) => { (byTheme[it.theme] = byTheme[it.theme] || []).push(i); });
     Object.keys(byTheme).forEach(t => { const r = rng(hash(y + ':' + t)), a = byTheme[t]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); const x = a[i]; a[i] = a[j]; a[j] = x; } });
@@ -213,12 +240,14 @@
       if (pick == null) pick = Math.floor(r() * items.length);       // more days than pictures: allow a repeat
       used.add(pick); out[k] = pick;
     });
+    keep('y', y, { out, info });
     return (SCHED[y] = { out, info });
   };
   /* symbols only (Settings → My pictures → "Only the symbols"): the drawings, the least recently shown first, never two days running */
   const SYM = {};
   WM.symYear = y => {
     if (SYM[y]) return SYM[y];
+    { const k = kept('s', y); if (k) return (SYM[y] = k); }
     const items = WM.items(), dr = items.map((it, i) => i).filter(i => items[i].kind === 'drawn'), last = {}, out = {}, info = {};
     let prev = -1, n = 0;
     for (let k = y + '-01-01'; k.slice(0, 4) === String(y); k = U.addDays(k, 1)) {
@@ -230,6 +259,7 @@
       pool.sort((a, b) => (last[a] || -1) - (last[b] || -1) || rank(a) - rank(b) || ((hash(y + k + a) % 97) - (hash(y + k + b) % 97)));
       const pick = pool[0]; last[pick] = n; prev = pick; out[k] = pick;
     }
+    keep('s', y, { out, info });
     return (SYM[y] = { out, info });
   };
   WM.drawn = k => {                      // the picture of the day (drawing or photograph), with its line
@@ -401,6 +431,7 @@
     if (!show) { if (lay) lay.remove(); return; }
     const k = viewId === 'daily' || U.isKey(ED.state.date) ? ED.state.date : U.today();
     const fx = WM.fixOf(k), key = k + '|' + (viewId === 'daily') + '|' + WM.mode() + '|' + ((ED.store.data.luck && ED.store.data.luck.pics || []).length) + '|' + (fx ? fx.v : '');
+    if (!WM.ready(k.slice(0, 4))) { WM.later(k.slice(0, 4), () => { WM.paint(ED.state.tab); const w = document.querySelector('.wm-strip-wait'); if (w) w.outerHTML = WM.stripHtml(w.dataset.date); }); return; }
     if (!lay) { lay = document.createElement('div'); lay.className = 'pg-wm'; pg.insertBefore(lay, pg.firstChild); }
     if (lay.dataset.key === key) return;
     lay.dataset.key = key; lay.innerHTML = WM.html(k, viewId === 'daily');
@@ -410,6 +441,7 @@
   /* the line at the foot of the Daily page: mantra of the day · today's numbers · whose picture */
   WM.stripHtml = k => {
     if (!WM.lineOn()) return '';
+    if (!WM.ready(k.slice(0, 4))) return '<div class="wm-strip-wait" data-date="' + k + '"></div>';
     const m = WM.mantra(k), gr = WM.GRAHA[U.dow(k)], pn = WM.personal(k), x = WM.pick(k), c = !x.own && credit(x.item);
     return '<button type="button" class="wm-strip" data-act="wm-today" data-date="' + k + '" title="Mantra, picture and numbers of the day">' +
       '<span class="wm-s-m" lang="sa">🕉 ' + e(m[0].length > 46 ? m[0].slice(0, 44) + '…' : m[0]) + '</span>' +

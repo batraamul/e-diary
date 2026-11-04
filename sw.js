@@ -1,6 +1,6 @@
 /* E-Diary — offline support. Serves the app from a local cache and refreshes it in the background.
    Change VERSION whenever you edit the app so installed copies pick up the new files. */
-const VERSION = 'e-diary-1.24.4';
+const VERSION = 'e-diary-1.24.5';
 const ASSETS = [
   './',
   './index.html',
@@ -105,10 +105,12 @@ const ASSETS = [
   './icons/favicon-32.png',
 ];
 
+const ASSET_SET = new Set(ASSETS);
+
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(VERSION)
-      .then(cache => cache.addAll(ASSETS))
+      .then(cache => cache.addAll(ASSETS.map(u => new Request(u, { cache: 'reload' }))))   // fresh from the site, all of one version
       .then(() => self.skipWaiting())
   );
 });
@@ -137,6 +139,20 @@ self.addEventListener('fetch', event => {
   }
   if (url.origin !== self.location.origin) return; // weather and sync go straight to the network
 
+  // 1.24.5: the app's own files come straight from this version's cache (fast on phones); a new version is fetched
+  // whole by the new service worker and the page offers "Reload". On this computer (localhost) the network comes first.
+  const local = /^(localhost|127\.0\.0\.1)$/.test(self.location.hostname);
+  const path = './' + url.pathname.slice(new URL('./', self.location).pathname.length);
+  if (!local && (req.mode === 'navigate' || ASSET_SET.has(path))) {
+    event.respondWith((async () => {
+      const cache = await caches.open(VERSION);
+      const hit = await cache.match(req.mode === 'navigate' ? './index.html' : path);
+      if (hit) return hit;
+      try { const res = await fetch(req); if (res && res.ok && res.type === 'basic') event.waitUntil(cache.put(req.mode === 'navigate' ? './index.html' : path, res.clone())); return res; }
+      catch (e) { return new Response('You are offline and this file is not cached yet.', { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }); }
+    })());
+    return;
+  }
   // Network first: the diary is served from this computer (localhost), so the newest files are always
   // used straight after an update. The cache is only the fallback when the files cannot be reached.
   event.respondWith((async () => {

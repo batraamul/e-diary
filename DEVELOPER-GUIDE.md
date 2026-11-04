@@ -664,3 +664,7 @@ There is no automated test runner in the package; test by hand in the browser:
 
 ## 1.24.4 — Chosen pictures
 - `luck.fix` (flat map, synced key by key): `'YYYY-MM-DD'` or `'*MM-DD'` (every year) → `'p:<Commons file>'` | `'d:<symbol id>'` | `'o:<own picture id>'`. `WM.fixOf(k)`, `WM.pick(k)` applies it first (keeps a festival's line); `WM.chooseFor(k)` dialog (search, theme filter, 60 at a time); year view tap mode `choose`; `paint` key includes the choice.
+
+## 1.24.5 — Load time
+- `sw.js`: app files (`ASSETS`) and navigations are cache-first from the version cache when not on localhost; install pre-caches with `cache: 'reload'` so one version is complete; the page's existing "new version — Reload" toast covers updates.
+- `watermark.js`: `WM.dayInfo` memoised; year schedules kept in localStorage `ed-wm-y-<year>` / `ed-wm-s-<year>` with a signature of the picture set; `WM.ready(y)` / `WM.later(y, cb)` build the calendar in 25 ms steps after the first paint (`paint` and `stripHtml` wait; `.wm-strip-wait` is replaced when ready).
