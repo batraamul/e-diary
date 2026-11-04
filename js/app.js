@@ -213,12 +213,15 @@
       this.els.spread.dataset.view = v.id;
       const L = this.els.left, R = this.els.right;
       const turn = anim && ED.cover ? ED.cover.beginTurn(anim) : null;
-      L.innerHTML = v.left();
-      R.innerHTML = v.right();
+      // 1.24.6: a page that fails to draw shows what went wrong instead of stopping the whole diary
+      const safe = (side, fn) => { try { return fn(); } catch (err) { console.error('[e-diary] ' + v.id + ' ' + side, err); ED.lastRenderError = (err && err.message) || String(err);
+        return '<div class="render-err"><h3>This page could not be shown</h3><p class="hint">' + e(ED.lastRenderError) + '</p><p>Your diary is safe. <button type="button" class="btn small" data-act="tab" data-tab="daily">Open the Daily page</button> <button type="button" class="btn small ghost" onclick="location.reload()">Reload</button></p></div>'; } };
+      L.innerHTML = safe('left', () => v.left());
+      R.innerHTML = safe('right', () => v.right());
       if (ED.watermark) { try { ED.watermark.paint(v.id); } catch (err) { console.warn('[e-diary] picture of the day', err); } }
       this.restoreScroll();
       mounted = v;
-      if (v.mount) v.mount(L, R);
+      if (v.mount) { try { v.mount(L, R); } catch (err) { console.error('[e-diary] mount ' + v.id, err); ED.lastRenderError = (err && err.message) || String(err); } }
       if (turn) { anim = ''; try { turn(); } catch (err) { console.warn(err); } }
       if (anim) {
         const pages = U.$$('.page', this.els.spread);
@@ -645,21 +648,22 @@
       if (type === 'saved' || type === 'save-error') { const t = document.getElementById('sync-tool'); if (t && ED.sync) { const s = ED.sync.status(); t.title = s.label; const dot = t.querySelector('.dot'); if (dot) dot.className = 'dot ' + s.cls; } }
     });
     bind();
-    app.render();
+    registerSW();          // first, so a fixed version can always arrive
+    try { app.render(); } catch (err) { console.error('[e-diary] first page', err); }
+    document.documentElement.dataset.edReady = '1';
     document.getElementById('app').removeAttribute('aria-busy');
     if (ED.cover) {
       ED.cover.remember();
       ED.store.on(type => { if (type === 'change') { ED.cover.remember(); ED.cover.refresh(); } });
       if (ED.cover.el) setTimeout(() => ED.cover.open(), ED.cover.enabled() ? 650 : 0);
     }
-    if (ED.reminders) ED.reminders.start();
-    if (ED.lock) ED.lock.startIdle();
-    if (ED.sync) ED.sync.init();
-    if (ED.gdrive) ED.gdrive.init();   // Google Drive sync (js/gdrive.js)
-    if (ED.gcal) ED.gcal.init();
-    if (ED.jobs && ED.jobs.dirInit) ED.jobs.dirInit();
-    if (ED.purchases && ED.purchases.reconcile()) ED.store.commit({ reason: 'purchases' });   // grocery task & bills (js/purchases.js)
-    registerSW();
+    try { if (ED.reminders) ED.reminders.start(); } catch (err) { console.error('[e-diary] start', err); }
+    try { if (ED.lock) ED.lock.startIdle(); } catch (err) { console.error('[e-diary] start', err); }
+    try { if (ED.sync) ED.sync.init(); } catch (err) { console.error('[e-diary] start', err); }
+    try { if (ED.gdrive) ED.gdrive.init(); } catch (err) { console.error('[e-diary] start', err); }
+    try { if (ED.gcal) ED.gcal.init(); } catch (err) { console.error('[e-diary] start', err); }
+    try { if (ED.jobs && ED.jobs.dirInit) ED.jobs.dirInit(); } catch (err) { console.error('[e-diary] start', err); }
+    try { if (ED.purchases && ED.purchases.reconcile()) ED.store.commit({ reason: 'purchases' }); } catch (err) { console.error('[e-diary] start', err); }
   }
 
   function registerSW() {

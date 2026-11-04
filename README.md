@@ -561,3 +561,7 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 ### v1.24.5 — Opens faster, especially on phones
 - After the first visit the diary’s files now come straight from the phone’s own copy instead of being downloaded again on every open (a new version is fetched in the background; it shows on the next open, or press *Reload* when offered).
 - The picture of the day no longer delays the page: the year’s 365-day plan is worked out once in the background and kept on the device, so the page appears first and the picture a moment later (and at once from then on).
+
+### v1.24.6 — The diary always opens (and can repair itself)
+- If one page cannot be drawn, the diary still opens and that page says what went wrong, with a button to the Daily page.
+- If the diary has not opened after 15 seconds, a box offers **Repair and open**: it removes only the stored copy of the app (never your entries) and fetches a fresh one. The same repair runs from the address **…/e-diary/index.html?repair**.

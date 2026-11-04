@@ -751,3 +751,5 @@ tr.st-clash::after { display: none; }
 .wm-cfoot { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .wm-more { grid-column: 1 / -1; justify-self: center; }
 .wm-tapmode { margin: 0 0 8px; flex-wrap: wrap; }
+.render-err { margin: 24px auto; max-width: 460px; padding: 16px 18px; border: 1px solid #e5a3a3; border-radius: 12px; background: #fff5f5; color: #3a1a1a; }
+.render-err h3 { margin: 0 0 6px; }

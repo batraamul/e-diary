@@ -11,6 +11,37 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="E-Diary">
 <link rel="manifest" href="manifest.webmanifest">
+<script>
+/* 1.24.6: if the diary has not opened after 15 seconds (or ?repair is in the address), offer to repair it.
+   Repair removes only the stored copy of the app's files (the service worker and its caches) — never your diary. */
+(function () {
+  var errs = [];
+  window.addEventListener('error', function (ev) { errs.push((ev.message || 'error') + (ev.filename ? ' — ' + ev.filename.split('/').pop() + ':' + ev.lineno : '')); });
+  function repair() {
+    var done = function () { location.replace(location.pathname + '?r=' + Date.now()); };
+    var p = [];
+    try { if (navigator.serviceWorker) p.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister(); })); })); } catch (e) {}
+    try { if (window.caches) p.push(caches.keys().then(function (ks) { return Promise.all(ks.filter(function (k) { return k.indexOf('e-diary-') === 0; }).map(function (k) { return caches.delete(k); })); })); } catch (e) {}
+    Promise.all(p).then(done, done);
+  }
+  window.EDrepair = repair;
+  if (/[?&]repair\b/.test(location.search)) { repair(); return; }
+  setTimeout(function () {
+    if (document.documentElement.getAttribute('data-ed-ready') === '1') return;
+    var d = document.createElement('div');
+    d.setAttribute('role', 'alertdialog');
+    d.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(40,16,10,.85);font:16px system-ui,sans-serif;color:#222;padding:16px';
+    d.innerHTML = '<div style="background:#fff;border-radius:14px;max-width:420px;padding:20px 22px;box-shadow:0 10px 40px rgba(0,0,0,.4)"><h2 style="margin:0 0 8px;font-size:19px">The diary is taking too long to open</h2>' +
+      '<p style="margin:0 0 12px;line-height:1.45">Your entries are safe — they are kept in this browser, apart from the app. <b>Repair</b> fetches a fresh copy of the app and opens it again.</p>' +
+      (errs.length ? '<p style="margin:0 0 12px;font-size:12px;color:#8a2a1a;word-break:break-word">' + errs.slice(0, 3).join('<br>').replace(/</g, '&lt;').replace(/&lt;br>/g, '<br>') + '</p>' : '') +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end"><button id="ed-wait" style="padding:9px 14px;border-radius:9px;border:1px solid #bbb;background:#fff;font:inherit">Keep waiting</button><button id="ed-rep" style="padding:9px 14px;border-radius:9px;border:0;background:#1d6fe0;color:#fff;font:inherit">Repair and open</button></div></div>';
+    document.body.appendChild(d);
+    document.getElementById('ed-wait').onclick = function () { d.remove(); };
+    document.getElementById('ed-rep').onclick = function () { this.textContent = 'Repairing…'; repair(); };
+  }, 15000);
+})();
+</script>
+
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
