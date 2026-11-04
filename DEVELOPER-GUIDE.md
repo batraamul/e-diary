@@ -634,3 +634,17 @@ There is no automated test runner in the package; test by hand in the browser:
 | `js/aarti.js` | Pooja tab `aarti` (`AR.html`), reader `AR.read(id)` (modes hi/en/both/meaning, size and theme in localStorage `e-diary-aarti-*`, Wake Lock, jaap counter — document keydown while open), `AR.edit`, `AR.addStarters()`. `--font-deva` stack (system Devanagari fonts, nothing downloaded). | `pooja.texts[{ id, title, titleHi, kind, deity, hi, en, meaning, notes, link, when, fav }]`, `pooja.japa{ date: { id: n } }` |
 
 - `sync.js`: `pooja` lists add `texts`, deep `japa: 2`. `visibility.js`: part `pooja.aarti`.
+
+## 1.24 — Edit the plan, plans together, Roadmap, Daily watermark, Letters
+
+| File | What it does | Data |
+|---|---|---|
+| `js/studyedit.js` | `ED.studyEdit`: `pattern(trId)`, `reschedule(trId, {days,time,min,from,to,slotNo}, dry)` (re-makes open sessions, carries topic/source/note in order), `shift`, `deleteSubject`, `addSubject`, `combine(shelfId)` / `separate(partId)` / `dropPart(partId)` / `deletePlan()`, `clashes(k)` (time overlap, or same slot when both untimed), `mark(root)` (MutationObserver adds `.st-clash` + `data-clash` to `[data-sid]`), `open(tab)` editor (`spe-*` classes; action `spe-open`). `after()` re-weeks and sorts. | `plan.parts[{ id, title, meta }]`, `track.part`, `session.part` |
+| `js/studyadjust.js` | new kind `gap` (`SA.gap(from)` finds ≥2 empty days followed by open sessions); link to the editor. | — |
+| `js/studylink.js` | `SL.dedupe(plan)` merges subjects with the same name (+part) and topics with the same subject+name (own copy wins); exam topic ids normalised to `tp-ex-…`; runs in `reconcile` and once on load. | — |
+| `js/roadmap.js` | view `studyRoad`; `RM.toPlan(subject, ids, { how: fill|new, track, from, days, time, min })`, `RM.reconcile()` on every change (ticked → done, deleted → todo). | `roadmap.subjects[{ id, name, why, target, color, topics[{ id, name, hrs, st: todo|plan|done, sid, trackId }] }]` |
+| `js/watermark.js` | `WM.pick(dateKey)` → `{ id, line }` (festival → forces day → Shravan/Kartik → weekday), `WM.svg(id, line)`, `WM.html(k)` used by `view-daily.js` right page (`.dr > .wm`). Appearance setting. | `settings.watermark` (false = off) |
+| `js/letters.js` | view `letters` (Passwords group). Letters are vault items `{ kind: 'letter', type: god|pitr|family, style: postcard|inland|email, to, place, pic, email, subject, body, sign, date, auto }`; `vault.js` `V.logins()` excludes them, `V.lockedHtml` is shared. Auto-send: `LT.script(token)` Apps Script (doPost `ping|save|clear|test|status`, letters chunked in script properties, 6-hourly `check` trigger: warning to owner, then MailApp to family, marks sent), `LT.ping()` (any device, throttled 3 h via localStorage `ed-letter-ping`), `LT.push()` (pending retry). | `letterSvc { url, token, days, warn, on, pending, syncedAt, sentAt }` |
+
+- `sync.js`: `roadmap` (`subjects` list), `letterSvc` picked whole. `app.js`: Study group adds Roadmap; Passwords group adds Letters.
+- CSS in `css/life.css` (`spe-*`, `st-clash`, `rm-*`, `.dr > .wm`, `lt-*`).

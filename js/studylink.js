@@ -45,6 +45,7 @@
       const n = p.topics.length;
       p.topics = p.topics.filter(x => !/^tp-(ex|iv)-/.test(x.id || '') || want.has(x.id));
       if (p.topics.length !== n) ch = true;
+      if (SL.dedupe(p)) ch = true;
       // tasks added with "Add to my plans…" follow the exam / interview
       const d = D();
       d.tasks.forEach(t => {
@@ -70,6 +71,7 @@
     return ch;
   };
   ED.store.on((type, detail) => { if (type !== 'change' || (detail && detail.reason === 'studylink')) return; if (SL.reconcile()) ED.store.commit({ reason: 'studylink' }); });
+  setTimeout(() => { try { if (SL.reconcile()) ED.store.commit({ reason: 'studylink' }); } catch (err) { /* not loaded yet */ } }, 300);   // 1.24: clean up duplicates once on opening
   const open0 = A['task-open'];
   A['task-open'] = (el, ev) => {
     if (ev && ev.target && ev.target.closest && ev.target.closest('.tstat, .tmore')) return;
@@ -77,6 +79,43 @@
     if (o && o.t.link && o.t.link.k === 'exam' && examOf(o.t.link.id)) { (ED.state.ex = ED.state.ex || {}).sel = o.t.link.id; ED.go.tab('exam'); return; }
     if (o && o.t.link && o.t.link.k === 'iv') { ED.go.tab('interview'); return; }
     return open0 && open0(el, ev);
+  };
+
+  /* 1.24: no duplicates — two devices (or an older version) could each add the same exam topic or subject under a
+     different id; after a sync both were kept. Topics with the same subject and name (case and spaces ignored) become one
+     (your own topic wins over an automatic one); subjects with the same name become one, and their sessions, topics,
+     week themes and books follow — nothing is lost, no tick is changed. */
+  const key = s => low(s).replace(/\s+/g, ' ');
+  SL.dedupe = p => {
+    let ch = false;
+    if (!p || !Array.isArray(p.tracks)) return false;
+    // subjects with the same name
+    const byName = new Map();
+    p.tracks.slice().forEach(tr => {
+      const k = key(tr.name) + '|' + (tr.part || ''); if (!k.replace('|', '')) return;
+      const keep = byName.get(k);
+      if (!keep) { byName.set(k, tr); return; }
+      const sess = (D().study && D().study.sessions) || [];
+      sess.forEach(x => { if (x.trackId === tr.id) { x.trackId = keep.id; x.updatedAt = Date.now(); } });
+      (p.topics || []).forEach(x => { if (x.trackId === tr.id) x.trackId = keep.id; });
+      (p.weeks || []).forEach(w => { if (w.themes && w.themes[tr.id]) { if (!w.themes[keep.id]) w.themes[keep.id] = w.themes[tr.id]; delete w.themes[tr.id]; } });
+      [].concat(p.books || [], p.lectures || [], p.items || []).forEach(x => { if (x.trackId === tr.id) x.trackId = keep.id; });
+      p.tracks = p.tracks.filter(t => t !== tr); ch = true;
+    });
+    // topics with the same subject and name
+    if (Array.isArray(p.topics)) {
+      const seen = new Map(), out = [];
+      p.topics.forEach(x => {
+        const k = x.trackId + '|' + key(x.name); if (!key(x.name)) { out.push(x); return; }
+        const prev = seen.get(k);
+        if (!prev) { seen.set(k, x); out.push(x); return; }
+        if (prev.auto && !x.auto) { out[out.indexOf(prev)] = x; seen.set(k, x); }
+        ch = true;
+      });
+      if (ch || out.length !== p.topics.length) p.topics = out;
+    }
+    if (ch) p.updatedAt = Date.now();
+    return ch;
   };
 
   /* ---------------- subjects and topics into the study plan (one click) ---------------- */
@@ -89,7 +128,7 @@
       if (!tr) { tr = ST().addTrack(sb.name); ns++; }
       sb.topics.forEach(t => {
         if (p.topics.some(x => x.trackId === tr.id && low(x.name) === low(t.name))) return;
-        p.topics.push({ id: t.id || U.uid('tp'), trackId: tr.id, name: t.name, auto: !!t.id }); nt++;
+        p.topics.push({ id: t.id ? (/^tp-(ex|iv)-/.test(t.id) ? t.id : 'tp-ex-' + t.id) : U.uid('tp'), trackId: tr.id, name: t.name, auto: !!t.id }); nt++;
       });
     });
     p.updatedAt = Date.now();

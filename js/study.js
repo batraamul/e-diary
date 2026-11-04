@@ -1257,14 +1257,15 @@
     const row = (pl, ss, on) => { const w = (pl.weeks || []).length, n = (ss || []).length, d = (ss || []).filter(s => s.done).length;
       return '<div class="st-pl' + (on ? ' on' : '') + '"><div class="grow"><b>' + e(pl.title) + '</b>' + (on ? ' <span class="chip">showing</span>' : '') +
         '<div class="hint">' + (pl.start ? e(U.fmtShort(pl.start)) + ' – ' + e(U.fmtShort(pl.end)) + ' · ' : '') + U.plural(w, 'week') + ' · ' + d + '/' + n + ' sessions done</div></div>' +
-        (on ? '' : '<button type="button" class="btn small primary" data-x="use" data-id="' + e(pl.id) + '">Show this plan</button><button type="button" class="icon-btn sm" data-x="drop" data-id="' + e(pl.id) + '" aria-label="Delete ' + e(pl.title) + '" title="Delete">' + ED.icon('trash') + '</button>') + '</div>'; };
+        (on ? '' : (ED.studyEdit && ST.plan() ? '<button type="button" class="btn small primary" data-x="join" data-id="' + e(pl.id) + '">Show together</button>' : '') + '<button type="button" class="btn small" data-x="use" data-id="' + e(pl.id) + '">Show only this</button><button type="button" class="icon-btn sm" data-x="drop" data-id="' + e(pl.id) + '" aria-label="Delete ' + e(pl.title) + '" title="Delete">' + ED.icon('trash') + '</button>') + '</div>'; };
     const body = '<div class="st-pls">' + (p ? row(p, ST.sessions(), true) : '') + sh.slice().reverse().map(x => row(x.plan, x.sessions, false)).join('') + '</div>' +
-      '<p class="hint">One plan is shown at a time — on the study pages, in Daily Tasks and in the calendar. The others keep their sessions and ticks until you switch back.</p>' +
+      '<p class="hint">“Show together” puts another plan on the same pages as the one shown (its subjects keep their own times; clashes are marked ⚠). “Show only this” switches. Plans kept aside keep their sessions and ticks.</p>' +
       '<div class="row-btns"><button type="button" class="btn small" data-x="imp">' + ED.icon('upload') + 'Import another plan…</button><button type="button" class="btn small" data-x="mk">' + ED.icon('plus') + 'Make a new plan…</button></div>';
     ED.ui.modal({ title: 'My study plans', body, onMount(el, api) {
       el.addEventListener('click', async ev => {
         const b = ev.target.closest('[data-x]'); if (!b) return;
         if (b.dataset.x === 'use') { api.close(); ST.switchTo(b.dataset.id); }
+        else if (b.dataset.x === 'join') { api.close(); ED.store.checkpoint('Show plans together'); const n = ED.studyEdit.combine(b.dataset.id); ED.store.commit(); ED.ui.undoToast('Shown together — ' + U.plural(n, 'session') + ' added'); }
         else if (b.dataset.x === 'drop') { api.close(); await ST.dropShelved(b.dataset.id); }
         else if (b.dataset.x === 'imp') { api.close(); ST.importFile(); }
         else if (b.dataset.x === 'mk') { api.close(); ST.newPlan(); }
@@ -1487,7 +1488,8 @@
     }
     if (p || sh.length) items.push({ label: 'My plans (' + (sh.length + (p ? 1 : 0)) + ')…', icon: 'list', onClick: () => ST.myPlans() });
     if (p) items.push({ sep: true },
-      { label: 'Adjust the plan — catch up, days off, add / drop a subject…', icon: 'pencil', onClick: () => ED.studyAdjust && ED.studyAdjust.open() },
+      { label: 'Edit the plan — subjects, sessions, plans together…', icon: 'pencil', onClick: () => ED.studyEdit && ED.studyEdit.open() },
+      { label: 'Adjust the plan — catch up, close a gap, days off…', icon: 'sync', onClick: () => ED.studyAdjust && ED.studyAdjust.open() },
       { label: 'Add to the schedule (slots, subjects, days)…', icon: 'calendar', onClick: () => ST.bulkAdd() },
       { label: 'Log study time…', icon: 'clock', onClick: () => A['study-log']({ dataset: {} }) },
       { label: 'Change many sessions (move, change, delete)…', icon: 'pencil', onClick: () => ST.bulkChange() },

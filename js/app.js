@@ -27,6 +27,7 @@
     { id: 'studyYear', label: 'Study Year', title: 'Study planner · Yearly' },
     { id: 'studyMonth', label: 'Study Month', title: 'Study planner · Monthly' },
     { id: 'studyWeek', label: 'Study Week & Day', title: 'Study planner · Weekly & Daily' },
+    { id: 'studyRoad', label: 'Roadmap', title: 'Study roadmap: long-term subjects and topics to cover' },
     { id: 'projects', label: 'Projects', title: 'Projects: work plan, milestones, procurement, tools and research links' },
     { id: 'mindmap', label: 'Mind Maps', title: 'Mind maps to plan projects and topics' },
     { id: 'jobs', label: 'Govt Jobs', title: 'Government of India openings at Level 13A / 14' },
@@ -37,6 +38,7 @@
     { id: 'health', label: 'Health', title: 'Health, medicine and treatment' },
     { id: 'events', label: 'Events & Meet\u00adings', title: 'Events, meetings and planning — with your Google Calendar' },
     { id: 'vault', label: 'Pass\u00adwords', title: 'Passwords and important websites' },
+    { id: 'letters', label: 'Letters', title: 'Letters to God and forefathers, and to family — kept locked' },
   ];
   ED.SECTIONS = SECTIONS;
   /* the side tabs: related pages share one tab; its pages are chosen in the bar at the top */
@@ -44,11 +46,11 @@
     { id: 'planner', label: 'Planner', title: 'Daily & monthly tasks, events and meetings', views: ['daily', 'weekly', 'monthly', 'yearly', 'events', 'matrix', 'bucket'], names: ['Daily', 'Weekly', 'Monthly', 'Yearly', 'Events', 'Eisenhower', 'Bucket List'] },
     { id: 'purpose', label: 'Purpose', title: 'Roles, goals, mission, dreams and your ideal day', views: ['roles', 'goals', 'mission', 'dreams', 'idealday'], names: ['Roles', 'Goals', 'Mission', 'Dreams', 'Ideal Day'] },
     { id: 'life', label: 'Notes & Life', title: 'Notes & Life Planner: notes, progress, travel, grocery, meals, wardrobe, watch list, welfare, pooja', views: ['career', 'welfare', 'pooja'], names: ['Notes & Life', 'Welfare & Help', 'Pooja & Vrat'] },
-    { id: 'study', label: 'Study', title: 'Study planner', views: ['studyYear', 'studyMonth', 'studyWeek'], names: ['Year', 'Month', 'Week & Day'] },
+    { id: 'study', label: 'Study', title: 'Study planner', views: ['studyYear', 'studyMonth', 'studyWeek', 'studyRoad'], names: ['Year', 'Month', 'Week & Day', 'Roadmap'] },
     { id: 'money', label: 'Fi\u00adnance', title: 'Money records and the financial plan', views: ['finance', 'finplan'], names: ['Money', 'Financial Plan'] },
     { id: 'interview', label: 'Inter\u00adview & Exams', title: 'Interviews, exams, projects, mind maps and Govt jobs', views: ['interview', 'exam', 'projects', 'mindmap', 'jobs'], names: ['Interviews', 'Exam Preparation', 'Projects', 'Mind Maps', 'Govt Jobs'] },
     { id: 'health', label: 'Health', title: 'Health, medicine, treatment and exercise', views: ['health', 'exercise'], names: ['Health', 'Exercise'] },
-    { id: 'vault', label: 'Pass\u00adwords', title: 'Passwords and important websites', views: ['vault'] },
+    { id: 'vault', label: 'Pass\u00adwords', title: 'Passwords, important websites and letters', views: ['vault', 'letters'], names: ['Passwords', 'Letters'] },
   ];
   ED.ALLGROUPS = ALLG;
   /* 1.22: pages hidden in Settings → Pages & parts are left out of the tabs (their data stays). The Daily page always shows. */

@@ -22,6 +22,8 @@
   V.data = () => D().vault;
   V.isSet = () => !!(V.data() && V.data().salt);
   V.unlocked = () => !!V.key;
+  /* 1.24: letters (Letters page) live in the same encrypted log; they are not logins */
+  V.logins = () => Array.from(V.items.values()).filter(x => x.kind !== 'letter');
 
   async function derive(pass, salt, iter) {
     const base = await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
@@ -67,7 +69,7 @@
   V.lock = (quiet) => {
     if (!V.key) return;
     V.key = null; V.items = new Map(); V.reveal = new Set(); V.sel = null;
-    if (ED.state.tab === 'vault') ED.app.render();
+    if (ED.state.tab === 'vault' || ED.state.tab === 'letters') ED.app.render();
     if (!quiet) ED.ui.toast('Password log locked', { icon: 'lock' });
   };
   V.touch = () => { V.lastUse = Date.now(); };
@@ -193,8 +195,8 @@
   function entries() {
     const q = V.q.trim().toLowerCase();
     const reuse = new Map();
-    V.items.forEach(x => { if (x.pass) reuse.set(x.pass, (reuse.get(x.pass) || 0) + 1); });
-    return Array.from(V.items.values())
+    V.logins().forEach(x => { if (x.pass) reuse.set(x.pass, (reuse.get(x.pass) || 0) + 1); });
+    return V.logins()
       .filter(x => !q || [x.site, x.url, x.user, x.category, x.notes].some(v => v && String(v).toLowerCase().indexOf(q) >= 0))
       .map(x => Object.assign({ _reuse: reuse.get(x.pass) || 0 }, x))
       .sort((a, b) => (b.fav ? 1 : 0) - (a.fav ? 1 : 0) || String(a.site || '').localeCompare(String(b.site || '')));
@@ -246,7 +248,7 @@
         (x.url ? '<a class="icon-btn sm" href="' + e(urlOf(x.url)) + '" target="_blank" rel="noopener noreferrer" aria-label="Open website" title="Open ' + e(host(x.url)) + '">' + ED.icon('external') + '</a>' : '') +
         '</span></li>';
     }).join('');
-    const all = Array.from(V.items.values());
+    const all = V.logins();
     const weak = all.filter(x => x.pass && V.strength(x.pass).score <= 1).length;
     const reuseN = (() => { const m = new Map(); all.forEach(x => { if (x.pass) m.set(x.pass, (m.get(x.pass) || 0) + 1); }); let n = 0; m.forEach(c => { if (c > 1) n += c; }); return n; })();
     const old = all.filter(x => x.changedAt && Date.now() - x.changedAt > 365 * 864e5).length;
@@ -313,6 +315,7 @@
       const po = L.querySelector('#pw-open'); if (po) setTimeout(() => po.focus(), 50);
     },
   };
+  V.lockedHtml = lockedHtml;
   const meter = s => '<span class="pw-mbar s' + s.score + '"><i></i><i></i><i></i><i></i></span><span class="pw-mlab">' + e(s.label) + '</span>';
 
   ED.views = ED.views || {};
@@ -461,7 +464,7 @@
     const ok = await ED.ui.confirm({ title: 'Export logins', message: 'The file will contain every password in plain text, readable by anyone who opens it. Use it only to move your logins into a password manager, then delete the file.', ok: 'Export', danger: true });
     if (!ok) return;
     const rows = [['name', 'url', 'username', 'password', 'note']];
-    V.items.forEach(x => rows.push([x.site, x.url, x.user, x.pass, x.notes]));
+    V.logins().forEach(x => rows.push([x.site, x.url, x.user, x.pass, x.notes]));
     await U.download('logins-' + U.today() + '.csv', ED.xlsx.toCSV(rows), 'text/csv');
   }
   async function importCSV() {

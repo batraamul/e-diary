@@ -20,6 +20,7 @@
   const DAYS = [1, 2, 3, 4, 5, 6, 0];
   const CHOICES = [
     ['catch', '⏳', 'Catch up', 'Sessions left from earlier days'],
+    ['gap', '⏪', 'Close a gap', 'Empty days? Pull later sessions back'],
     ['off', '🏖️', 'Days off', 'Travel, exams, illness, festivals'],
     ['add', '➕', 'Add a subject', 'New subject, or more of one'],
     ['drop', '⏸️', 'Drop or pause a subject', 'Stop it, or stop it for a while'],
@@ -30,6 +31,20 @@
   const open = from => ST.sessions().filter(s => !s.done && s.date >= from);
   const days = (a, b) => U.range(a, Math.max(0, U.diffDays(a, b)) + 1);
   const wk = n => Math.ceil(n / 7) * 7;
+  /* 1.24: the first stretch of 2+ days with nothing planned, from a day on, that has open sessions after it */
+  SA.gap = from => {
+    const l = ST.sessions(); if (!l.length) return null;
+    const has = new Set(l.map(s => s.date)), last = l.reduce((m, s) => s.date > m ? s.date : m, l[0].date);
+    let k = from, guard = 0;
+    while (k <= last && guard++ < 1500) {
+      if (!has.has(k)) { let b = k; while (!has.has(U.addDays(b, 1)) && b < last) b = U.addDays(b, 1);
+        const n = U.diffDays(k, b) + 1, next = U.addDays(b, 1);
+        if (n >= 2 && l.some(s => !s.done && s.date >= next)) return { a: k, b, n, next };
+        k = U.addDays(b, 1); }
+      else k = U.addDays(k, 1);
+    }
+    return null;
+  };
 
   /* work out the change (nothing is written here): { moves: [[s, date]], dels: [s], mins: [[s, min]], times: [[s, time]], adds: [session], msg } */
   SA.plan = (kind, v) => {
@@ -46,6 +61,15 @@
         l.forEach(s => { if (used >= per) { k = U.addDays(k, 1); used = 0; } out.moves.push([s, k]); used++; });
         out.msg = U.plural(l.length, 'session') + ' go into the coming days, ' + per + ' extra a day — the last on ' + U.fmtShort(k) + '. The rest of the plan stays where it is.';
       }
+    }
+    if (kind === 'gap') {
+      const g = U.isKey(v.a) && U.isKey(v.next) && v.next > v.a ? { a: v.a, next: v.next, n: U.diffDays(v.a, v.next) } : SA.gap(v.from || t);
+      if (!g) { out.msg = 'No empty stretch found — every day ahead has sessions.'; return out; }
+      let n = g.n; if (v.keep) n = Math.floor(n / 7) * 7;
+      if (n <= 0) { out.msg = 'The gap is shorter than a week — switch off “keep weekdays” to close it.'; return out; }
+      open(g.next).forEach(s => out.moves.push([s, U.addDays(s.date, -n)]));
+      out.msg = 'Nothing is planned from ' + U.fmtShort(g.a) + ' to ' + U.fmtShort(U.addDays(g.next, -1)) + ' (' + U.plural(g.n, 'day') + '). ' + U.plural(out.moves.length, 'open session') + ' from ' + U.fmtShort(g.next) + ' on move ' + U.plural(n, 'day') + ' earlier, so they start on ' + U.fmtShort(U.addDays(g.next, -n)) + '.';
+      return out;
     }
     if (kind === 'off') {
       const a = v.from, b = v.to; if (!U.isKey(a) || !U.isKey(b) || b < a) { out.msg = 'Choose the first and the last day off.'; return out; }
@@ -124,6 +148,8 @@
       catch: (miss.length ? '<p class="sa-lead"><b>' + U.plural(miss.length, 'session') + '</b> (' + fm(miss.reduce((a, s) => a + s.min, 0)) + ') not ticked from earlier days — the oldest from ' + e(U.fmtShort(miss[0].date)) + '.</p>' : '<p class="sa-lead">Nothing left from earlier days — you are up to date. 🎉</p>') +
         radio('ca-how', [['spread', 'Fit them into the coming days', 'A few extra a day; the rest of the plan stays'], ['push', 'Push the rest of the plan later', 'Everything open from the oldest one moves on; the plan ends later'], ['drop', 'Let them go', 'Remove them; the plan stays as it is']], 'spread') +
         '<div class="sa-row">' + f('Extra a day', '<select id="ca-per" class="field">' + [1, 2, 3, 4].map(n => o(n, n + (n === 1 ? ' session' : ' sessions'), n === 1)).join('') + '</select>') + f('Starting', '<input id="ca-start" type="date" class="field" value="' + t + '">') + '</div>' + keep('ca-keep'),
+      gap: (() => { const g = SA.gap(t); return (g ? '<p class="sa-lead">Nothing is planned from <b>' + e(U.fmtShort(g.a)) + '</b> to <b>' + e(U.fmtShort(g.b)) + '</b> (' + U.plural(g.n, 'day') + '), and sessions start again on ' + e(U.fmtShort(g.next)) + '.</p>' : '<p class="sa-lead">No empty stretch ahead.</p>') +
+        '<div class="sa-row"><label class="sa-f"><span>Empty from</span><input id="gp-a" type="date" class="field" value="' + (g ? g.a : t) + '"></label><label class="sa-f"><span>Sessions start again on</span><input id="gp-next" type="date" class="field" value="' + (g ? g.next : t) + '"></label></div>' + keep('gp-keep'); })(),
       off: '<div class="sa-row">' + f('First day off', '<input id="of-from" type="date" class="field" value="' + U.addDays(t, 1) + '">') + f('Last day off', '<input id="of-to" type="date" class="field" value="' + U.addDays(t, 3) + '">') + '</div>' +
         radio('of-how', [['push', 'Move everything from that day later', 'Nothing is lost; the plan ends later'], ['drop', 'Skip those days', 'Their sessions are removed; the plan ends on time']], 'push') + keep('of-keep'),
       add: '<div class="sa-row">' + f('Subject', '<select id="ad-tr" class="field">' + o('', '➕ A new subject…', true) + trOpts('', null) + '</select>') + f('New subject’s name', '<input id="ad-name" class="field" placeholder="e.g. Cyber security, Patent drafting">') + '</div>' +
@@ -142,8 +168,8 @@
     const body = '<div class="sa"><nav class="sa-nav" role="tablist" aria-label="What to change">' + CHOICES.map(c => '<button type="button" role="tab" class="sa-c" data-k="' + c[0] + '" aria-selected="false"><span aria-hidden="true">' + c[1] + '</span><b>' + e(c[2]) + '</b><small>' + e(c[3]) + (c[0] === 'catch' && miss.length ? ' · ' + miss.length : '') + '</small></button>').join('') + '</nav>' +
       '<div class="sa-body">' + Object.keys(forms).map(k => '<section class="sa-sec" data-k="' + k + '" hidden>' + forms[k] + '</section>').join('') +
       '<div class="sa-prev" role="status" aria-live="polite"></div>' +
-      '<p class="hint sa-more">More: <button type="button" class="link-btn" data-x="bulk">Change many sessions</button> · <button type="button" class="link-btn" data-x="weeks">Number of weeks</button> · <button type="button" class="link-btn" data-x="start">Start date</button> · <button type="button" class="link-btn" data-x="plan">Subjects, slots &amp; times</button></p></div></div>';
-    let kind = start && forms[start] ? start : miss.length ? 'catch' : 'off';
+      '<p class="hint sa-more">More: <button type="button" class="link-btn" data-x="edit"><b>Edit the plan</b> (subjects, sessions, plans)</button> · <button type="button" class="link-btn" data-x="bulk">Change many sessions</button> · <button type="button" class="link-btn" data-x="weeks">Number of weeks</button> · <button type="button" class="link-btn" data-x="start">Start date</button> · <button type="button" class="link-btn" data-x="plan">Subjects, slots &amp; times</button></p></div></div>';
+    let kind = start && forms[start] ? start : miss.length ? 'catch' : SA.gap(t) ? 'gap' : 'off';
     ED.ui.modal({
       title: 'Adjust the plan', cls: 'st-modal wide sa-modal', body,
       footer: '<span class="hint">Ticked sessions are never changed. You can undo right after.</span><span class="grow"></span><button type="button" class="btn" data-mclose>Close</button><button type="button" class="btn primary" data-x="apply">' + ED.icon('check') + 'Apply</button>',
@@ -152,6 +178,7 @@
         const val = id => { const x = $(id); return x ? x.value : ''; };
         const rv = name => (el.querySelector('input[name="' + name + '"]:checked') || {}).value;
         const read = () => ({
+          gap: { a: val('gp-a'), next: val('gp-next'), keep: $('gp-keep').checked },
           catch: { how: rv('ca-how'), per: +val('ca-per'), start: val('ca-start'), keep: $('ca-keep').checked },
           off: { from: val('of-from'), to: val('of-to'), how: rv('of-how'), keep: $('of-keep').checked },
           add: { track: val('ad-tr'), name: val('ad-name'), days: U.$$('.sa-days input', el).filter(i => i.checked).map(i => +i.dataset.d), slot: val('ad-slot'), time: val('ad-time'), min: +val('ad-min'), from: val('ad-from'), to: val('ad-to'), topic: val('ad-topic') },
@@ -175,7 +202,7 @@
         el.addEventListener('input', prev); el.addEventListener('change', prev);
         el.addEventListener('click', ev => {
           const b = ev.target.closest('[data-x]'); if (!b) return;
-          const go = { bulk: ST.bulkChange, weeks: ST.editWeeks, start: ST.editStart, plan: ST.editPlan }[b.dataset.x];
+          const go = { edit: () => ED.studyEdit && ED.studyEdit.open(), bulk: ST.bulkChange, weeks: ST.editWeeks, start: ST.editStart, plan: ST.editPlan }[b.dataset.x];
           if (go) { api.close(); go(); return; }
           if (b.dataset.x === 'apply') {
             const n = SA.apply(kind, read()); if (!n) return;

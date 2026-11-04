@@ -108,6 +108,9 @@
     out.ideal = nested('ideal', ['blocks'], { months: 1 }) || undefined;
     // 1.22: Dreams; the watch list sits in lists (watch)
     out.dreams = nested('dreams', ['list']) || undefined;
+    // 1.24: the long-term study roadmap; letter service settings (letters themselves are inside the encrypted vault)
+    out.roadmap = nested('roadmap', ['subjects']) || undefined;
+    if (local.letterSvc || remote.letterSvc) { const v = pick(base.letterSvc, local.letterSvc, remote.letterSvc); if (v !== undefined) out.letterSvc = v; }
     // deletion markers from both sides (js/store.js markGone): an item deleted anywhere stays deleted, unless it was
     // changed again after it was deleted
     const gone = Object.assign({}, (remote.meta && remote.meta.gone) || {});

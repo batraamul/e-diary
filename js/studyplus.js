@@ -39,7 +39,8 @@
       : '<div class="sp-next none"><span class="hint">Nothing planned today' + (sp.a && today < sp.a ? ' — the plan starts ' + e(U.fmtShort(sp.a)) : '') + '. Studied anyway? Use <b>Log study time</b>.</span></div>';
     const acts = '<div class="sp-acts" role="group" aria-label="Study actions">' +
       '<button type="button" class="btn small primary" data-act="study-add" data-date="' + today + '">' + ED.icon('plus') + 'Add a session</button>' +
-      '<button type="button" class="btn small" data-act="sa-open">' + ED.icon('pencil') + 'Adjust the plan</button>' +
+      '<button type="button" class="btn small" data-act="spe-open">' + ED.icon('pencil') + 'Edit the plan</button>' +
+      '<button type="button" class="btn small" data-act="sa-open">' + ED.icon('sync') + 'Adjust the plan</button>' +
       '<button type="button" class="btn small" data-act="study-log">' + ED.icon('clock') + 'Log study time</button>' +
       '<button type="button" class="btn small" data-act="sp-sched">' + ED.icon('calendar') + 'Add to the schedule</button>' +
       '<button type="button" class="btn small ghost" data-act="sp-plan">' + ED.icon('gear') + 'Subjects, slots &amp; times</button></div>';
