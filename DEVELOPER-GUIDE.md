@@ -648,3 +648,7 @@ There is no automated test runner in the package; test by hand in the browser:
 
 - `sync.js`: `roadmap` (`subjects` list), `letterSvc` picked whole. `app.js`: Study group adds Roadmap; Passwords group adds Letters.
 - CSS in `css/life.css` (`spe-*`, `st-clash`, `rm-*`, `.dr > .wm`, `lt-*`).
+
+## 1.24.1 — Daily picture variety
+- `js/watermark.js`: `ART` has ~38 drawings; `POOL[weekday]` families picked by week number, `FEST` (festival regex → family), `FORCES` (MM-DD), Shravan/Kartik pools; `WM.drawn(k)` never repeats yesterday's id. `WM.pick(k)` adds `own` (user picture) via `WM.ownFor(k)` and `luck.mode` (`mix` alternate days / `mine` / `drawn`); festivals and forces days (`why`) keep the drawing. `WM.MANTRAS` (29, by day number), `WM.GRAHA` (weekday beej mantra), `WM.square(w)` (Lo Shu + w; sum 3w+15), `WM.dayNumber`, `WM.personal` (uses `dreams.dob`). `WM.stripHtml(k)` in `view-daily.js` before the foot; `WM.today(k)` dialog; `WM.picsDialog()`.
+- Data `luck { mode, pics[{ id, src, title, day: '' | '0'..'6', updatedAt }] }` (sync `nested('luck', ['pics'])`); `settings.luckLine`.

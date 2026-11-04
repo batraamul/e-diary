@@ -110,6 +110,7 @@
     out.dreams = nested('dreams', ['list']) || undefined;
     // 1.24: the long-term study roadmap; letter service settings (letters themselves are inside the encrypted vault)
     out.roadmap = nested('roadmap', ['subjects']) || undefined;
+    out.luck = nested('luck', ['pics']) || undefined;   // 1.24.1: your pictures for the Daily page
     if (local.letterSvc || remote.letterSvc) { const v = pick(base.letterSvc, local.letterSvc, remote.letterSvc); if (v !== undefined) out.letterSvc = v; }
     // deletion markers from both sides (js/store.js markGone): an item deleted anywhere stays deleted, unless it was
     // changed again after it was deleted

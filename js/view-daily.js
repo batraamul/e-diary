@@ -94,6 +94,7 @@
         '<div class="dn-head"><span class="dn-title">Daily Notes</span><span class="dn-status hint" id="dn-status"></span></div>' +
         '<div class="dn-editor" id="daily-notes"></div>' +
         '</div>' +
+        (ED.watermark ? ED.watermark.stripHtml(k) : '') +
         V.footHtml(k) +
         '</div>' +
         '<button type="button" class="corner corner-next" data-act="day-next" aria-label="Next day" title="Next day"></button>';
