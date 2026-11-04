@@ -661,3 +661,6 @@ There is no automated test runner in the package; test by hand in the browser:
 ## 1.24.3 — Years, symbols, Drive copies
 - `watermark.js`: `WM.symYear(y)` (symbols only: least-recently-shown drawing among the day's themes, never two days running), `WM.sched(y)` (mode-aware), `WM.yearDialog(y, tab)` with tabs `year` (year and month navigation), `sym`, `drive`. Photos carry `data-f` (Commons file) so `ED.luckDrive.swap(layer)` can replace them with a Drive blob.
 - `js/luckdrive.js`: `LD.saveYear(y)` — fetch each photo (CORS from Wikimedia), multipart upload to Drive folder `E-Diary pictures/<year>` (scope drive.file, `ED.gdrive` token); `luck.drive` is a flat map (`y:_root`, `y:<year>`, `f:<Commons file>`) merged key by key (`sync.js` deep `{ drive: 1 }`); `luck.useDrive`; `LD.swap`, `LD.freeDevice` (cache `edpics-1`). `sw.js` keeps the latest 150 pictures.
+
+## 1.24.4 — Chosen pictures
+- `luck.fix` (flat map, synced key by key): `'YYYY-MM-DD'` or `'*MM-DD'` (every year) → `'p:<Commons file>'` | `'d:<symbol id>'` | `'o:<own picture id>'`. `WM.fixOf(k)`, `WM.pick(k)` applies it first (keeps a festival's line); `WM.chooseFor(k)` dialog (search, theme filter, 60 at a time); year view tap mode `choose`; `paint` key includes the choice.

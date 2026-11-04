@@ -306,10 +306,77 @@
     if (WM.mode() === 'mix') { const mine = l.filter(p => p.day === w); if (!mine.length && n % 2) return null; const use = mine.length ? mine : l; return use[Math.floor(n / (mine.length ? 7 : 2)) % use.length]; }
     return l[n % l.length];
   };
+  /* 1.24.4: your own choice for a date — luck.fix = { 'YYYY-MM-DD' | '*MM-DD' (every year): 'p:<Commons file>' | 'd:<symbol>' | 'o:<your picture id>' } */
+  WM.fixOf = k => { const f = ED.store.data.luck && ED.store.data.luck.fix; if (!f) return null; return f[k] ? { v: f[k], every: false } : f['*' + k.slice(5)] ? { v: f['*' + k.slice(5)], every: true } : null; };
+  const itemOf = v => {
+    const t = String(v || ''), id = t.slice(2);
+    if (t.startsWith('d:') && ART[id]) return WM.items().find(x => x.kind === 'drawn' && x.id === id);
+    if (t.startsWith('p:')) return WM.items().find(x => x.kind === 'photo' && x.img.f === id) || null;
+    return null;
+  };
   WM.pick = k => {
-    const dr = WM.drawn(k);
+    const dr = WM.drawn(k), fx = WM.fixOf(k);
+    if (fx) {
+      if (fx.v.startsWith('o:')) { const p = ((ED.store.data.luck || {}).pics || []).find(x => x.id === fx.v.slice(2)); if (p && ED.pics && ED.pics.ok(p.src)) return Object.assign({}, dr, { own: p.src, ownTitle: p.title || '', chosen: fx }); }
+      const it = itemOf(fx.v);
+      if (it) return Object.assign({}, dr, { id: it.kind === 'drawn' ? it.id : 'photo', key: it.key, item: it, theme: it.theme, line: dr.why ? dr.line : (it.kind === 'drawn' ? LINES[it.id] : TLINE[it.theme]) || dr.line, chosen: fx });
+    }
     const own = !dr.why ? WM.ownFor(k) : null;            // festivals and Armed Forces days keep their own picture
     return Object.assign({}, dr, own ? { own: own.src, ownTitle: own.title || '' } : {});
+  };
+  /* choose the picture or symbol for a date */
+  WM.chooseFor = k => {
+    const items = WM.items(), own = ((ED.store.data.luck || {}).pics || []).filter(p => ED.pics && ED.pics.ok(p.src));
+    const cur = WM.fixOf(k), x0 = WM.pick(k);
+    const TH = [['', 'All'], ['sym', 'Symbols'], ['own', 'My pictures'], ['shiv', 'Shiva'], ['kailash', 'Kailash'], ['devi', 'Devi & Shakti Peeths'], ['lakshmi', 'Lakshmi'], ['saraswati', 'Saraswati'], ['ganesh', 'Ganesh'], ['hanuman', 'Hanuman'], ['vishnu', 'Vishnu'], ['krishna', 'Krishna'], ['ram', 'Ram'], ['surya', 'Surya'], ['kartikeya', 'Kartikeya'], ['ganga', 'Ganga & rivers'], ['guru', 'Guru & sacred'], ['diya', 'Diya & festive'], ['temple', 'Temples'], ['forces', 'Armed Forces'], ['intel', 'Science & intelligence']];
+    let f = { th: '', q: '', lim: 60 }, sel = cur ? cur.v : null;
+    const list = () => {
+      const q = f.q.trim().toLowerCase(), out = [];
+      if (!f.th || f.th === 'own') own.forEach(p => { if (!q || String(p.title || '').toLowerCase().indexOf(q) >= 0) out.push({ v: 'o:' + p.id, src: p.src, name: p.title || 'My picture' }); });
+      if (f.th !== 'own') items.forEach(it => {
+        if (f.th === 'sym' && it.kind !== 'drawn') return;
+        if (f.th && f.th !== 'sym' && it.theme !== f.th) return;
+        const name = it.kind === 'drawn' ? (LINES[it.id] || it.id) : it.img.t;
+        if (q && (name + ' ' + it.theme + ' ' + (it.kind === 'drawn' ? it.id : '')).toLowerCase().indexOf(q) < 0) return;
+        out.push(it.kind === 'drawn' ? { v: 'd:' + it.id, svg: it.id, name } : { v: 'p:' + it.img.f, src: it.img.u, name });
+      });
+      return out;
+    };
+    const draw = el => {
+      const l = list(), shown = l.slice(0, f.lim);
+      el.querySelector('.wm-cgrid').innerHTML = shown.map(o => '<button type="button" class="wm-cell' + (sel === o.v ? ' on' : '') + '" data-v="' + e(o.v) + '" aria-pressed="' + (sel === o.v) + '" title="' + e(o.name) + '">' +
+        (o.svg ? '<span class="wm-cs">' + WM.svg(o.svg, '') + '</span>' : '<img src="' + e(o.src) + '" alt="" loading="lazy" referrerpolicy="no-referrer">') + '<span class="wm-ct">' + e(o.name) + '</span></button>').join('') +
+        (l.length > shown.length ? '<button type="button" class="btn small wm-more" data-x="more">Show more (' + (l.length - shown.length) + ')</button>' : '') + (l.length ? '' : '<p class="hint">Nothing matches.</p>');
+      el.querySelector('.wm-ccount').textContent = l.length + ' to choose from';
+    };
+    ED.ui.modal({
+      title: 'Picture for ' + U.fmtLong(k), cls: 'st-modal wide wm-modal wm-choose',
+      body: '<p class="hint">Now: ' + e(x0.own ? (x0.ownTitle || 'your picture') : x0.item.kind === 'photo' ? x0.item.img.t : 'symbol — ' + (LINES[x0.id] || x0.id)) + (cur ? ' (your choice' + (cur.every ? ', every year' : '') + ')' : ' (chosen by the diary)') + '</p>' +
+        '<div class="wm-cbar"><input class="field" type="search" placeholder="Search — Kedarnath, Kamakhya, Ganesh, Om…" aria-label="Search pictures"><select class="field" aria-label="Kind">' + TH.map(t => '<option value="' + t[0] + '">' + t[1] + '</option>').join('') + '</select><span class="hint wm-ccount"></span></div>' +
+        '<div class="wm-grid wm-cgrid"></div>' +
+        '<div class="wm-cfoot"><label class="chip-check"><input type="radio" name="wm-when" value="day"' + (!cur || !cur.every ? ' checked' : '') + '><span>Only ' + e(U.fmtShort(k)) + '</span></label><label class="chip-check"><input type="radio" name="wm-when" value="every"' + (cur && cur.every ? ' checked' : '') + '><span>Every year on ' + (+k.slice(8)) + ' ' + U.MONTHS[+k.slice(5, 7) - 1] + '</span></label></div>',
+      footer: (cur ? '<button type="button" class="btn ghost" data-x="auto">Back to the diary’s choice</button>' : '') + '<span class="grow"></span><button type="button" class="btn" data-mclose>Cancel</button><button type="button" class="btn primary" data-x="ok">Use this picture</button>',
+      onMount(el, api) {
+        draw(el);
+        el.querySelector('input[type="search"]').addEventListener('input', U.debounce(ev => { f.q = ev.target.value; f.lim = 60; draw(el); }, 200));
+        el.querySelector('.wm-cbar select').addEventListener('change', ev => { f.th = ev.target.value; f.lim = 60; draw(el); });
+        el.addEventListener('click', ev => {
+          const b = ev.target.closest('[data-v],[data-x]'); if (!b) return;
+          if (b.dataset.v) { sel = b.dataset.v; U.$$('.wm-cgrid [data-v]', el).forEach(x => { const on = x.dataset.v === sel; x.classList.toggle('on', on); x.setAttribute('aria-pressed', String(on)); }); return; }
+          const L0 = () => { const d = ED.store.data; if (!d.luck || typeof d.luck !== 'object') d.luck = {}; if (!Array.isArray(d.luck.pics)) d.luck.pics = []; if (!d.luck.fix || typeof d.luck.fix !== 'object') d.luck.fix = {}; return d.luck; };
+          if (b.dataset.x === 'more') { f.lim += 120; draw(el); }
+          if (b.dataset.x === 'auto') { ED.store.checkpoint('Picture of the day'); const fx = L0().fix; delete fx[k]; delete fx['*' + k.slice(5)]; ED.store.commit(); api.close(); ED.app.render(); ED.ui.undoToast('The diary chooses the picture for ' + U.fmtShort(k) + ' again'); }
+          if (b.dataset.x === 'ok') {
+            if (!sel) { ED.ui.toast('Choose a picture or a symbol'); return; }
+            const every = (el.querySelector('input[name="wm-when"]:checked') || {}).value === 'every';
+            ED.store.checkpoint('Picture of the day'); const fx = L0().fix;
+            delete fx[k]; delete fx['*' + k.slice(5)]; fx[every ? '*' + k.slice(5) : k] = sel;
+            ED.store.commit(); api.close(); ED.app.render();
+            ED.ui.undoToast('Picture set for ' + (every ? 'every ' + (+k.slice(8)) + ' ' + U.MONTHS[+k.slice(5, 7) - 1] : U.fmtShort(k)));
+          }
+        });
+      },
+    });
   };
 
   WM.on = () => S().watermark !== false;
@@ -333,7 +400,7 @@
     const show = WM.on() && (viewId === 'daily' || WM.allPages());
     if (!show) { if (lay) lay.remove(); return; }
     const k = viewId === 'daily' || U.isKey(ED.state.date) ? ED.state.date : U.today();
-    const key = k + '|' + (viewId === 'daily') + '|' + WM.mode() + '|' + ((ED.store.data.luck && ED.store.data.luck.pics || []).length);
+    const fx = WM.fixOf(k), key = k + '|' + (viewId === 'daily') + '|' + WM.mode() + '|' + ((ED.store.data.luck && ED.store.data.luck.pics || []).length) + '|' + (fx ? fx.v : '');
     if (!lay) { lay = document.createElement('div'); lay.className = 'pg-wm'; pg.insertBefore(lay, pg.firstChild); }
     if (lay.dataset.key === key) return;
     lay.dataset.key = key; lay.innerHTML = WM.html(k, viewId === 'daily');
@@ -361,10 +428,11 @@
         '<div class="wm-yrow">' + yantraSvg(w, 'wm-ybig') + '<p class="hint">The ' + e(gr[0]) + ' yantra — every row, column and diagonal adds up to <b>' + (gr[3] * 3 + 12) + '</b>.</p></div>' +
         '<h3 class="wm-h">Numbers</h3><p><b>Shubh ank of the day: ' + dn + '</b> — ' + e(WM.NUMS[dn]) + '.' + (pn ? '<br><b>Your personal day: ' + pn + '</b> — ' + e(WM.NUMS[pn]) + '.' : '<br><span class="hint">Add your birth date in Purpose → Dreams to see your personal day number.</span>') + ' <b>१०८</b> — chant a mala of 108.</p>' +
         '<p class="hint">Traditional prayers and numbers for faith and a focused start; the effort is yours. 🙏</p></div></div>',
-      footer: '<button type="button" class="btn small ghost" data-x="pics">' + ED.icon('image') + 'My pictures</button><button type="button" class="btn small ghost" data-x="year">' + ED.icon('calendar') + 'The year’s pictures</button><span class="grow"></span>' + (ED.views.pooja ? '<button type="button" class="btn" data-x="japa">Count the jaap</button>' : '') + '<button type="button" class="btn primary" data-mclose>🙏 Done</button>',
+      footer: '<button type="button" class="btn small" data-x="choose">' + ED.icon('pencil') + 'Choose the picture</button><button type="button" class="btn small ghost" data-x="pics">' + ED.icon('image') + 'My pictures</button><button type="button" class="btn small ghost" data-x="year">' + ED.icon('calendar') + 'The year’s pictures</button><span class="grow"></span>' + (ED.views.pooja ? '<button type="button" class="btn" data-x="japa">Count the jaap</button>' : '') + '<button type="button" class="btn primary" data-mclose>🙏 Done</button>',
       onMount(el, api) {
         el.querySelector('[data-x="pics"]').addEventListener('click', () => { api.close(); WM.picsDialog(); });
         el.querySelector('[data-x="year"]').addEventListener('click', () => { api.close(); WM.yearDialog(+k.slice(0, 4)); });
+        el.querySelector('[data-x="choose"]').addEventListener('click', () => { api.close(); WM.chooseFor(k); });
         const j = el.querySelector('[data-x="japa"]'); if (j) j.addEventListener('click', () => { api.close(); (ED.state.pj = ED.state.pj || {}).tab = 'aarti'; ED.go.tab('pooja'); });
       },
     });
@@ -378,6 +446,10 @@
     const cell = (k, it, inf) => '<button type="button" class="wm-cell" data-k="' + k + '" title="' + e((it.kind === 'photo' ? it.img.t : it.id) + (inf.why ? ' — ' + inf.why : '')) + '"><span class="wm-cd">' + (+k.slice(8)) + ' ' + U.DAY3[U.dow(k)] + '</span>' +
       (it.kind === 'photo' ? '<img src="' + e(it.img.u) + '" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement(\'span\'), { className: \'wm-cs wm-off\', textContent: \'🛕\' }))">' : '<span class="wm-cs">' + WM.svg(it.id, '') + '</span>') +
       '<span class="wm-ct">' + e(inf.why || (it.kind === 'photo' ? it.img.t : (LINES[it.id] || TLINE[it.theme] || ''))) + '</span></button>';
+    let tap = 'open';
+    const cellPick = (k, x, inf) => '<button type="button" class="wm-cell' + (x.chosen ? ' mine' : '') + '" data-k="' + k + '"><span class="wm-cd">' + (+k.slice(8)) + ' ' + U.DAY3[U.dow(k)] + (x.chosen ? ' <span title="Your choice' + (x.chosen.every ? ', every year' : '') + '">★</span>' : '') + '</span>' +
+      (x.own ? '<img src="' + e(x.own) + '" alt="">' : x.item.kind === 'photo' ? '<img src="' + e(x.item.img.u) + '" alt="" loading="lazy" referrerpolicy="no-referrer">' : '<span class="wm-cs">' + WM.svg(x.id, '') + '</span>') +
+      '<span class="wm-ct">' + e(inf.why || (x.own ? (x.ownTitle || 'My picture') : x.item.kind === 'photo' ? x.item.img.t : (LINES[x.id] || ''))) + '</span></button>';
     const draw = el => {
       const S0 = WM.sched(y);
       U.$$('.wm-tabs [data-t]', el).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.t === t)));
@@ -386,7 +458,8 @@
         const mm = String(m).padStart(2, '0'), days = Object.keys(S0.out).filter(k => k.slice(5, 7) === mm).sort(), uniq = new Set(Object.values(S0.out)).size;
         body.innerHTML = '<p class="hint">' + (WM.mode() === 'drawn' ? 'Symbols only (chosen in My pictures): the ' + items.filter(x => x.kind === 'drawn').length + ' drawings in turn.' : uniq + ' different pictures for the ' + Object.keys(S0.out).length + ' days of ' + y + ' — temples, Jyotirlingas, Shakti Peeths, deities, sacred rivers, the Armed Forces and the symbols; festivals get their own. Each year has its own order.') + '</p>' +
           '<div class="wm-ynav"><button type="button" class="btn small ghost" data-x="py">' + ED.icon('chevL') + (y - 1) + '</button><button type="button" class="icon-btn" data-x="prev" aria-label="Previous month">' + ED.icon('chevL') + '</button><b class="wm-ym">' + U.MONTHS[m - 1] + ' ' + y + '</b><button type="button" class="icon-btn" data-x="next" aria-label="Next month">' + ED.icon('chevR') + '</button><button type="button" class="btn small ghost" data-x="ny">' + (y + 1) + ED.icon('chevR') + '</button></div>' +
-          '<div class="wm-grid">' + days.map(k => cell(k, items[S0.out[k]], S0.info[k])).join('') + '</div>';
+          '<div class="seg wm-tapmode" role="group" aria-label="Tapping a day"><button type="button" data-tap="open" aria-pressed="' + (tap === 'open') + '">Tap a day to open it</button><button type="button" data-tap="choose" aria-pressed="' + (tap === 'choose') + '">✎ Tap a day to choose its picture</button></div>' +
+          '<div class="wm-grid">' + days.map(k => { const x = WM.pick(k); return x.chosen || x.own ? cellPick(k, x, S0.info[k]) : cell(k, items[S0.out[k]], S0.info[k]); }).join('') + '</div>';
       } else if (t === 'sym') {
         body.innerHTML = '<p class="hint">The symbols drawn for the diary — shown on their days, and whenever a photograph cannot load. Choose “Only the symbols” in My pictures to see only these.</p><div class="wm-grid wm-syms">' +
           items.filter(x => x.kind === 'drawn').map(x => '<div class="wm-cell"><span class="wm-cs">' + WM.svg(x.id, '') + '</span><span class="wm-ct" lang="sa">' + e(LINES[x.id] || '') + '</span></div>').join('') + '</div>';
@@ -399,12 +472,14 @@
       onMount(el, api) {
         draw(el);
         el.addEventListener('click', ev => {
+          const tb = ev.target.closest('[data-tap]'); if (tb) { tap = tb.dataset.tap; U.$$('[data-tap]', el).forEach(x => x.setAttribute('aria-pressed', String(x === tb))); return; }
           const b = ev.target.closest('[data-x],[data-k],[data-t]'); if (!b || b.closest('.wm-drv')) return;
           if (b.dataset.t) { t = b.dataset.t; draw(el); return; }
           if (b.dataset.x === 'prev') { if (m === 1) { m = 12; y--; } else m--; draw(el); }
           if (b.dataset.x === 'next') { if (m === 12) { m = 1; y++; } else m++; draw(el); }
           if (b.dataset.x === 'py') { y--; draw(el); }
           if (b.dataset.x === 'ny') { y++; draw(el); }
+          if (b.dataset.k && tap === 'choose') { api.close(); WM.chooseFor(b.dataset.k); return; }
           if (b.dataset.k) { api.close(); ED.state.tab = 'daily'; ED.go.date(b.dataset.k); }
         });
       },

@@ -745,3 +745,9 @@ tr.st-clash::after { display: none; }
 .wm-bar { height: 8px; border-radius: 4px; background: var(--chart-track, color-mix(in srgb, var(--ink) 10%, transparent)); overflow: hidden; margin-bottom: 8px; }
 .wm-bar i { display: block; height: 100%; background: #16a34a; }
 .wm-drv .switch { margin: 6px 0; }
+.wm-cbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.wm-cbar input { flex: 1 1 220px; min-width: 0; } .wm-cbar select { flex: 0 1 200px; }
+.wm-cell.on, .wm-cell.mine { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.wm-cfoot { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.wm-more { grid-column: 1 / -1; justify-self: center; }
+.wm-tapmode { margin: 0 0 8px; flex-wrap: wrap; }
