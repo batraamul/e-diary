@@ -3,7 +3,7 @@
   'use strict';
   const ED = (window.ED = window.ED || {});
   const U = (ED.util = {});
-  ED.VERSION = '1.24.6';
+  ED.VERSION = '1.25';
 
   /* ---------------- environment ---------------- */
   ED.env = {

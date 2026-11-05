@@ -565,3 +565,11 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 ### v1.24.6 — The diary always opens (and can repair itself)
 - If one page cannot be drawn, the diary still opens and that page says what went wrong, with a button to the Daily page.
 - If the diary has not opened after 15 seconds, a box offers **Repair and open**: it removes only the stored copy of the app (never your entries) and fetches a fresh one. The same repair runs from the address **…/e-diary/index.html?repair**.
+
+### v1.25 — Daily Manifestation Journal (Purpose → Manifest)
+Built from the research on what actually helps people reach a wish, Dr James Doty’s *Mind Magic*, *Manifest Anything in 100 Days* and the Sankalpa tradition.
+- **Desires** — a 5-step guide: your wish; the best outcome and a picture (vision board); the wish written as already true, with “how believable is this?” and bridge wording if it feels far; your sankalpa (and a few Hindi words for the traditional one); the inner obstacle and an *if–then* plan; why it matters and who else it helps; and how to practise — Daily Sankalpa, 3-6-9, 55×5, Best Possible Self (14 days) or a 100-day journey. Keep 1–3 active; mark one 🎉 Manifested (with how it came) or Let go.
+- **Each morning (about 5 minutes)** — gratitude (three specific things and why), the sankalpa said silently, aloud and once in writing (with the **traditional Sanskrit sankalpa** made from today’s Panchang — samvat, month, paksha, tithi, vaar, your name and gotra), a guided **2½-minute visualisation** (relax, feel it done, the obstacle, your plan, the first step), your if–then plan, and **one aligned action** that goes to that day’s tasks as an A task. Optional scripting. A theme for each day.
+- **Each evening** — what moved you closer, signs and opportunities, belief and closeness 1–10, mood, a thank-you, and “I did my part — I hold the result lightly”.
+- **Progress** — streak, days practised, actions done, a calendar, belief and closeness over time, the list of what moved you closer, and a **weekly report** to someone you trust (WhatsApp, email or copy).
+- **How it works** — each step with its research and sources; morning and evening reminders while the diary is open; Quick mode for busy days.

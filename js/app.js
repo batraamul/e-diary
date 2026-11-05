@@ -20,6 +20,7 @@
     { id: 'mission', label: 'Mis\u00adsion' },
     { id: 'idealday', label: 'Ideal Day', title: 'Ideal day: your best time-table, season by season' },
     { id: 'dreams', label: 'Dreams', title: 'Dreams: what you want to be, and by what age' },
+    { id: 'manifest', label: 'Manifest', title: 'Daily manifestation journal: gratitude, sankalpa, see the steps, one action, evening reflection' },
     { id: 'career', label: 'Notes & Life', title: 'Notes & Life Planner: notes, progress, travel, grocery, meals, wardrobe' },
     { id: 'exercise', label: 'Exercise', title: 'Exercise plan, steps and workouts — with your phone / watch data' },
     { id: 'welfare', label: 'Welfare & Help', title: 'Welfare & Help: whom you helped and how' },
@@ -44,7 +45,7 @@
   /* the side tabs: related pages share one tab; its pages are chosen in the bar at the top */
   const ALLG = [
     { id: 'planner', label: 'Planner', title: 'Daily & monthly tasks, events and meetings', views: ['daily', 'weekly', 'monthly', 'yearly', 'events', 'matrix', 'bucket'], names: ['Daily', 'Weekly', 'Monthly', 'Yearly', 'Events', 'Eisenhower', 'Bucket List'] },
-    { id: 'purpose', label: 'Purpose', title: 'Roles, goals, mission, dreams and your ideal day', views: ['roles', 'goals', 'mission', 'dreams', 'idealday'], names: ['Roles', 'Goals', 'Mission', 'Dreams', 'Ideal Day'] },
+    { id: 'purpose', label: 'Purpose', title: 'Roles, goals, mission, dreams, manifestation and your ideal day', views: ['roles', 'goals', 'mission', 'dreams', 'manifest', 'idealday'], names: ['Roles', 'Goals', 'Mission', 'Dreams', 'Manifest', 'Ideal Day'] },
     { id: 'life', label: 'Notes & Life', title: 'Notes & Life Planner: notes, progress, travel, grocery, meals, wardrobe, watch list, welfare, pooja', views: ['career', 'welfare', 'pooja'], names: ['Notes & Life', 'Welfare & Help', 'Pooja & Vrat'] },
     { id: 'study', label: 'Study', title: 'Study planner', views: ['studyYear', 'studyMonth', 'studyWeek', 'studyRoad'], names: ['Year', 'Month', 'Week & Day', 'Roadmap'] },
     { id: 'money', label: 'Fi\u00adnance', title: 'Money records and the financial plan', views: ['finance', 'finplan'], names: ['Money', 'Financial Plan'] },

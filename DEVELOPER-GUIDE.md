@@ -668,3 +668,7 @@ There is no automated test runner in the package; test by hand in the browser:
 ## 1.24.5 — Load time
 - `sw.js`: app files (`ASSETS`) and navigations are cache-first from the version cache when not on localhost; install pre-caches with `cache: 'reload'` so one version is complete; the page's existing "new version — Reload" toast covers updates.
 - `watermark.js`: `WM.dayInfo` memoised; year schedules kept in localStorage `ed-wm-y-<year>` / `ed-wm-s-<year>` with a signature of the picture set; `WM.ready(y)` / `WM.later(y, cb)` build the calendar in 25 ms steps after the first paint (`paint` and `stripHtml` wait; `.wm-strip-wait` is replaced when ready).
+
+## 1.25 — Manifestation journal
+- `js/manifest.js`: view `manifest` (Purpose group). `ED.manifest`: `desires()`, `active()`, `focus(k)`, `day(k, make)`, `STEPS` (grat, say, vis, plan, act, eve), `score(k)`, `streak()`, `best()`, `tradSankalpa(k, desire)` (Panchang → Sanskrit), `edit(id)` (5-step guide), `visualise()`, `weekText()`, `remindCheck()`. Typing saves silently (no redraw); the aligned action becomes an A task (`day.taskId`).
+- Data `manifest { desires[], days{date: entry}, cfg{ main, quick, remind, morning, evening, name, gotra, fem, speak } }`; sync `nested('manifest', ['desires'], { days: 1 })`. CSS `mj-*` in `life.css`.
