@@ -877,3 +877,9 @@ tr.st-clash::after { display: none; }
   .mj-dpic { width: 64px; height: 64px; }
   .mj-if { grid-template-columns: 1fr; }
 }
+/* 1.25: ideas for today's step, and your dream on the method tab */
+.mj-ideas { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 2px; align-items: center; }
+.mj-ideas .hint { width: 100%; }
+.mj-ideas .chip-btn { text-align: left; white-space: normal; line-height: 1.3; }
+.mj-dream { border: 1px solid var(--line, #ccc); border-left: 4px solid #2563eb; border-radius: 10px; padding: 10px 12px; margin: 8px 0 12px; }
+.mj-dream p { margin: 4px 0 8px; }

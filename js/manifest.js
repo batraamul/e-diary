@@ -57,8 +57,68 @@
     ['Letting go', 'Do your part fully, then hold the result lightly. Setbacks are information.'],
   ];
   MJ.dayOf = (x, k) => Math.max(1, U.diffDays(x.start || k, k) + 1);
-  MJ.theme = (x, k) => THEMES[(MJ.dayOf(x, k) - 1) % THEMES.length];
+  /* the same twelve themes, written for the dream of a Defence Intelligence scientific job in Delhi */
+  const DEF_THEMES = [
+    ['Attention', 'When worry about selection comes, bring the mind back to the next small step for the application.'],
+    ['Clarity', 'Name the post you want most this month — DRDO, NTRO, ARC, NATGRID or DIA — and the reason in one line.'],
+    ['Gratitude', 'Thank one colleague or mentor whose work or advice has prepared you for defence intelligence.'],
+    ['Seeing it', 'Picture an ordinary working day in that office in Delhi — the team, the project, your drone and AI work.'],
+    ['Self-kindness', 'Write the doubt you hear most (“they won’t pick me”) — then answer it with your 16 years of defence UAV and avionics work.'],
+    ['Words', 'Say your sankalpa silently, then aloud, then write it once.'],
+    ['Belief', 'Write one proof you can do this job — a system you built, a paper, a hard problem you solved.'],
+    ['Action', 'Do the hardest step for the job first, before noon — a form, a document, a page of a paper.'],
+    ['Others', 'Picture who your work will protect — the forces, the nation, your family and your son.'],
+    ['Opportunity', 'Look for one opening today — a notice, a person, a conference, a deputation call. Note it tonight.'],
+    ['Body', 'Walk, stretch or breathe for 10 minutes — selection and interviews need a fit, calm body.'],
+    ['Letting go', 'Do your part fully, then hold the result lightly. A “no” is information; the next notice will come.'],
+  ];
+  MJ.theme = (x, k) => (isDef(x) ? DEF_THEMES : THEMES)[(MJ.dayOf(x, k) - 1) % THEMES.length];
   const MOODS = [['😞', 'Low'], ['😐', 'Flat'], ['🙂', 'Okay'], ['😄', 'Good'], ['🤩', 'Great']];
+
+  /* ---------------- your dream: a Defence Intelligence scientific job in Delhi ----------------
+     Written once into the journal (and into Dreams) as the main desire, with a fixed id so two devices never make two. */
+  const DEF = {
+    id: 'mj-defint', title: 'A Defence Intelligence scientific job in Delhi', area: 'career', target: '2027-12-31', method: 'daily', believe: 6,
+    outcome: 'The appointment letter arrives — a scientist’s post in a defence intelligence organisation in Delhi (DRDO, NTRO, ARC, NATGRID or DIA). I join, take the oath, and my drones, avionics and AI work now protects the nation. My family is proud; I feel calm, useful and grateful.',
+    statement: 'I am a Defence Intelligence scientist in Delhi, serving the nation with my skills and with joy.',
+    sankalpa: 'I serve the nation as a Defence Intelligence scientist in Delhi.',
+    hi: 'दिल्ली में रक्षा आसूचना वैज्ञानिक पद की प्राप्ति',
+    obstacle: 'When office work is heavy I put off applications, papers and preparation, and I doubt whether they will pick me.',
+    ifc: 'office work leaves me tired or I start doubting myself', then: 'do one 15-minute step for the job — a notice, a form, a page or one topic',
+    why: 'To serve national security with 16 years of defence UAV and avionics work, my research in AI and drone imagery, and to grow.',
+    others: 'the nation and the forces, my family, my son, and the young scientists I will guide',
+  };
+  const DEF_DREAM = 'dr-defint';
+  const DEF_ACTIONS = [
+    'Check DRDO, NTRO, ARC, NATGRID and DIA notices for scientist posts (15 min)',
+    'Update my bio-data for a defence intelligence scientist post',
+    'Prepare documents: APAR copies, vigilance clearance, NOC through proper channel',
+    'Prepare one interview answer — why defence intelligence, why me, why now',
+    'Revise one topic: drones and ISR sensors, signal processing or AI on imagery',
+    'Work 30 minutes on a paper or patent — it strengthens the application',
+    'One hour of drone design or cyber security learning',
+    'Message one person who works in DRDO, NTRO or defence intelligence',
+  ];
+  const isDef = x => !!x && (x.id === DEF.id || /defen[cs]e|intelligence|ntro|drdo|natgrid/i.test(x.title || ''));
+  MJ.DEF = DEF;
+  /* put the dream in once — as the main desire, and in Dreams (Purpose → Dreams), linked */
+  MJ.ensureDream = force => {
+    const m = MD();
+    if (m.cfg.defSeed && !force) return false;
+    let x = MJ.desire(DEF.id);
+    if (!x) { x = Object.assign(JSON.parse(JSON.stringify(DEF)), { pics: [], status: 'active', start: today(), createdAt: Date.now(), updatedAt: Date.now() }); m.desires.push(x); }
+    else if ((x.status || 'active') !== 'active') { x.status = 'active'; touch(x); }
+    m.cfg.main = x.id; m.cfg.defSeed = 1;
+    const d = D(); if (!d.dreams || typeof d.dreams !== 'object') d.dreams = {}; if (!Array.isArray(d.dreams.list)) d.dreams.list = [];
+    let dr = d.dreams.list.find(y => y.id === DEF_DREAM);
+    if (!dr) {
+      dr = { id: DEF_DREAM, title: DEF.title, age: 45, area: 'career', status: 'working', pics: [], notes: 'Organisations: DRDO (Scientist F/G), NTRO, Aviation Research Centre, NATGRID, Defence Intelligence Agency — in Delhi. Join in 2027.', why: DEF.why,
+        steps: ['Watch the notices of DRDO, NTRO, ARC, NATGRID and DIA', 'Bio-data, APAR copies, vigilance clearance and NOC ready', 'Publish the papers and file the patent', 'Prepare for the interview', 'Apply through proper channel', 'Join in Delhi'].map((t, i) => ({ id: 'dr-defint-s' + i, text: t, done: false })), createdAt: Date.now(), updatedAt: Date.now() };
+      d.dreams.list.push(dr);
+    }
+    if (!x.dreamId) x.dreamId = dr.id;
+    return true;
+  };
 
   MJ.desires = () => MD().desires;
   MJ.active = () => MD().desires.filter(x => (x.status || 'active') === 'active').sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
@@ -121,10 +181,11 @@
 
   const empty = () => '<div class="mj-empty"><div class="mj-om" aria-hidden="true">🕉</div><h3>Your daily manifestation journal</h3>' +
     '<p>Five minutes in the morning, three at night. Write what you want as if it is already true, keep it believable, see the obstacle and your plan, picture the steps, and take one real action — then notice what moved you closer.</p>' +
-    '<button type="button" class="btn primary" data-act="mj-new">' + ED.icon('sparkle') + 'Write my first desire</button>' +
-    '<p class="hint">Ideas: a role or promotion, a paper accepted, a healthy routine, a calm mind, a home, a family wish. Keep 1–3 at a time.</p></div>';
+    '<button type="button" class="btn primary" data-act="mj-defint">' + ED.icon('sparkle') + 'Start with my dream: Defence Intelligence scientist, Delhi</button>' +
+    '<p class="hint">Or <button type="button" class="link-btn" data-act="mj-new">write another desire</button>. Keep 1–3 at a time.</p></div>';
 
   const left = () => {
+    try { if (MJ.ensureDream()) ED.store.commit({ silent: true }); } catch (err) { /* keep the page */ }
     const k = curDate(), s = st(), c = MD().cfg, x = MJ.focus(k), d = MJ.day(k) || {};
     const isToday = k === today();
     const nav = '<div class="mj-nav"><button type="button" class="icon-btn" data-act="mj-date" data-d="-1" aria-label="Previous day">' + ED.icon('chevL') + '</button>' +
@@ -166,7 +227,8 @@
       '<div class="mj-if"><span>If</span>' + inp('obstacle', d.obstacle != null ? d.obstacle : (x.ifc || x.obstacle || ''), 'I feel like putting it off…') + '<span>then I will</span>' + inp('plan', d.plan != null ? d.plan : (x.then || ''), 'start with just 10 minutes') + '</div>', MJ.STEPS[3][3](d, x));
     // 5 one action
     const t = taskOf(d), tdone = taskDone(d, k);
-    const action = sec('act', '🎯', 'One aligned action today', inp('action', d.action, 'e.g. Send the revised paper to Prof. …, walk 30 min, call …') +
+    const ideas = isDef(x) && !t ? '<div class="mj-ideas" role="group" aria-label="Ideas for today’s step"><span class="hint">Ideas for your dream — tap one:</span>' + DEF_ACTIONS.map((a, i) => { const j = (i + MJ.dayOf(x, k) - 1) % DEF_ACTIONS.length; return i < (c.quick ? 3 : 5) ? '<button type="button" class="chip-btn" data-act="mj-idea" data-t="' + e(DEF_ACTIONS[j]) + '">' + e(DEF_ACTIONS[j]) + '</button>' : ''; }).join('') + '</div>' : '';
+    const action = sec('act', '🎯', 'One aligned action today', inp('action', d.action, isDef(x) ? 'e.g. Check the NTRO and DRDO notices, update my bio-data …' : 'e.g. Send the revised paper to Prof. …, walk 30 min, call …') + ideas +
       '<div class="mj-sayrow">' + (t ? '<span class="mj-tk' + (tdone ? ' ok' : '') + '">' + (tdone ? '✓ Done' : '• In today’s tasks') + ' — ' + e(t.title.replace(/^✨\s*/, '')) + '</span>' : '<button type="button" class="btn small" data-act="mj-task"' + (txt(d.action) ? '' : ' disabled') + '>' + ED.icon('plus') + 'Add to ' + (isToday ? 'today’s' : 'that day’s') + ' tasks</button>') + '</div>', MJ.STEPS[4][3](d));
     // script (optional)
     const script = c.quick && x.method !== 'bps' ? '' : '<details class="mj-script"' + (x.method === 'bps' ? ' open' : '') + '><summary>✍ Script it — a few lines from the day it came true' + (x.method === 'bps' ? ' (15 minutes)' : ' (optional)') + '</summary>' +
@@ -250,7 +312,10 @@
   const method = () => {
     const c = MD().cfg;
     const step = (ico, h, p) => '<li><span class="mj-mi" aria-hidden="true">' + ico + '</span><div><b>' + h + '</b><p>' + p + '</p></div></li>';
-    return '<ol class="mj-method">' +
+    const dx = MJ.desire(DEF.id);
+    return '<div class="mj-dream"><b>🎯 Your dream: ' + e(DEF.title) + '</b><p>Everything on this page is set around it: the sankalpa, the obstacle and if–then plan, the theme of each day and the ideas for today’s step (notices of DRDO, NTRO, ARC, NATGRID and DIA, bio-data and documents, papers and patents, interview answers, drones and cyber). One real step a day, then let it go.</p>' +
+      (dx && (dx.status || 'active') === 'active' ? (c.main === DEF.id ? '' : '<button type="button" class="btn small" data-act="mj-defint">Make it my main desire</button>') : '<button type="button" class="btn small primary" data-act="mj-defint">Bring it back as my main desire</button>') + '</div>' +
+      '<ol class="mj-method">' +
       step('🙏', 'Gratitude first — specific, with the reason', 'Weekly gratitude lists made people more optimistic and healthier; writing three good things and why they happened raised happiness for up to six months. It also turns attention to what is already working.') +
       step('✨', 'Write it as already true, and feel it', 'Writing about your “best possible self” reliably raises optimism and positive feeling (29 studies). A sankalpa is said in the present tense — a resolve, not a request.') +
       step('🌱', 'Keep it believable', 'Sweeping lines (“I am completely successful”) can make people who doubt themselves feel worse. Specific or bridge wording works better: “I am becoming…”, “Every day I move closer to…”. The page asks how believable it is.') +
@@ -286,21 +351,21 @@
   MJ.edit = id => {
     const old = id ? MJ.desire(id) : null;
     const x = old ? JSON.parse(JSON.stringify(old)) : { method: 'daily', area: 'career', believe: 6, pics: [] };
-    let step = 0, pe = null;
+    let step = 0, pe = null, closing = false, apiRef = null;
     const goals = (D().goals || []).filter(g => !g.done), dreams = ((D().dreams && D().dreams.list) || []).filter(d => d.status !== 'done');
     const o = (v, l, s) => '<option value="' + e(v) + '"' + (s ? ' selected' : '') + '>' + e(l) + '</option>';
     const STEPS = ['Wish', 'Picture it', 'As if it’s true', 'Obstacle & plan', 'Why & method'];
     const panes = [
-      '<p class="mj-q">What do you want? <span class="hint">Important to you, challenging but possible. Keep it short.</span></p><input class="field mj-big" id="mj-title" maxlength="90" value="' + e(x.title || '') + '" placeholder="e.g. Promotion to Scientist G, my paper accepted, a fit body by 45">' +
+      '<p class="mj-q">What do you want? <span class="hint">Important to you, challenging but possible. Keep it short.</span></p><input class="field mj-big" id="mj-title" maxlength="90" value="' + e(x.title || '') + '" placeholder="e.g. A Defence Intelligence scientific job in Delhi">' +
         '<div class="mj-2"><label>Area<select class="field" id="mj-area">' + AREAS().map(a => o(a[0], a[2] + ' ' + a[1], a[0] === x.area)).join('') + '</select></label><label>By when (optional)<input class="field" type="date" id="mj-target" value="' + e(x.target || '') + '"></label></div>' +
         '<div class="mj-2"><label>Linked dream<select class="field" id="mj-dream">' + o('', '—', !x.dreamId) + dreams.map(d => o(d.id, d.title, d.id === x.dreamId)).join('') + '</select></label><label>Linked goal<select class="field" id="mj-goal">' + o('', '—', !x.goalId) + goals.map(g => o(g.id, g.title, g.id === x.goalId)).join('') + '</select></label></div>',
-      '<p class="mj-q">Close your eyes and picture the best outcome. <span class="hint">Where are you? Who is with you? How does it feel?</span></p><textarea class="field" id="mj-outcome" rows="4" placeholder="I walk into … people congratulate me … I feel light, proud, grateful …">' + e(x.outcome || '') + '</textarea>' +
+      '<p class="mj-q">Close your eyes and picture the best outcome. <span class="hint">Where are you? Who is with you? How does it feel?</span></p><textarea class="field" id="mj-outcome" rows="4" placeholder="The appointment letter arrives … I join in Delhi … my family is proud … I feel calm and grateful …">' + e(x.outcome || '') + '</textarea>' +
         '<p class="mj-q">A picture that says it <span class="hint">(your vision board — optional)</span></p><div class="pi-host" id="mj-pics"></div>',
       '<p class="mj-q">Write it as if it is already true — present tense, with a feeling.</p><textarea class="field mj-big" id="mj-stmt" rows="2" placeholder="I am … / I have …">' + e(x.statement || '') + '</textarea><div class="mj-sugg" id="mj-sugg"></div>' +
         '<label class="mj-bel">How believable is this to you right now? <b id="mj-belv" class="num">' + (x.believe || 6) + '</b>/10<input type="range" min="1" max="10" id="mj-bel" value="' + (x.believe || 6) + '"></label><p class="hint" id="mj-belh"></p>' +
-        '<p class="mj-q">Your sankalpa — the short line you will repeat <span class="hint">(under 12 words; Hindi or English)</span></p><input class="field" id="mj-sank" maxlength="120" value="' + e(x.sankalpa || '') + '" placeholder="I am Scientist G, serving with joy.">' +
-        '<p class="mj-q">For the traditional Sanskrit sankalpa <span class="hint">— your wish in a few Hindi words (optional)</span></p><input class="field" id="mj-hi" lang="hi" value="' + e(x.hi || '') + '" placeholder="e.g. उत्तम पदोन्नति की प्राप्ति">',
-      '<p class="mj-q">What inside you could stop you? <span class="hint">An inner obstacle you can work on — a habit, a feeling, a belief.</span></p><textarea class="field" id="mj-obst" rows="2" placeholder="I put it off when I’m tired; I doubt I’m good enough …">' + e(x.obstacle || '') + '</textarea>' +
+        '<p class="mj-q">Your sankalpa — the short line you will repeat <span class="hint">(under 12 words; Hindi or English)</span></p><input class="field" id="mj-sank" maxlength="120" value="' + e(x.sankalpa || '') + '" placeholder="I serve the nation as a Defence Intelligence scientist in Delhi.">' +
+        '<p class="mj-q">For the traditional Sanskrit sankalpa <span class="hint">— your wish in a few Hindi words (optional)</span></p><input class="field" id="mj-hi" lang="hi" value="' + e(x.hi || '') + '" placeholder="e.g. दिल्ली में रक्षा आसूचना वैज्ञानिक पद की प्राप्ति">',
+      '<p class="mj-q">What inside you could stop you? <span class="hint">An inner obstacle you can work on — a habit, a feeling, a belief.</span></p><textarea class="field" id="mj-obst" rows="2" placeholder="I put off applications when office work is heavy; I doubt they will pick me …">' + e(x.obstacle || '') + '</textarea>' +
         '<p class="mj-q">Your if–then plan</p><div class="mj-if"><span>If</span><input class="field" id="mj-ifc" value="' + e(x.ifc || '') + '" placeholder="I feel like putting it off after dinner"><span>then I will</span><input class="field" id="mj-then" value="' + e(x.then || '') + '" placeholder="open the file and work for just 10 minutes"></div>',
       '<p class="mj-q">Why does it matter to you? <span class="hint">The value behind it — family, service, freedom, growth.</span></p><textarea class="field" id="mj-why" rows="2">' + e(x.why || '') + '</textarea>' +
         '<p class="mj-q">Who else will it help when it comes true? <span class="hint">(family, colleagues, people you serve)</span></p><input class="field" id="mj-others" value="' + e(x.others || '') + '">' +
@@ -311,6 +376,7 @@
       body: '<ol class="mj-steps">' + STEPS.map((s, i) => '<li data-i="' + i + '">' + (i + 1) + '. ' + e(s) + '</li>').join('') + '</ol>' + panes.map((p, i) => '<div class="mj-pane" data-i="' + i + '" hidden>' + p + '</div>').join(''),
       footer: (old ? '<button type="button" class="btn danger" data-x="del">' + ED.icon('trash') + 'Delete</button>' : '') + '<span class="grow"></span><button type="button" class="btn" data-x="back">Back</button><button type="button" class="btn primary" data-x="next">Next</button>',
       onMount(el, api) {
+        apiRef = api;
         const $ = s => el.querySelector(s);
         pe = ED.pics ? ED.pics.editor($('#mj-pics'), x.pics || [], { max: 4 }) : null;
         const show = () => {
@@ -337,18 +403,32 @@
           x.method = (el.querySelector('input[name="mj-m"]:checked') || {}).value || 'daily';
           if (pe) x.pics = pe.get();
         };
-        $('[data-x="back"]').addEventListener('click', () => { if (step > 0) { step--; show(); } });
+        $('[data-x="back"]').addEventListener('click', () => { if (step > 0) { persist(false); step--; show(); } });
+        /* 1.25 fix: keep what is typed as you go — every step, every few keystrokes and on closing (X, Back, or the
+           phone's back) — not only at the last "Save" */
+        let cur = old, made = false, dt = 0;
+        const persist = final => {
+          read();
+          if (!x.title) return false;
+          if (final) { if (!x.statement) x.statement = presentTense(x.title)[0] || x.title; if (!x.sankalpa) x.sankalpa = x.statement; }
+          if (!made) { ED.store.checkpoint(old ? 'Edit desire' : 'New desire'); made = true; }
+          const m = MD();
+          if (cur) { const st0 = cur.method !== x.method ? today() : cur.start; Object.assign(cur, x, { updatedAt: Date.now(), start: st0 || today() }); }
+          else { x.id = U.uid('mj'); x.status = 'active'; x.start = today(); x.createdAt = Date.now(); x.updatedAt = Date.now(); m.desires.push(x); cur = x; if (!m.cfg.main || !MJ.desire(m.cfg.main)) m.cfg.main = x.id; }
+          ED.store.commit({ silent: true });
+          return true;
+        };
+        el.addEventListener('input', () => { clearTimeout(dt); dt = setTimeout(() => persist(false), 500); });
+        const hide = () => { if (document.visibilityState === 'hidden' && !closing) { clearTimeout(dt); if (persist(false)) ED.store.flushNow(); } };
+        document.addEventListener('visibilitychange', hide); window.addEventListener('pagehide', hide);
+        api.unhook = () => { document.removeEventListener('visibilitychange', hide); window.removeEventListener('pagehide', hide); };
+        el.addEventListener('change', () => { clearTimeout(dt); dt = setTimeout(() => persist(false), 300); });
+        api.saveDraft = () => { clearTimeout(dt); if (persist(false)) { ED.store.flushNow(); ED.store.commit(); } };
         $('[data-x="next"]').addEventListener('click', () => {
           if (step === 0 && !txt($('#mj-title').value)) { ED.ui.toast('What do you want? Write it in a few words.'); $('#mj-title').focus(); return; }
-          if (step < 4) { step++; show(); return; }
-          read();
-          if (!x.statement) x.statement = presentTense(x.title)[0] || x.title;
-          if (!x.sankalpa) x.sankalpa = x.statement;
-          ED.store.checkpoint(old ? 'Edit desire' : 'New desire');
-          const m = MD();
-          if (old) Object.assign(old, x, { updatedAt: Date.now(), start: old.method !== x.method ? today() : old.start });
-          else { x.id = U.uid('mj'); x.status = 'active'; x.start = today(); x.createdAt = Date.now(); x.updatedAt = Date.now(); m.desires.push(x); if (!m.cfg.main || !MJ.desire(m.cfg.main)) m.cfg.main = x.id; }
-          ED.store.commit(); api.close();
+          if (step < 4) { persist(false); step++; show(); return; }
+          clearTimeout(dt); persist(true);
+          ED.store.commit(); closing = true; api.close();
           ED.ui.toast(old ? 'Saved' : 'Desire written ✨ — your journal for today is ready');
         });
         const del = $('[data-x="del"]');
@@ -358,6 +438,8 @@
         });
         show();
       },
+      beforeClose() { if (!closing && apiRef && apiRef.saveDraft) apiRef.saveDraft(); },
+      onClose() { if (apiRef && apiRef.unhook) apiRef.unhook(); if (!closing && MD().desires.length) { try { ED.app.render(); } catch (err) { /* ignore */ } } },
     });
   };
 
@@ -433,6 +515,9 @@
     const r = root.querySelector('.mj-ring'); if (r) r.outerHTML = ring(MJ.score(k));
   };
   let tmr = 0;
+  const flushTyping = () => { if (tmr) { clearTimeout(tmr); tmr = 0; ED.store.commit({ silent: true }); } try { ED.store.flushNow(); } catch (err) { /* ignore */ } };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushTyping(); });
+  window.addEventListener('pagehide', flushTyping);
   const onInput = (root, ev) => {
     const t = ev.target, key = t.dataset && t.dataset.mj; if (!key) return;
     const k = curDate(), d = MJ.day(k, true), x = MJ.focus(k);
@@ -451,7 +536,7 @@
     if (key === 'action') { const b = root.querySelector('[data-act="mj-task"]'); if (b) b.disabled = !txt(t.value); }
     if (key === 'script') { const w = root.querySelector('.mj-wc'); if (w) w.textContent = wc(t.value); }
     touch(d);
-    clearTimeout(tmr); tmr = setTimeout(() => ED.store.commit({ silent: true }), 400);
+    clearTimeout(tmr); tmr = setTimeout(() => { tmr = 0; ED.store.commit({ silent: true }); }, 400);
     marks(root);
   };
 
@@ -476,6 +561,12 @@
     if (navigator.vibrate) { try { navigator.vibrate(15); } catch (err) { /* ignore */ } }
   };
   A['mj-vis'] = () => MJ.visualise();
+  A['mj-idea'] = el => {
+    const k = curDate(), d = MJ.day(k, true), x = MJ.focus(k);
+    if (!d.focus && x) d.focus = x.id;
+    d.action = el.dataset.t; touch(d); ED.store.commit();
+  };
+  A['mj-defint'] = () => { MJ.ensureDream(true); ED.store.commit(); ED.ui.toast('Your dream is your main desire ✨'); };
   A['mj-task'] = () => {
     const k = curDate(), d = MJ.day(k, true), x = MJ.focus(k);
     if (!txt(d.action)) { ED.ui.toast('Write the action first'); return; }
