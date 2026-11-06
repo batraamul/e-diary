@@ -568,6 +568,8 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 
 ### v1.25 — Daily Manifestation Journal (Purpose → Manifest)
 
+**Dreams → Goal:** besides “Make it a goal”, a dream can be linked to a goal you already have (“Or link to an existing goal”, open and done goals listed). Change or remove the link from the same list; removing it keeps the goal. Undo works.
+
 **Update within 1.25 (saving fix, your dream):**
 - What you write is now kept as you type — in the desire guide (every step, every few keystrokes, and when you close it with ✕ or leave the app) and on the page (saved at once when you switch apps). Before, a desire was saved only at the guide's last “Save”, so closing it part-way lost it.
 - Your dream — **a Defence Intelligence scientific job in Delhi** — is written in once as the main desire (and in Purpose → Dreams, linked), with its sankalpa, Hindi purpose for the traditional sankalpa, obstacle and if–then plan. Today's theme and “Ideas for your dream” (notices of DRDO, NTRO, ARC, NATGRID and DIA; bio-data; APAR, vigilance clearance and NOC; interview answers; papers and patents; drones and cyber) are set around it. If you delete it, one tap brings it back.

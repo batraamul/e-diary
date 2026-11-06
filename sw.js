@@ -1,6 +1,6 @@
 /* E-Diary — offline support. Serves the app from a local cache and refreshes it in the background.
    Change VERSION whenever you edit the app so installed copies pick up the new files. */
-const VERSION = 'e-diary-1.25-r2';   // still version 1.25 — '-r2' only refreshes installed copies (Manifest saving fix, your dream)
+const VERSION = 'e-diary-1.25-r3';   // still version 1.25 — '-r2' only refreshes installed copies (Manifest saving fix, your dream)
 const ASSETS = [
   './',
   './index.html',

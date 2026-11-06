@@ -81,7 +81,8 @@
       '<div class="dr-sec"><h4>Steps towards it <span class="hint">' + (steps.length ? steps.filter(x => x.done).length + '/' + steps.length : '') + '</span></h4><ul class="xp-check dr-steps">' + steps.map(x => '<li><label><input type="checkbox" data-change="dr-step" data-id="' + e(d.id) + '" data-s="' + e(x.id) + '"' + (x.done ? ' checked' : '') + '><span>' + e(x.text) + '</span></label></li>').join('') + '</ul>' +
       '<form class="dr-addstep" data-form="dr-step" data-id="' + e(d.id) + '"><input name="t" class="field" placeholder="A step — e.g. finish the PhD, run 10 km, save ₹5 lakh" aria-label="New step"><button type="submit" class="btn small">' + ED.icon('plus') + 'Add</button></form></div>' +
       '<div class="dr-sec"><h4>Goal</h4>' + (g ? '<button type="button" class="dr-goal" data-act="dr-goal-open" data-id="' + e(g.id) + '" style="--c:' + e(g.color || c[3]) + '"><b>' + e(g.title) + '</b><span class="hint">' + (g.due ? 'due ' + e(U.fmtShort(g.due)) : '') + ' · ' + M.goalStats(g.id).pct + '% of its tasks done</span></button>'
-        : '<p class="hint">Turn it into a goal in Purpose → Goals: its tasks then reach your Daily page.</p><button type="button" class="btn small" data-act="dr-goal" data-id="' + e(d.id) + '">' + ED.icon('target') + 'Make it a goal</button>') + '</div>' +
+        : '<p class="hint">Turn it into a goal in Purpose → Goals, or link it to a goal you already have: its tasks then reach your Daily page.</p><button type="button" class="btn small" data-act="dr-goal" data-id="' + e(d.id) + '">' + ED.icon('target') + 'Make it a goal</button>') +
+        DR.goalPick(d) + '</div>' +
       '<div class="row-btns dr-acts"><button type="button" class="btn small primary" data-act="dr-edit" data-id="' + e(d.id) + '">' + ED.icon('pencil') + 'Edit</button>' +
       (d.status !== 'done' ? '<button type="button" class="btn small" data-act="dr-won" data-id="' + e(d.id) + '">🏆 Achieved!</button>' : '<button type="button" class="btn small ghost" data-act="dr-won" data-id="' + e(d.id) + '">Not achieved yet</button>') + '</div>';
     return FX().page('drm dr-r', 'Your dreams', seg, body, 'dr-r');
@@ -150,6 +151,25 @@
     ED.store.commit(); ED.ui.toast('Goal made — add its tasks in Purpose → Goals'); ED.editors.goal(g.id);
   };
   A['dr-goal-open'] = el => ED.editors.goal(el.dataset.id);
+  /* link the dream to a goal that already exists (or change / remove the link) */
+  DR.goalPick = d => {
+    const gs = (D().goals || []).filter(g => g && g.id);
+    if (!gs.length && !d.goalId) return '';
+    const open = gs.filter(g => !g.done), done = gs.filter(g => g.done);
+    const opt = g => '<option value="' + e(g.id) + '"' + (g.id === d.goalId ? ' selected' : '') + '>' + e(g.title || 'Untitled goal') + (g.due ? ' — due ' + e(U.fmtShort(g.due)) : '') + '</option>';
+    return '<div class="dr-glink"><label class="hint" for="dr-gl-' + e(d.id) + '">' + (d.goalId ? 'Linked goal — change it:' : 'Or link to an existing goal:') + '</label>' +
+      '<select class="field" id="dr-gl-' + e(d.id) + '" data-change="dr-goal-link" data-id="' + e(d.id) + '"><option value="">' + (d.goalId ? '— Remove the link —' : '— Choose a goal —') + '</option>' +
+      (open.length ? '<optgroup label="Open goals">' + open.map(opt).join('') + '</optgroup>' : '') +
+      (done.length ? '<optgroup label="Done goals">' + done.map(opt).join('') + '</optgroup>' : '') + '</select></div>';
+  };
+  CH['dr-goal-link'] = el => {
+    const d = DD().list.find(x => x.id === el.dataset.id); if (!d) return;
+    const id = el.value || null; if (id === (d.goalId || null)) return;
+    ED.store.checkpoint(id ? 'Link dream to goal' : 'Unlink goal');
+    d.goalId = id; if (id && d.status === 'dream') d.status = 'working'; d.updatedAt = Date.now();
+    ED.store.commit();
+    if (ED.ui.undoToast) ED.ui.undoToast(id ? 'Linked to “' + ((M.goal(id) || {}).title || 'goal') + '”' : 'Goal unlinked — the goal itself is kept'); else ED.ui.toast(id ? 'Linked' : 'Unlinked');
+  };
   CH['dr-area'] = el => { st().area = el.value; ED.app.render(); };
   CH['dr-dob'] = el => { if (!U.isKey(el.value)) return; ED.store.checkpoint('Birth date'); DD().dob = el.value; DD().updatedAt = Date.now(); ED.store.commit(); };
   CH['dr-step'] = el => { const d = DD().list.find(x => x.id === el.dataset.id); const s = d && (d.steps || []).find(x => x.id === el.dataset.s); if (!s) return; s.done = el.checked; d.updatedAt = Date.now(); if (s.done && d.status === 'dream') d.status = 'working'; ED.store.commit(); };

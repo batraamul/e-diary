@@ -883,3 +883,6 @@ tr.st-clash::after { display: none; }
 .mj-ideas .chip-btn { text-align: left; white-space: normal; line-height: 1.3; }
 .mj-dream { border: 1px solid var(--line, #ccc); border-left: 4px solid #2563eb; border-radius: 10px; padding: 10px 12px; margin: 8px 0 12px; }
 .mj-dream p { margin: 4px 0 8px; }
+/* dreams: link to an existing goal */
+.dr-glink { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 10px; }
+.dr-glink select { max-width: 100%; min-width: 0; flex: 1 1 220px; }

@@ -671,6 +671,8 @@ There is no automated test runner in the package; test by hand in the browser:
 
 ## 1.25 — Manifestation journal
 
+**1.25 (sw `e-diary-1.25-r3`):** `DR.goalPick(d)` select (`data-change="dr-goal-link"`) sets/clears `dream.goalId` to an existing goal; checkpoint + undoToast.
+
 **1.25 update (sw cache `e-diary-1.25-r2`, ED.VERSION still 1.25):** `MJ.edit` saves as you go (`persist` on step change, debounced input/change, `beforeClose`, visibilitychange/pagehide); the page flushes its 0.4 s typing timer on hide. `MJ.ensureDream()` adds desire `mj-defint` and dream `dr-defint` once (`cfg.defSeed`), fixed ids so devices never duplicate; `DEF_THEMES` and `DEF_ACTIONS` (`mj-idea` chips) apply when `isDef(x)`; `mj-defint` action brings it back.
 - `js/manifest.js`: view `manifest` (Purpose group). `ED.manifest`: `desires()`, `active()`, `focus(k)`, `day(k, make)`, `STEPS` (grat, say, vis, plan, act, eve), `score(k)`, `streak()`, `best()`, `tradSankalpa(k, desire)` (Panchang → Sanskrit), `edit(id)` (5-step guide), `visualise()`, `weekText()`, `remindCheck()`. Typing saves silently (no redraw); the aligned action becomes an A task (`day.taskId`).
 - Data `manifest { desires[], days{date: entry}, cfg{ main, quick, remind, morning, evening, name, gotra, fem, speak } }`; sync `nested('manifest', ['desires'], { days: 1 })`. CSS `mj-*` in `life.css`.
