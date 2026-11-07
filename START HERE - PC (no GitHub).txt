@@ -1,0 +1,32 @@
+E-Diary Planner 1.25 — the copy that runs from your own PC (no GitHub, no internet needed)
+===========================================================================================
+
+1. Unzip this folder to a place you will keep, e.g.  Documents\E-Diary   (not in Downloads, not inside the zip).
+
+2. Open the diary
+   Windows : double-click  "Start E-Diary (Windows).bat"
+             then, once:   "Create Desktop Shortcut (Windows).bat"  → an E-Diary icon on the Desktop and Start menu.
+             If Windows says "Windows protected your PC": More info → Run anyway (the scripts only open the diary).
+   Mac     : right-click "Start E-Diary (Mac).command" → Open → Open (first time only; macOS blocks downloaded scripts).
+   Linux   : ./"Start E-Diary (Linux).sh"
+   It opens in its own window at  http://localhost:47812  — a web server inside your PC that only this PC can open.
+   Edge or Chrome → ⋯ → Apps → "Install E-Diary" gives it its own app window and taskbar icon.
+   Without the starters you can double-click "E-Diary (single file).html" (works, but keeps separate data).
+
+3. Bring your entries into this copy (your data lives in the browser, separately for each address)
+   - If you used the E-Diary desktop shortcut before (http://localhost:47812), your entries are already there.
+   - Otherwise, in the diary you use now (e.g. batraamul.github.io/e-diary):  ⚙ Settings → Backup & Sync →
+     "Export backup (.json)". Then in this copy: ⚙ Settings → Backup & Sync → "Import backup…" → that file.
+
+4. Keep the diary safe on this PC (recommended — do both)
+   - ⚙ Settings → Backup & Sync → "Save diary to a file…" → save e-diary.json in a folder you back up
+     (Documents, a OneDrive / Google Drive for desktop folder, or a pen drive copy). From then on every change is
+     written to that file within seconds. Turn on Password lock first and the file is encrypted.
+   - Now and then: "Export backup (.json)" and keep the copies (clearing browser data deletes the diary in the
+     browser — the file and backups are your safety).
+
+5. Google features (Drive sync, Google Calendar, Letters e-mail): optional. In your Google Cloud Client ID add
+   http://localhost:47812  to "Authorized JavaScript origins" — everything else works without Google.
+
+Keep the folder where it is after making the shortcut (if you move it, run the shortcut maker again).
+To update later: unzip the new version over this folder (same place) — your entries stay in the browser.
