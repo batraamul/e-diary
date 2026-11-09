@@ -85,6 +85,8 @@
     (j.data || []).forEach(x => { const k = dmy(x.date); if (k && +x.nav > 0) m.set(k, +x.nav); });
     c.hist = m; c.from = a; c.to = b; return m;
   };
+  /* 1.25: the NAV of day k, or the last one before it (statements are valued on the last NAV) */
+  MV.navOn = async (code, k) => { const m = await history(code, U.addDays(k, -12), k > U.today() ? U.today() : k); let best = null; m.forEach((v, d) => { if (d <= k && (!best || d > best.d)) best = { nav: v, d }; }); if (!best) throw new Error('no NAV on or before ' + U.fmtDM(k)); return best; };
   /* the NAV a purchase on day k gets: that day's, else the next published one (weekends, holidays) */
   const navFor = (m, k) => { for (let i = 0; i < 10; i++) { const d = U.addDays(k, i); if (m.has(d)) return { nav: m.get(d), d }; } return null; };
   /* transfers into (+) or out of (−) the holding after the units were counted */
@@ -129,6 +131,7 @@
                     when it cannot be read, the gold rate below is used and the note says so;
      how 'gold'   — the gold rate × (1 + premium); the premium can be matched once to your broker's price (calibrate);
      how 'manual' — the price you type (₹ a gram), with its date. */
+  MV.quote = async sym => { const j = await viaReader('quote&s=' + encodeURIComponent(MV.sym(sym).replace(/^(NSE|BOM|BSE):/, ''))); if (!j || !(+j.price > 0)) throw new Error((j && j.error) || 'no market price for ' + sym); return j; };
   MV.sgbQuote = async sym => { const j = await viaReader('quote&s=' + encodeURIComponent(MV.sym(sym).replace(/^(NSE|BOM|BSE):/, ''))); if (!j || !(+j.price > 0)) throw new Error((j && j.error) || 'no market price for ' + sym); return j; };
   const goldRate = async m => { const G = await MV.goldGram(); return { rate: r2(G.g * (1 + (m.prem == null ? 6 : +m.prem) / 100)), src: G.src }; };
   const doSGB = async h => {
@@ -259,9 +262,13 @@
         if (!priceUrl()) px.forEach(h => fail(h, 'set up your price reader (⚙ beside Refresh values)'));
         else {
           try {
-            const p = await MV.prices(Array.from(new Set([].concat(...px.map(h => MV.rows(h.mk).map(x => MV.sym(x.sym)))))));
+            const all = Array.from(new Set([].concat(...px.map(h => MV.rows(h.mk).map(x => MV.sym(x.sym))))));
+            const p = await MV.prices(all), alt = {};
+            // 1.25: Google Finance has no price for many Indian ETFs (e.g. NSE:SETFGOLD) — ask the reader's Yahoo / NSE lookup
+            for (const sy of all.filter(x => !(+p[x] > 0))) { try { const q = await MV.quote(sy); if (+q.price > 0) alt[sy] = +q.price; } catch (err) { /* stays missing */ } }
             px.forEach(h => {
-              const rows = MV.rows(h.mk), miss = rows.filter(x => !(+p[MV.sym(x.sym)] > 0));
+              const rows = MV.rows(h.mk), miss = rows.filter(x => !(+p[MV.sym(x.sym)] > 0 || +alt[MV.sym(x.sym)] > 0));
+              rows.forEach(x => { if (!(+p[MV.sym(x.sym)] > 0) && +alt[MV.sym(x.sym)] > 0) p[MV.sym(x.sym)] = alt[MV.sym(x.sym)]; });
               if (miss.length) { fail(h, 'no price for ' + miss.map(x => x.sym).join(', ') + ' — check the symbol (NSE:… or BOM:…)'); return; }
               rows.forEach(x => { x.price = +p[MV.sym(x.sym)]; });
               if (h.mk.rows) h.mk.rows = rows;
@@ -337,7 +344,8 @@
       '<div class="st-grid mv-sec" data-k="mf"><label class="lbl" for="mv-q">Scheme</label><div><div class="mv-srow"><input id="mv-q" class="field" placeholder="Search: e.g. Franklin India Flexi Cap Direct Growth" value="' + e(m0.sname || h.name) + '"><button type="button" class="btn small" data-x="find">' + ED.icon('search') + 'Find</button></div>' +
         '<ul class="mv-res" id="mv-res"></ul><p class="hint" id="mv-pick">' + (m0.code ? 'Chosen: <b>' + e(m0.sname || m0.code) + '</b> (' + e(m0.code) + ')' : 'Pick the exact plan — Direct or Regular, Growth or IDCW — as on your statement.') + '</p></div>' +
         '<label class="lbl" for="mv-u">Units you hold</label><div><input id="mv-u" class="field num" type="number" step="0.001" min="0" value="' + e(m0.units != null ? m0.units : '') + '" placeholder="from your statement / app"><span class="hint fx-hint">From your account statement (CAS), the fund’s app or the registrar (CAMS / KFintech). Use 0 for a new SIP.</span></div>' +
-        '<label class="lbl" for="mv-uo">Units as on</label><div><input id="mv-uo" class="field" type="date" value="' + e(m0.unitsOn || U.today()) + '"><span class="hint fx-hint">Every transfer into the fund after this date — each SIP instalment too — buys units at that day’s NAV, by itself.</span></div></div>' +
+        '<label class="lbl" for="mv-uo">Units as on</label><div><input id="mv-uo" class="field" type="date" value="' + e(m0.unitsOn || U.today()) + '"><span class="hint fx-hint">Every transfer into the fund after this date — each SIP instalment too — buys units at that day’s NAV, by itself.</span></div>' +
+        '<label class="lbl" for="mv-uv">Don’t know the units?</label><div><div class="mv-srow"><input id="mv-uv" class="field num" type="number" step="0.01" min="0" placeholder="Value on your statement on that date (₹)"><button type="button" class="btn small" data-x="units">Work out the units</button></div><span class="hint fx-hint" id="mv-uvx">Type the value your statement shows for the date above; the units = value ÷ that day’s NAV.</span></div></div>' +
       '<div class="st-grid mv-sec" data-k="px"><span class="lbl">Holdings</span><div><div class="mv-rows" id="mv-rows">' + (MV.rows(m0).length ? MV.rows(m0) : [{ sym: '', qty: '' }]).map(pxRow).join('') + '</div>' +
         '<button type="button" class="link-btn" data-x="px-add">＋ Add a row — the same share on the other exchange, or in another demat account</button>' +
         '<span class="hint fx-hint">One row per exchange or account: e.g. <b>NSE:SBIN</b> 40 and <b>BOM:500112</b> 25. Symbols as Google Finance writes them — NSE:… or BOM:… (BSE code or symbol). The value is the sum of each row at its own price.</span></div>' +
@@ -402,6 +410,14 @@
           try { const q = await MV.sgbQuote(sym); $('gqx').innerHTML = 'Market price: <b>₹' + (+q.price).toLocaleString('en-IN') + '</b> a gram (' + e([q.sym, q.src, q.on].filter(Boolean).join(', ')) + ')' + (+$('gg').value ? ' · your ' + (+$('gg').value) + ' g = <b>' + e(M$(Math.round(q.price * +$('gg').value))) + '</b>' : '') + '.'; }
           catch (err) { $('gqx').innerHTML = 'Could not read it: ' + e(err.message || err) + '. You can choose “Gold rate, matched to your broker’s price” instead.'; }
         });
+        const unitsFromValue = async () => {
+          if (!pick) { ED.ui.toast('Find and pick the scheme first'); return false; }
+          const v = +$('uv').value, d = U.isKey($('uo').value) ? $('uo').value : U.today(); if (!(v > 0)) { ED.ui.toast('Type the value on your statement'); $('uv').focus(); return false; }
+          $('uvx').textContent = 'Reading the NAV…';
+          try { const n = await MV.navOn(pick.code, d); const u = Math.round(v / n.nav * 1000) / 1000; $('u').value = u; $('uvx').innerHTML = '₹' + v.toLocaleString('en-IN') + ' ÷ NAV ' + n.nav + ' (' + e(U.fmtDM(n.d)) + ') = <b>' + u + ' units</b>.'; return true; }
+          catch (err) { $('uvx').textContent = 'Could not read the NAV (' + (err.message || err) + ').'; return false; }
+        };
+        el.querySelector('[data-x="units"]').addEventListener('click', unitsFromValue);
         const gold = el.querySelector('[data-x="gold"]');
         if (gold) gold.addEventListener('click', async () => {
           $('gx').textContent = 'Reading the gold price…';
@@ -464,7 +480,8 @@
           const mk = { kind, lots: m0.kind === kind ? m0.lots || {} : {} };
           if (kind === 'mf') {
             if (!pick) { ED.ui.toast('Find and pick the scheme first'); return; }
-            if ($('u').value === '') { ED.ui.toast('Type the units you hold (0 for a new SIP)'); $('u').focus(); return; }
+            if ($('u').value === '' && +$('uv').value > 0 && !(await unitsFromValue())) return;
+            if ($('u').value === '') { ED.ui.toast('Type the units you hold (0 for a new SIP) — or the value on your statement'); $('u').focus(); return; }
             Object.assign(mk, { code: String(pick.code), sname: pick.name, units: +$('u').value || 0, unitsOn: U.isKey($('uo').value) ? $('uo').value : U.today() });
             if (m0.code !== mk.code || m0.unitsOn !== mk.unitsOn) mk.lots = {};
           } else if (kind === 'px') {

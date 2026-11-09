@@ -671,6 +671,8 @@ There is no automated test runner in the package; test by hand in the browser:
 
 ## 1.25 — Manifestation journal
 
+**1.25 (sw `e-diary-1.25-r7`):** `MV.quote(sym)` (reader `f=quote`) fills px rows with no GOOGLEFINANCE price; `MV.navOn(code, k)` = NAV on/before k; MF dialog `#mv-uv` + `data-x="units"` computes units = value ÷ NAV.
+
 **1.25 (sw `e-diary-1.25-r6`):** SGB `mk.how` = `mkt` (`mk.sym`, `MV.sgbQuote` → reader `f=quote&s=` → script `quote()`: Yahoo chart `SYM-GB.NS/.NS/-GB.BO/.BO`, then NSE quote-equity with cookies; on success `prem`/`calOn` re-derived from `goldGram`) | `gold` (`prem`, calibrated from the broker price → `calOn`) | `manual` (`price`, `priceOn`); `mk.est` marks estimates (note starts “≈”). Reader script `v: 3`.
 
 **1.25 (sw `e-diary-1.25-r5`):** `ST.keepInStep()` (store change listener, reason `study-step`): orphan sessions → a track (id kept, “Subject (restored)”; empty trackId → “Study”); `p.weeks` extended before/after with `auto: true` weeks (label `wkLabel`, phase copied) and empty auto weeks trimmed at both ends, weeks renumbered 1…N; `s.week` = `ST.weekOf(s.date).n`; `p.start`/`p.end` = first/last session; subtitle dates, “N weeks”, “N hours” rewritten. Matrix cell falls back to the week's session topics.
