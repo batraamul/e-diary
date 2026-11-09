@@ -568,6 +568,8 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 
 ### v1.25 — Daily Manifestation Journal (Purpose → Manifest)
 
+**SGB at its market price (within 1.25, 9 Nov 2026):** a Sovereign Gold Bond is now valued, by choice, at **its own market price on NSE / BSE** (symbol, e.g. SGBDE31III — read by your price reader's newest script through Yahoo Finance, then NSE; the same price your broker shows), at the **gold rate matched to your broker's price** (type the broker's price once; the premium over world gold is worked out and the value then follows gold), or at **a price you type**. When the market price cannot be read, the note starts with ≈ and says so, and the estimate uses the premium seen at the last market price. (The world price + 6% used before was about 10% below the market.)
+
 **Study keeps up with every change (within 1.25, 9 Nov 2026):** after any change — a subject added or deleted, sessions added, moved or deleted, the plan edited, a sync — the plan's weeks grow to take sessions outside them (and shrink again when those are gone), each session's week follows its date, and the heading's dates, number of weeks and hours follow the sessions. *Subjects*, *Subjects by week* (a week without a theme shows its sessions' topics), *Topics*, *Books & lectures*, *Insights*, the Year / Month / Week & Day pages and the daily list all show the change at once. Sessions of a subject deleted on another device are kept under “Subject (restored)”.
 
 **Study and Finance (within 1.25, 9 Nov 2026):**

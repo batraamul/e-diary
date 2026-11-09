@@ -124,7 +124,29 @@
     if (!(g > 0)) throw new Error('could not read the gold price just now — try again later');
     return (s.gold = { g: r2(g), src, at: Date.now() });
   };
-  const doSGB = async h => { const m = h.mk, G = await MV.goldGram(), rate = r2(G.g * (1 + (m.prem == null ? 6 : +m.prem) / 100)); m.gold = rate; m.goldSrc = G.src; m.goldOn = U.today(); return r2((+m.grams || 0) * rate); };
+  /* SGB value, three ways (1.25 fix — the world price + 6% was ~10% below what the exchange and your broker show):
+     how 'mkt'    — the bond's own market price on NSE / BSE (symbol, e.g. SGBDE31III), read by your price reader;
+                    when it cannot be read, the gold rate below is used and the note says so;
+     how 'gold'   — the gold rate × (1 + premium); the premium can be matched once to your broker's price (calibrate);
+     how 'manual' — the price you type (₹ a gram), with its date. */
+  MV.sgbQuote = async sym => { const j = await viaReader('quote&s=' + encodeURIComponent(MV.sym(sym).replace(/^(NSE|BOM|BSE):/, ''))); if (!j || !(+j.price > 0)) throw new Error((j && j.error) || 'no market price for ' + sym); return j; };
+  const goldRate = async m => { const G = await MV.goldGram(); return { rate: r2(G.g * (1 + (m.prem == null ? 6 : +m.prem) / 100)), src: G.src }; };
+  const doSGB = async h => {
+    const m = h.mk, g = +m.grams || 0, today = U.today();
+    if (m.how === 'manual') { if (!(+m.price > 0)) throw new Error('type the price (₹ a gram)'); m.gold = +m.price; m.goldSrc = 'your price of ' + U.fmtDM(m.priceOn || today); m.est = false; return r2(g * m.price); }
+    if (m.how === 'mkt' && m.sym) {
+      try {
+        const q = await MV.sgbQuote(m.sym); m.gold = r2(+q.price); m.goldSrc = 'market price ' + MV.sym(m.sym) + (q.src ? ', ' + q.src : '') + (q.on ? ', ' + U.fmtDM(String(q.on).slice(0, 10)) : ''); m.goldOn = today; m.est = false; delete m.mktErr;
+        // remember how far above world gold it trades, so a day without a market price is still estimated close to it
+        try { const G = await MV.goldGram(); m.prem = r2((m.gold / G.g - 1) * 100); m.calOn = today; } catch (err) { /* keep the old premium */ }
+        return r2(g * m.gold);
+      }
+      catch (err) { m.mktErr = String(err.message || err); }
+    }
+    const x = await goldRate(m); m.gold = x.rate; m.goldOn = today; m.est = true;
+    m.goldSrc = 'estimate from the gold rate (' + x.src + ' + ' + (m.prem == null ? 6 : m.prem) + '%' + (m.calOn ? ', matched to your broker on ' + U.fmtDM(m.calOn) : '') + ')' + (m.how === 'mkt' && m.mktErr ? ' — market price not read: ' + m.mktErr : '');
+    return r2(g * x.rate);
+  };
 
   /* ---------------- 1.25: NPS — NAV of each scheme (npsnav.in, from NPS Trust's daily NAV) ---------------- */
   const viaReader = async f => { const u = priceUrl(); if (!u) throw new Error('no price reader'); const r = await timed(u + (u.indexOf('?') >= 0 ? '&' : '?') + 'f=' + f, 30000); const j = JSON.parse(await r.text()); if (!j || !j.fetched) throw new Error('your price reader is the older script — copy the new script into it (⚙ beside Refresh values)'); return j.fetched; };
@@ -182,7 +204,28 @@
     '  }',
     '  var f = String((e && e.parameter && e.parameter.f) || ""), urls = { "nps": "https://npsnav.in/api/latest-min", "nps-schemes": "https://npsnav.in/api/schemes", "gold": "https://xaus.com/api/v1/spot?currency=INR&unit=gram" }, got = null;',
     '  if (urls[f]) { try { got = JSON.parse(UrlFetchApp.fetch(urls[f], { muteHttpExceptions: true }).getContentText()); } catch (err) { got = { error: String(err) }; } }',
-    '  return ContentService.createTextOutput(JSON.stringify({ ok: true, v: 2, at: new Date().toISOString(), prices: out, fetched: got })).setMimeType(ContentService.MimeType.JSON);',
+    '  if (f === "quote") got = quote(String(e.parameter.s || "").toUpperCase().replace(/[^A-Z0-9&.-]/g, ""));',
+    '  return ContentService.createTextOutput(JSON.stringify({ ok: true, v: 3, at: new Date().toISOString(), prices: out, fetched: got })).setMimeType(ContentService.MimeType.JSON);',
+    '}',
+    '/* the market price of a bond / share Google Finance does not list (Sovereign Gold Bonds): Yahoo Finance, then NSE */',
+    'function quote(s) {',
+    '  if (!s) return { error: "no symbol" };',
+    '  var UA = { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)", "Accept": "application/json,text/html", "Accept-Language": "en-IN,en;q=0.9" };',
+    '  var tries = s.indexOf(".") > 0 ? [s] : [s + "-GB.NS", s + ".NS", s + "-GB.BO", s + ".BO"];',
+    '  for (var i = 0; i < tries.length; i++) {',
+    '    try {',
+    '      var r = UrlFetchApp.fetch("https://query1.finance.yahoo.com/v8/finance/chart/" + encodeURIComponent(tries[i]) + "?range=5d&interval=1d", { muteHttpExceptions: true, headers: UA });',
+    '      if (r.getResponseCode() === 200) { var m = JSON.parse(r.getContentText()).chart.result[0].meta; if (m && m.regularMarketPrice > 0) return { price: m.regularMarketPrice, sym: tries[i], on: new Date(m.regularMarketTime * 1000).toISOString().slice(0, 10), src: "Yahoo Finance" }; }',
+    '    } catch (err) { }',
+    '  }',
+    '  try {',
+    '    var home = UrlFetchApp.fetch("https://www.nseindia.com/get-quotes/equity?symbol=" + encodeURIComponent(s), { muteHttpExceptions: true, headers: UA });',
+    '    var ck = home.getAllHeaders()["Set-Cookie"]; ck = [].concat(ck || []).map(function (c) { return String(c).split(";")[0]; }).join("; ");',
+    '    var h2 = { "User-Agent": UA["User-Agent"], "Accept": "application/json", "Referer": "https://www.nseindia.com/get-quotes/equity?symbol=" + s, "Cookie": ck };',
+    '    var q = UrlFetchApp.fetch("https://www.nseindia.com/api/quote-equity?symbol=" + encodeURIComponent(s), { muteHttpExceptions: true, headers: h2 });',
+    '    if (q.getResponseCode() === 200) { var j = JSON.parse(q.getContentText()); var p = j && j.priceInfo && (j.priceInfo.lastPrice || j.priceInfo.close); if (p > 0) return { price: p, sym: "NSE:" + s, on: (j.metadata && j.metadata.lastUpdateTime) || "", src: "NSE" }; }',
+    '  } catch (err) { }',
+    '  return { error: "no market price found for " + s + " (check the symbol in your broker app)" };',
     '}',
   ].join('\n');
   const priceUrl = () => { const v = String(F().priceUrl || '').trim(); return /^https:\/\/script\.google(usercontent)?\.com\/.+/.test(v) ? v : ''; };
@@ -265,7 +308,7 @@
     const inr = (v, d) => '₹' + (+v).toLocaleString('en-IN', { maximumFractionDigits: d == null ? 2 : d });
     if (m.kind === 'px') { const rows = MV.rows(m); t = rows.map(x => (+x.qty || 0) + ' × ' + (x.price ? inr(x.price) : '?') + ' ' + MV.sym(x.sym) + (x.note ? ' (' + x.note + ')' : '')).join(' + ') + (rows.some(x => x.price) ? '' : ' · price not read yet'); }
     if (m.kind === 'etf') t = m.nav ? (+m.qty || 0) + ' units × NAV ' + inr(m.nav, 4) + (m.navOn ? ' (' + U.fmtDM(m.navOn) + ')' : '') + ' · ' + (m.sname || m.code) : 'NAV not read yet';
-    if (m.kind === 'sgb') t = m.gold ? (+m.grams || 0) + ' g × ' + inr(m.gold) + '/g (world gold ' + (m.prem == null ? 6 : m.prem) + '% higher, ' + (m.goldSrc || '') + ')' + (m.issue ? ' · interest 2.5% a year ' + inr(Math.round((+m.grams || 0) * m.issue * 0.025), 0) + ' to your bank' : '') : 'gold price not read yet';
+    if (m.kind === 'sgb') t = m.gold ? (m.est ? '≈ ' : '') + (+m.grams || 0) + ' g × ' + inr(m.gold) + '/g (' + (m.goldSrc || '') + ')' + (m.issue ? ' · interest 2.5% a year ' + inr(Math.round((+m.grams || 0) * m.issue * 0.025), 0) + ' to your bank' : '') : 'gold price not read yet';
     if (m.kind === 'nps') t = (m.rows || []).map(x => r3(+x.units || 0) + ' × ' + (x.nav ? inr(x.nav, 4) : '?') + ' ' + (x.short || x.name || x.code)).join(' + ') + (m.navOn ? ' (' + U.fmtDM(m.navOn) + ')' : '');
     if (m.kind === 'gs') { const g = gsOf(m); t = g.n + ' · ' + (+m.rate || g.rate) + '%' + (g.how === 'yr' ? (m.accrued ? ' · includes ' + inr(Math.round(m.accrued), 0) + ' interest earned since April (added on 31 March)' : '') : (() => { const mt = U.isKey(h.due) ? MV.fdAt(FN().hInvested(h), m.rate, m.comp || g.comp, h.start, h.due) : null; return mt != null ? ' · ' + inr(Math.round(mt), 0) + ' at maturity' : ''; })()); }
     if (m.kind === 'fd' || m.kind === 'rd') { const mt = MV.maturity(h); t = (+m.rate || 0) + '% ' + (COMP.find(c => c[0] === (m.comp || 'q')) || COMP[0])[1].toLowerCase().replace(' (most banks)', '') + (mt != null ? ' · ₹' + Math.round(mt).toLocaleString('en-IN') + ' at maturity' + (h.due ? ' (' + U.fmtShort(h.due) + ')' : '') : ''); }
@@ -302,11 +345,17 @@
       '<div class="st-grid mv-sec" data-k="etf"><label class="lbl" for="mv-eq">ETF or fund</label><div><div class="mv-srow"><input id="mv-eq" class="field" placeholder="Search: e.g. Bharat Bond ETF April 2030, Nippon Liquid BeES, Nifty 50 ETF" value="' + e(m0.kind === 'etf' ? (m0.sname || h.name) : h.name) + '"><button type="button" class="btn small" data-x="efind">' + ED.icon('search') + 'Find</button></div>' +
         '<ul class="mv-res" id="mv-eres"></ul><p class="hint" id="mv-epick">' + (m0.kind === 'etf' && m0.code ? 'Chosen: <b>' + e(m0.sname || m0.code) + '</b> (' + e(m0.code) + ')' : 'ETFs and bond ETFs publish a NAV every day with AMFI, like mutual funds — pick yours from the list.') + '</p></div>' +
         '<label class="lbl" for="mv-eqty">Units you hold</label><div><input id="mv-eqty" class="field num" type="number" step="0.001" min="0" value="' + e(m0.kind === 'etf' && m0.qty != null ? m0.qty : '') + '"><span class="hint fx-hint">Value = units × the latest NAV. For the market price instead, use “Shares / ETF on NSE · BSE” with its symbol (e.g. NSE:EBBETF0430).</span></div></div>' +
-      '<div class="st-grid mv-sec" data-k="sgb"><label class="lbl" for="mv-gg">Grams (units)</label><div><input id="mv-gg" class="field num" type="number" step="0.001" min="0" value="' + e(m0.grams != null ? m0.grams : '') + '"><span class="hint fx-hint">One SGB unit = 1 gram of gold. Add up all your series, or make one investment per series.</span></div>' +
-        '<label class="lbl" for="mv-gs">Series</label><input id="mv-gs" class="field" value="' + e(m0.series || '') + '" placeholder="e.g. SGB 2021-22 Series VIII — optional">' +
+      '<div class="st-grid mv-sec" data-k="sgb"><label class="lbl" for="mv-gg">Grams (units)</label><div><input id="mv-gg" class="field num" type="number" step="0.001" min="0" value="' + e(m0.grams != null ? m0.grams : '') + '"><span class="hint fx-hint">One SGB unit = 1 gram. Make one investment per series (each trades at its own price).</span></div>' +
+        '<label class="lbl" for="mv-gs">Series</label><input id="mv-gs" class="field" value="' + e(m0.series || '') + '" placeholder="e.g. SGB 2023-24 Series III (2.50% GOLDBONDS 2031 SR-III)">' +
         '<label class="lbl" for="mv-gi">Issue price (₹ a gram)</label><div><input id="mv-gi" class="field num" type="number" step="1" min="0" value="' + e(m0.issue || '') + '"><span class="hint fx-hint">From your certificate — for the 2.5% yearly interest paid to your bank (not part of the value).</span></div>' +
-        '<label class="lbl" for="mv-gp">Indian price above world price</label><div><input id="mv-gp" class="field num" type="number" step="0.1" min="-5" max="20" value="' + e(m0.prem == null ? 6 : m0.prem) + '"> %<span class="hint fx-hint">SGBs are valued and redeemed at the IBJA 999 gold rate, which is the world price plus Indian customs duty (6% now). Google Finance has no SGB prices, so the diary reads the world gold price in rupees (xaus.com, or your price reader) and adds this. If your SGB statement shows a different rate, adjust it.</span></div>' +
-        '<span class="lbl"></span><p class="hint" id="mv-gx"><button type="button" class="link-btn" data-x="gold">Check today’s gold rate</button></p></div>' +
+        '<span class="lbl">Value by</span><div class="mv-how" role="radiogroup" aria-label="Value the SGB by">' +
+          [['mkt', 'Market price on NSE / BSE — what your broker shows (recommended)'], ['gold', 'Gold rate, matched to your broker’s price'], ['manual', 'A price I type']].map(x => '<label class="mv-how-o"><input type="radio" name="mv-how" value="' + x[0] + '"' + ((m0.how || (m0.kind === 'sgb' ? 'gold' : 'mkt')) === x[0] ? ' checked' : '') + '> ' + x[1] + '</label>').join('') + '</div>' +
+        '<label class="lbl mv-h-mkt" for="mv-gsym">NSE symbol</label><div class="mv-h-mkt"><input id="mv-gsym" class="field" value="' + e(m0.sym || '') + '" placeholder="e.g. SGBDE31III" autocomplete="off"><span class="hint fx-hint">As NSE lists it — your broker app or the NSE website shows it: <b>SGB</b> + month + year of maturity + series, e.g. 2023-24 Series III (matures Dec 2031) = <b>SGBDE31III</b>. ' + (priceUrl() ? 'Read by your price reader — copy its newest script (⚙ beside Refresh values) so it can read bond prices.' : 'Needs your price reader (⚙ beside Refresh values).') + ' If the price cannot be read, the gold rate below is used and the note says so.</span></div>' +
+        '<span class="lbl mv-h-mkt"></span><p class="hint mv-h-mkt" id="mv-gqx"><button type="button" class="link-btn" data-x="gquote">Check the market price now</button></p>' +
+        '<label class="lbl mv-h-gold" for="mv-gcal">Your broker’s price today (₹ a gram)</label><div class="mv-h-gold"><input id="mv-gcal" class="field num" type="number" step="0.01" min="0" placeholder="e.g. 14722.50"><span class="hint fx-hint">Type it once: the diary works out how much above the world gold price your SGB trades, and from then on follows gold every day. Leave empty to keep the premium below.</span></div>' +
+        '<label class="lbl mv-h-gold" for="mv-gp">Above world gold price</label><div class="mv-h-gold"><input id="mv-gp" class="field num" type="number" step="0.01" min="-10" max="40" value="' + e(m0.prem == null ? 6 : m0.prem) + '"> %' + (m0.calOn ? '<span class="hint fx-hint">Matched to your broker on ' + e(U.fmtDM(m0.calOn)) + '.</span>' : '') + '</div>' +
+        '<label class="lbl mv-h-manual" for="mv-gmp">Price (₹ a gram)</label><div class="mv-h-manual"><input id="mv-gmp" class="field num" type="number" step="0.01" min="0" value="' + e(m0.how === 'manual' && m0.price ? m0.price : '') + '" placeholder="e.g. 14722.50"><span class="hint fx-hint">The value stays at this price until you type a new one.</span></div>' +
+        '<span class="lbl mv-h-gold"></span><p class="hint mv-h-gold" id="mv-gx"><button type="button" class="link-btn" data-x="gold">Check today’s gold rate</button></p></div>' +
       '<div class="st-grid mv-sec" data-k="nps"><label class="lbl" for="mv-nq">Schemes</label><div><div class="mv-srow"><input id="mv-nq" class="field" placeholder="Search: e.g. SBI scheme E tier I, HDFC central govt, UTI…"><button type="button" class="btn small" data-x="nfind">' + ED.icon('search') + 'Find</button></div><ul class="mv-res" id="mv-nres"></ul>' +
         '<div class="mv-rows" id="mv-nrows">' + ((m0.kind === 'nps' && m0.rows) || []).map(npsRow).join('') + '</div>' +
         '<span class="hint fx-hint">Add each scheme you hold (E, C, G, A — Tier I and II, or Central / State Govt) with its units from your NPS statement (CRA: Protean / KFintech / CAMS). NAVs come from NPS Trust’s daily figures.</span></div>' +
@@ -343,10 +392,20 @@
           if (b.dataset.x === 'row-del') { const r = b.closest('.mv-row'), box = r.parentNode; r.remove(); if (box.id === 'mv-rows' && !box.children.length) box.insertAdjacentHTML('beforeend', pxRow({})); }
           if (b.dataset.x === 'px-add') { $('rows').insertAdjacentHTML('beforeend', pxRow({})); $('rows').lastElementChild.querySelector('input').focus(); }
         });
+        const how = () => (el.querySelector('input[name="mv-how"]:checked') || {}).value || 'mkt';
+        const showHow = () => ['mkt', 'gold', 'manual'].forEach(k => U.$$('.mv-h-' + k, el).forEach(x => { x.hidden = how() !== k; }));
+        U.$$('input[name="mv-how"]', el).forEach(r => r.addEventListener('change', showHow)); showHow();
+        const gq = el.querySelector('[data-x="gquote"]');
+        if (gq) gq.addEventListener('click', async () => {
+          const sym = $('gsym').value.trim(); if (!sym) { ED.ui.toast('Type the NSE symbol first, e.g. SGBDE31III'); $('gsym').focus(); return; }
+          $('gqx').textContent = 'Reading the market price…';
+          try { const q = await MV.sgbQuote(sym); $('gqx').innerHTML = 'Market price: <b>₹' + (+q.price).toLocaleString('en-IN') + '</b> a gram (' + e([q.sym, q.src, q.on].filter(Boolean).join(', ')) + ')' + (+$('gg').value ? ' · your ' + (+$('gg').value) + ' g = <b>' + e(M$(Math.round(q.price * +$('gg').value))) + '</b>' : '') + '.'; }
+          catch (err) { $('gqx').innerHTML = 'Could not read it: ' + e(err.message || err) + '. You can choose “Gold rate, matched to your broker’s price” instead.'; }
+        });
         const gold = el.querySelector('[data-x="gold"]');
         if (gold) gold.addEventListener('click', async () => {
           $('gx').textContent = 'Reading the gold price…';
-          try { const G = await MV.goldGram(), rate = r2(G.g * (1 + (+$('gp').value || 0) / 100)); $('gx').innerHTML = 'World gold today: <b>₹' + G.g.toLocaleString('en-IN') + '</b> a gram (' + e(G.src) + ') → SGB rate <b>₹' + rate.toLocaleString('en-IN') + '</b> a gram' + (+$('gg').value ? ' · your ' + (+$('gg').value) + ' g ≈ <b>' + e(M$(Math.round(rate * +$('gg').value))) + '</b>' : '') + '.'; }
+          try { const G = await MV.goldGram(); if (+$('gcal').value > 0) $('gp').value = r2((+$('gcal').value / G.g - 1) * 100); const rate = r2(G.g * (1 + (+$('gp').value || 0) / 100)); $('gx').innerHTML = 'World gold today: <b>₹' + G.g.toLocaleString('en-IN') + '</b> a gram (' + e(G.src) + ') → SGB rate <b>₹' + rate.toLocaleString('en-IN') + '</b> a gram' + (+$('gg').value ? ' · your ' + (+$('gg').value) + ' g ≈ <b>' + e(M$(Math.round(rate * +$('gg').value))) + '</b>' : '') + '.'; }
           catch (err) { $('gx').textContent = 'Could not read it now (' + (err.message || err) + ').'; }
         });
         // ETF search (AMFI list)
@@ -419,7 +478,16 @@
             Object.assign(mk, { code: String(epick.code), sname: epick.name, qty: +$('eqty').value || 0 });
           } else if (kind === 'sgb') {
             if (!(+$('gg').value > 0)) { ED.ui.toast('Type the grams (units) you hold'); $('gg').focus(); return; }
-            Object.assign(mk, { grams: +$('gg').value, series: $('gs').value.trim(), issue: +$('gi').value || 0, prem: $('gp').value === '' ? 6 : +$('gp').value });
+            const hw = how();
+            if (hw === 'mkt' && !$('gsym').value.trim()) { ED.ui.toast('Type the NSE symbol, e.g. SGBDE31III'); $('gsym').focus(); return; }
+            if (hw === 'manual' && !(+$('gmp').value > 0)) { ED.ui.toast('Type the price (₹ a gram)'); $('gmp').focus(); return; }
+            let prem = $('gp').value === '' ? 6 : +$('gp').value, calOn = m0.calOn || null;
+            if (hw === 'gold' && +$('gcal').value > 0) {
+              try { const G = await MV.goldGram(); prem = r2((+$('gcal').value / G.g - 1) * 100); calOn = U.today(); }
+              catch (err) { ED.ui.toast('Could not read the gold price to match it — try again'); return; }
+            }
+            Object.assign(mk, { grams: +$('gg').value, series: $('gs').value.trim(), issue: +$('gi').value || 0, how: hw, sym: MV.sym($('gsym').value).replace(/^(NSE|BOM|BSE):/, ''), prem, calOn,
+              price: hw === 'manual' ? +$('gmp').value : null, priceOn: hw === 'manual' ? (m0.how === 'manual' && +m0.price === +$('gmp').value ? m0.priceOn : U.today()) : null });
           } else if (kind === 'nps') {
             const rows = U.$$('#mv-nrows .mv-row', el).map(r => ({ code: r.dataset.code, name: r.dataset.name, short: r.dataset.name.replace(/PENSION FUND|SCHEME|MANAGEMENT|LIMITED|PRIVATE|COMPANY|- /gi, ' ').replace(/\s+/g, ' ').trim().slice(0, 40), units: +r.querySelector('.mv-units').value || 0 }));
             if (!rows.length) { ED.ui.toast('Find and add the NPS schemes you hold'); $('nq').focus(); return; }

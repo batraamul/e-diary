@@ -893,3 +893,6 @@ tr.st-clash::after { display: none; }
 .mv-row .mv-sym { flex: 2 1 170px; min-width: 0; } .mv-row .mv-qty { flex: 0 1 90px; min-width: 70px; } .mv-row .mv-rn { flex: 2 1 150px; min-width: 0; }
 .mv-row .mv-rname { flex: 3 1 220px; min-width: 0; font-size: 12.5px; } .mv-row .mv-units { flex: 0 1 120px; min-width: 90px; }
 .mv-kind { flex-wrap: wrap; }
+.mv-how { display: flex; flex-direction: column; gap: 4px; }
+.mv-how-o { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; line-height: 1.35; cursor: pointer; }
+.mv-how-o input { margin-top: 2px; }
