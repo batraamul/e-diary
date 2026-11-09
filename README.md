@@ -568,6 +568,14 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 
 ### v1.25 — Daily Manifestation Journal (Purpose → Manifest)
 
+**Study and Finance (within 1.25, 9 Nov 2026):**
+- **Year at a glance → Topics** starts with *From your exams and interviews*: every exam's topics (by subject, coloured by not started / learning / done / revised) and every interview topic. Subjects that were missing from the study plan are now added for you (once — a subject you delete stays deleted), so the topics are offered when you plan sessions.
+- **A study session can have several topics and several books / lectures / papers** (＋ Another topic, ＋ Another book / lecture / paper). The session counts under each topic.
+- **Progress through the plan** and **When you will finish** now follow the real first and last session, so moving, adding or deleting sessions (Edit / Adjust the plan) changes them at once.
+- **Topics → Subtopics:** ＋ beside a topic adds a subtopic. Books, lectures, papers and your own categories have *Topic* and *Subtopic* fields; **Books & lectures → By topic** shows them as Subject → Topic → Subtopic, folded, with a search box (title, author, topic, notes…). *List* keeps the old tables.
+- **Finance → 📈 Live value** has new kinds: **shares on NSE and BSE** (one row per exchange or demat account, value = the sum), **ETF / bond ETF** by AMFI NAV (searched by name), **Sovereign Gold Bond** (grams × gold rate: world price in ₹ from xaus.com or your price reader, + Indian premium 6% for customs duty, adjustable; the 2.5% interest is shown), **NPS** (each scheme's units × NPS Trust NAV via npsnav.in), and **PPF / EPF / GPF / SSY** (balance on 31 March + later deposits, monthly interest on the balance after the 5th, added on 31 March) and **NSC / KVP / SCSS / MIS / Post office time deposits** (fixed rates, Oct–Dec 2026). New investment types: ETF / bond ETF, SGB, Bonds, SSY, NSC / KVP / SCSS / Post office.
+- The price reader script (⚙ beside Refresh values) has a newer version that can also fetch NPS NAVs and gold when the browser cannot; the old one keeps working for share prices.
+
 **Dreams → Goal:** besides “Make it a goal”, a dream can be linked to a goal you already have (“Or link to an existing goal”, open and done goals listed). Change or remove the link from the same list; removing it keeps the goal. Undo works.
 
 **Update within 1.25 (saving fix, your dream):**

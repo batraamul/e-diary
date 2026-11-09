@@ -31,10 +31,26 @@
       const p = ST().plan(), c = cfg();
       if (!Array.isArray(p.topics)) p.topics = [];
       const track = name => p.tracks.find(t => low(t.name) === low(name)) || null;
+      /* 1.25: a subject that is not in the study plan yet is added (once) — before, its topics were left out. A subject
+         you delete yourself is not added again (settings.studyLink.made remembers it). */
+      if (!c.made || typeof c.made !== 'object') c.made = {};
+      const pk = 'p:' + (p.id || p.title || 'plan');                 // each study plan keeps its own list
+      const made = c.made[pk] && typeof c.made[pk] === 'object' ? c.made[pk] : (c.made[pk] = {});
+      const used = new Set();
+      const isId = v => v && v !== 'gone' && v !== 'deleted';
+      // a subject the link made and you deleted: remember, so it is not made again
+      Object.keys(made).forEach(k => { if (isId(made[k]) && !p.tracks.some(t => t.id === made[k]) && !track(k)) { made[k] = 'deleted'; ch = true; } });
+      const ensure = name => {
+        const k = low(name); if (!k) return null; used.add(k);
+        let tr = track(name) || (isId(made[k]) ? p.tracks.find(t => t.id === made[k]) : null);   // also when you renamed it
+        if (tr) { if (!isId(made[k])) made[k] = tr.id; used.add(low(tr.name)); return tr; }
+        if (made[k] === 'deleted') return null;                     // you removed it: leave it out
+        tr = ST().addTrack(name); tr.auto = 'link'; made[k] = tr.id; ch = true; return tr;
+      };
       const want = new Map();
-      if (c.exam) examTopics().forEach(t => { const tr = track(subjOf(t)); if (tr && t.name) want.set('tp-ex-' + t.id, { trackId: tr.id, name: t.name }); });
-      if (c.iv && D().interview) {
-        const tr = track(IVSUBJ);
+      if (c.exam) examTopics().forEach(t => { if (!t.name) return; const tr = ensure(subjOf(t)); if (tr) want.set('tp-ex-' + t.id, { trackId: tr.id, name: t.name }); });
+      if (c.iv && D().interview && (D().interview.qs || []).some(q => q.cat)) {
+        const tr = ensure(IVSUBJ);
         if (tr) Array.from(new Set((D().interview.qs || []).map(q => q.cat).filter(Boolean))).forEach(cat => want.set('tp-iv-' + low(cat).replace(/[^a-z0-9]+/g, '-'), { trackId: tr.id, name: cat }));
       }
       want.forEach((v, id) => {
@@ -45,6 +61,15 @@
       const n = p.topics.length;
       p.topics = p.topics.filter(x => !/^tp-(ex|iv)-/.test(x.id || '') || want.has(x.id));
       if (p.topics.length !== n) ch = true;
+      // remove subjects this link added that are no longer needed and hold nothing of yours
+      p.tracks.slice().forEach(tr => {
+        if (tr.auto !== 'link' || used.has(low(tr.name))) return;
+        const sess = (D().study && D().study.sessions) || [];
+        const busy = sess.some(x => x.trackId === tr.id) || (p.topics || []).some(x => x.trackId === tr.id) || [].concat(p.books || [], p.lectures || [], p.items || []).some(x => x.trackId === tr.id);
+        if (busy) return;
+        p.tracks = p.tracks.filter(t => t !== tr); made[low(tr.name)] = 'gone'; ch = true;
+      });
+
       if (SL.dedupe(p)) ch = true;
       // tasks added with "Add to my plans…" follow the exam / interview
       const d = D();
@@ -106,7 +131,7 @@
     if (Array.isArray(p.topics)) {
       const seen = new Map(), out = [];
       p.topics.forEach(x => {
-        const k = x.trackId + '|' + key(x.name); if (!key(x.name)) { out.push(x); return; }
+        const k = x.trackId + '|' + (x.parent || '') + '|' + key(x.name); if (!key(x.name)) { out.push(x); return; }
         const prev = seen.get(k);
         if (!prev) { seen.set(k, x); out.push(x); return; }
         if (prev.auto && !x.auto) { out[out.indexOf(prev)] = x; seen.set(k, x); }
@@ -203,6 +228,7 @@
   SL.switchHtml = kind => '<label class="switch sl-auto"><input type="checkbox" data-change="sl-auto" data-k="' + kind + '"' + (cfg()[kind] ? ' checked' : '') + '><span class="track"></span><span>' +
     (kind === 'exam' ? 'Keep exam topics in the Study planner’s topic lists (for subjects in the study plan)' : 'Keep question categories as topics of “' + IVSUBJ + '” in the Study planner') + '</span></label>';
   A['sl-exam'] = el => SL.exam(el.dataset.id);
+  A['sl-go'] = el => { if (el.dataset.k === 'exam') { (ED.state.ex = ED.state.ex || {}).sel = el.dataset.id; ED.go.tab('exam'); } else ED.go.tab('interview'); };
   A['sl-iv'] = el => SL.interview(el.dataset.id);
   CH['sl-auto'] = el => { cfg()[el.dataset.k] = el.checked; ED.store.commit(); ED.ui.toast(el.checked ? 'Topics are kept in the Study planner' : 'Topics are no longer copied (the ones there are removed)'); };
 })();

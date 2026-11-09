@@ -49,14 +49,14 @@
     if (!v.days.length) return { msg: 'Tick at least one day.', n: 0 };
     const old = ST.sessions().filter(s => s.trackId === trId && !s.done && s.date >= from && s.date <= to && s.date >= (from < t ? from : from));
     const dates = U.range(from, U.diffDays(from, to) + 1).filter(k => v.days.indexOf(U.dow(k)) >= 0);
-    const carry = old.filter(s => s.topic || s.sourceId || s.source || s.note);
+    const carry = old.filter(s => s.topic || s.sourceId || s.source || s.note || (s.moreTopics || []).length || (s.moreSrc || []).length);
     let k = U.addDays(to, 1), guard = 0; while (dates.length < carry.length && guard++ < 800) { if (v.days.indexOf(U.dow(k)) >= 0) dates.push(k); k = U.addDays(k, 1); }
     const msg = U.plural(old.length, 'open session') + ' between ' + U.fmtShort(from) + ' and ' + U.fmtShort(to) + ' become ' + U.plural(dates.length, 'session') + ' on ' + (v.days.length === 7 ? 'every day' : v.days.map(d => U.DAY3[d]).join(', ')) + (v.time ? ' at ' + ED.fx.time(v.time) : '') + ', ' + fm(+v.min || 30) + ' each' + (carry.length ? '; their ' + U.plural(carry.length, 'topic') + ' move along in order.' : '.');
     if (dry) return { msg, n: old.length + dates.length };
     const ids = new Set(old.map(s => s.id));
     D().study.sessions = ST.sessions().filter(s => !ids.has(s.id));
     const made = dates.map(d => mk(trId, d, v));
-    carry.forEach((s, i) => { const n = made[i]; if (!n) return; n.topic = s.topic; n.sourceId = s.sourceId; n.source = s.source; n.note = s.note; });
+    carry.forEach((s, i) => { const n = made[i]; if (!n) return; n.topic = s.topic; n.sourceId = s.sourceId; n.source = s.source; n.note = s.note; n.moreTopics = (s.moreTopics || []).slice(); n.moreSrc = (s.moreSrc || []).slice(); });
     const tr = ST.track(trId); if (tr && tr.part) made.forEach(s => { s.part = tr.part; });
     made.forEach(s => D().study.sessions.push(s));
     after();

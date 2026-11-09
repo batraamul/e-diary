@@ -30,7 +30,7 @@
     const ring = '<svg viewBox="0 0 50 50" class="sp-ring" aria-hidden="true"><circle cx="25" cy="25" r="' + R + '" class="t"/><circle cx="25" cy="25" r="' + R + '" class="v" style="stroke-dasharray:' + (C * f) + ' ' + C + '" transform="rotate(-90 25 25)"/><text x="25" y="29" text-anchor="middle">' + (pm ? Math.round(f * 100) + '%' : '—') + '</text></svg>';
     const tr = s => ST.track(s.trackId);
     // 1.22.1: every session of today, the next one marked; click a row to open it, tick to mark it done
-    const rows = list.map(s => { const t = tr(s), isNext = next && s.id === next.id, what = s.topic || ST.sourceText(s);
+    const rows = list.map(s => { const t = tr(s), isNext = next && s.id === next.id, what = ST.topicText(s) || ST.sourceText(s);
       return '<li class="sp-s' + (s.done ? ' done' : '') + (isNext ? ' next' : '') + '" style="--c:' + ST.color(t) + '" data-sid="' + e(s.id) + '">' +
         '<button type="button" class="stick' + (s.done ? ' on' : '') + '" data-act="study-toggle" data-sid="' + e(s.id) + '" aria-pressed="' + !!s.done + '" aria-label="' + (s.done ? 'Done — click to undo: ' : 'Mark done: ') + e(ST.short(t)) + '" title="' + (s.done ? 'Done — click to undo' : 'Mark done') + '">' + ED.tasksUI.statusIcon(s.done ? 'done' : 'open') + '</button>' +
         '<button type="button" class="plain-btn sp-sb" data-act="study-open" title="Open: change the topic, time or minutes, add notes"><b>' + e(ST.short(t)) + '</b><span>' + (what ? e(what) : '<i>no topic yet — click to add one</i>') + '</span></button>' +

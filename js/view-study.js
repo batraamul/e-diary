@@ -212,7 +212,7 @@
     },
     sources(p) {
       const link = w => { if (!w) return ''; const url = /^https?:\/\//i.test(w) ? w : /^[\w-]+(\.[\w-]+)+/.test(w) ? 'https://' + w : null; return url ? '<a href="' + e(url) + '" target="_blank" rel="noopener noreferrer">' + e(w.replace(/^https?:\/\//, '').replace(/\/$/, '')) + ED.icon('external') + '</a>' : e(w); };
-      const used = id => ST.sessions().filter(s => s.sourceId === id).length;
+      const used = id => ST.sessions().filter(s => ST.usesSrc(s, id)).length;
       const list = (items, head) => items.length ? '<table class="st-table st-src"><thead><tr>' + head.map(h => '<th>' + e(h) + '</th>').join('') + '<th></th></tr></thead><tbody>' +
         items.map(x => { const tr = x.trackId ? ST.track(x.trackId) : null; const n = used(x.id); return '<tr><td>' + (tr ? trackChip(tr) : e(x.track || 'All')) + '</td><td><b>' + e(x.title) + '</b>' + (x.use ? '<div class="hint">' + e(x.use) + '</div>' : '') + (n ? '<div class="hint">' + U.plural(n, 'session') + '</div>' : '') + '</td><td>' + e(x.access || '') + '</td><td>' + link(x.where) + '</td>' +
           '<td><button type="button" class="icon-btn sm" data-act="study-src" data-id="' + e(x.id) + '" aria-label="Edit ' + e(x.title) + '" title="Edit">' + ED.icon('pencil') + '</button></td></tr>'; }).join('') + '</tbody></table>' : '';
@@ -236,28 +236,105 @@
           (c.own ? '<button type="button" class="icon-btn sm" data-act="study-cat" data-id="' + e(c.id) + '" aria-label="Change the category ' + e(c.name) + '" title="Change or delete this category">' + ED.icon('gear') + '</button>' : '') + '</h3>' +
           (rows ? '<table class="st-table st-src ri-table"><thead><tr><th>Subject</th><th>' + e(c.f.title) + '</th><th>Status</th><th class="num">' + e(c.f.due) + '</th><th>Link</th><th></th></tr></thead><tbody>' + rows + '</tbody></table>' : '<p class="hint">Nothing here yet.</p>') + '</section>';
       }).join('');
-      return '<p class="hint">Your reading list and courses. They appear in a list when you add or edit a session, so you can pick the book and write the chapter.</p>' +
-        '<div class="row-btns"><button type="button" class="btn small primary" data-act="study-src" data-kind="book">' + ED.icon('plus') + 'Add a book</button><button type="button" class="btn small" data-act="study-src" data-kind="lecture">' + ED.icon('plus') + 'Add a lecture or course</button><button type="button" class="btn small" data-act="study-cat">' + ED.icon('plus') + 'Add a category</button></div>' +
+      const view = st().srcView || 'tree';
+      const top = '<p class="hint">Your reading list and courses. They appear in a list when you add or edit a session, so you can pick them and write the chapter.</p>' +
+        '<div class="row-btns st-src-top"><button type="button" class="btn small primary" data-act="study-src" data-kind="book">' + ED.icon('plus') + 'Add a book</button><button type="button" class="btn small" data-act="study-src" data-kind="lecture">' + ED.icon('plus') + 'Add a lecture or course</button><button type="button" class="btn small" data-act="study-cat">' + ED.icon('plus') + 'Add a category</button>' +
+        '<span class="grow"></span><div class="seg st-mini-seg" role="group" aria-label="Show">' + [['tree', 'By topic'], ['list', 'List']].map(x => '<button type="button" data-act="study-srcview" data-v="' + x[0] + '" aria-pressed="' + (view === x[0]) + '">' + x[1] + '</button>').join('') + '</div></div>';
+      if (view === 'tree') return top + yearly.srcTree(p, link, used);
+      return top +
         '<h3 class="gh">Books <span class="hint num">· ' + (p.books || []).length + '</span></h3>' + (b || '<p class="hint">No books yet.</p>') +
         '<h3 class="gh">Lectures and courses <span class="hint num">· ' + (p.lectures || []).length + '</span></h3>' + (l || '<p class="hint">No lectures yet.</p>') +
         '<p class="hint ri-intro">Papers and patents you are writing or reading, news, Employment News and any category you add. They are offered in the session editor too.</p>' + cats;
     },
-    topics(p) {
-      return '<p class="hint">Topics for each subject — each week’s topic from the plan, plus any you add. They are offered in a list when you add or edit a session; you can always type a new one there too.</p>' +
-        p.tracks.map(tr => {
-          const own = (p.topics || []).filter(t => t.trackId === tr.id);
-          const ownSet = new Set(own.map(t => t.name.toLowerCase()));
-          const list = ST.topicsFor(tr.id);
-          const rows = list.map(t => {
-            const l = ST.sessions().filter(s => s.trackId === tr.id && s.topic && s.topic.toLowerCase() === t.toLowerCase());
-            const x = ST.stats(l);
-            const mine = own.find(o => o.name.toLowerCase() === t.toLowerCase());
-            return '<li><span class="grow">' + e(t) + (ownSet.has(t.toLowerCase()) ? ' <span class="chip">added</span>' : '') + '</span><span class="hint num">' + (x.n ? x.done + '/' + x.n + ' · ' + h1(x.doneMin) + ' h' : 'no sessions') + '</span>' +
-              (mine && !x.n ? '<button type="button" class="icon-btn sm" data-act="study-topic-del" data-id="' + e(mine.id) + '" aria-label="Remove topic">' + ED.icon('x') + '</button>' : '<span class="st-tp-sp"></span>') + '</li>';
+    /* 1.25: Subject → Topic → Subtopic → books, lectures, papers…, folded, with a search box */
+    srcTree(p, link, used) {
+      const low = x => String(x || '').toLowerCase(), today = U.today();
+      const all = ST.sources();
+      if (!all.length) return '<p class="hint">Nothing yet. Add a book, a lecture or a paper — give each a topic (and a subtopic) and it is filed here.</p>';
+      const row = x => {
+        const n = used(x.id), fin = ST.srcFinished(x), tr = x.trackId ? ST.track(x.trackId) : null, c = ST.srcCat(x.kind);
+        const late = x.due && !fin && x.due < today && x.kind !== 'news';
+        const act = x.kind === 'book' || x.kind === 'lecture' ? 'study-src' : 'study-item';
+        const q = [x.title, x.by, x.venue, x.use, x.access, x.topic, x.sub, tr && tr.name, ST.srcKindName(x), x.status, x.where].filter(Boolean).join(' ');
+        return '<li class="sx-i' + (fin ? ' ri-fin' : '') + '" data-q="' + e(low(q)) + '"><span class="sx-k" title="' + e(ST.srcKindName(x)) + '" aria-hidden="true">' + ST.srcIcon(x) + '</span><span class="grow"><b>' + e(x.title) + '</b>' +
+          ([x.by, x.venue].filter(Boolean).length ? '<span class="hint"> · ' + e([x.by, x.venue].filter(Boolean).join(' · ')) + '</span>' : '') + (x.use ? '<div class="hint">' + e(x.use) + '</div>' : '') + '</span>' +
+          (x.status || (c && c.status) ? '<span class="ri-st' + (fin ? ' fin' : '') + '">' + e(x.status || (c && c.status ? c.status[0] : '')) + '</span>' : '') +
+          (x.due ? '<span class="hint num' + (late ? ' ri-late' : '') + '">' + e(U.fmtDM(x.due)) + '</span>' : '') + (n ? '<span class="hint num" title="sessions">' + n + '×</span>' : '') + (x.where ? link(x.where) : '') +
+          '<button type="button" class="icon-btn sm" data-act="' + act + '" data-id="' + e(x.id) + '" aria-label="Edit ' + e(x.title) + '" title="Edit">' + ED.icon('pencil') + '</button></li>';
+      };
+      const add = (trId, tp, sb) => '<button type="button" class="icon-btn sm sx-add" data-act="study-src-here" data-track="' + e(trId || '') + '" data-topic="' + e(tp || '') + '" data-sub="' + e(sb || '') + '" aria-label="Add here" title="Add a book, lecture or paper here">' + ED.icon('plus') + '</button>';
+      const few = all.length <= 12;
+      const subjects = p.tracks.map(tr => ({ id: tr.id, name: tr.name, chip: '<i class="sx-sw" style="--c:' + e(ST.color(tr)) + '"></i>' })).concat([{ id: '', name: 'All subjects', chip: '<i class="sx-sw"></i>' }]);
+      const body = subjects.map(sj => {
+        const items = all.filter(x => (x.trackId || '') === sj.id && (sj.id || !ST.track(x.trackId)));
+        if (!items.length) return '';
+        const topics = []; items.forEach(x => { const t = (x.topic || '').trim(); if (!topics.some(y => low(y) === low(t))) topics.push(t); });
+        const order = sj.id ? ST.mainTopics(sj.id).map(low) : [];
+        topics.sort((a, b) => (a ? 0 : 1) - (b ? 0 : 1) || ((order.indexOf(low(a)) + 1 || 999) - (order.indexOf(low(b)) + 1 || 999)) || a.localeCompare(b));
+        const tps = topics.map(t => {
+          const inT = items.filter(x => low((x.topic || '').trim()) === low(t));
+          const subs = []; inT.forEach(x => { const u = (x.sub || '').trim(); if (!subs.some(y => low(y) === low(u))) subs.push(u); });
+          subs.sort((a, b) => (a ? 1 : 0) - (b ? 1 : 0) || a.localeCompare(b));
+          const inner = subs.map(u => {
+            const l = inT.filter(x => low((x.sub || '').trim()) === low(u)).sort((a, b) => (ST.srcFinished(a) ? 1 : 0) - (ST.srcFinished(b) ? 1 : 0) || a.title.localeCompare(b.title)).map(row).join('');
+            return u ? '<details class="sx-u"' + (few ? ' open' : '') + '><summary><span class="st-sub-i" aria-hidden="true">↳</span> ' + e(u) + ' <span class="hint num">· ' + inT.filter(x => low((x.sub || '').trim()) === low(u)).length + '</span>' + add(sj.id, t, u) + '</summary><ul class="sx-l">' + l + '</ul></details>' : '<ul class="sx-l">' + l + '</ul>';
           }).join('');
-          return '<section class="st-tp"><h3 class="gh">' + trackChip(tr) + ' <span class="st-full">' + e(tr.name) + '</span></h3>' + (rows ? '<ul class="st-tplist">' + rows + '</ul>' : '<p class="hint">No topics yet.</p>') +
-            '<button type="button" class="btn small" data-act="study-topic-add" data-track="' + e(tr.id) + '">' + ED.icon('plus') + 'Add a topic</button></section>';
+          if (!t && topics.length === 1) return '<div class="sx-t sx-flat">' + inner + '</div>';
+          return '<details class="sx-t"' + (few || topics.length === 1 ? ' open' : '') + '><summary>' + (t ? e(t) : '<i>Not filed under a topic</i>') + ' <span class="hint num">· ' + inT.length + '</span>' + add(sj.id, t, '') + '</summary>' + inner + '</details>';
         }).join('');
+        return '<details class="sx-s" open><summary>' + sj.chip + '<b>' + e(sj.name) + '</b> <span class="hint num">· ' + items.length + '</span>' + add(sj.id, '', '') + '</summary>' + tps + '</details>';
+      }).join('');
+      return '<div class="sx-search"><input type="search" class="field" id="st-src-q" placeholder="Search books, lectures, papers, topics, authors…" aria-label="Search the reading list" autocomplete="off"><span class="hint" id="st-src-n" aria-live="polite"></span></div>' +
+        '<div class="sx-tree" id="st-src-tree">' + body + '</div>';
+    },
+    topics(p) {
+      /* 1.25: your exams and interviews first (always, with every topic), then each subject's topics with their subtopics */
+      const D0 = ED.store.data, low = x => String(x || '').toLowerCase();
+      const ST_N = ['not started', 'learning', 'done', 'revised'];
+      const exams = ((D0.exam && D0.exam.list) || []).map(x => ({ x, tops: ((D0.exam && D0.exam.topics) || []).filter(t => t.examId === x.id && t.name) })).filter(o => o.tops.length || o.x.date >= U.today());
+      const qs = (D0.interview && D0.interview.qs) || [], ivs = ((D0.interview && D0.interview.list) || []).filter(x => !x.date || x.date >= U.addDays(U.today(), -1));
+      const cats = Array.from(new Set(qs.map(q => q.cat).filter(Boolean)));
+      const sl = (D0.settings && D0.settings.studyLink) || { exam: true, iv: true };
+      let link = '';
+      if (exams.length || cats.length || ivs.length) {
+        const ex = exams.map(o => {
+          const subs = []; o.tops.forEach(t => { const n = (t.subj || '').trim() || o.x.name || 'Exam'; if (subs.indexOf(n) < 0) subs.push(n); });
+          const dn = o.tops.filter(t => (t.st || 0) >= 2).length;
+          return '<details class="st-lk"' + (exams.length + (cats.length ? 1 : 0) <= 2 ? ' open' : '') + '><summary><span aria-hidden="true">📝</span> <b>' + e(o.x.name || 'Exam') + '</b>' + (o.x.date ? ' <span class="hint">· ' + e(U.fmtShort(o.x.date)) + (o.x.date >= U.today() ? ' (in ' + U.plural(U.diffDays(U.today(), o.x.date), 'day') + ')' : '') + '</span>' : '') +
+            ' <span class="hint num">· ' + U.plural(o.tops.length, 'topic') + (o.tops.length ? ', ' + dn + ' done' : '') + '</span></summary>' +
+            (o.tops.length ? subs.map(sb => '<div class="st-lk-s"><h4>' + e(sb) + '</h4><div class="st-lk-chips">' + o.tops.filter(t => ((t.subj || '').trim() || o.x.name || 'Exam') === sb).map(t => '<span class="st-lk-c s' + (t.st || 0) + (t.weak ? ' weak' : '') + '" title="' + e(ST_N[t.st || 0] + (t.weak ? ' · weak' : '')) + '">' + e(t.name) + '</span>').join('') + '</div></div>').join('') : '<p class="hint">No syllabus topics yet — add them in Exam preparation.</p>') +
+            '<div class="row-btns"><button type="button" class="btn small ghost" data-act="sl-go" data-k="exam" data-id="' + e(o.x.id) + '">' + ED.icon('external') + 'Open in Exam preparation</button></div></details>';
+        }).join('');
+        const iv = cats.length || ivs.length ? '<details class="st-lk"' + (exams.length <= 1 ? ' open' : '') + '><summary><span aria-hidden="true">🎤</span> <b>Interview preparation</b>' + (ivs.length ? ' <span class="hint">· ' + ivs.map(x => e([x.role, x.org].filter(Boolean).join(', ') || 'Interview') + (x.date ? ' ' + e(U.fmtShort(x.date)) : '')).join(' · ') + '</span>' : '') + ' <span class="hint num">· ' + U.plural(cats.length, 'topic') + '</span></summary>' +
+          (cats.length ? '<div class="st-lk-chips">' + cats.map(c => { const l = qs.filter(q => q.cat === c), r = l.filter(q => +q.level === 2).length; return '<span class="st-lk-c s' + (r === l.length ? 3 : r ? 1 : 0) + '" title="' + r + ' of ' + l.length + ' questions ready">' + e(c) + ' <span class="num">' + r + '/' + l.length + '</span></span>'; }).join('') + '</div>' : '<p class="hint">No questions yet — add them in Interview Prep.</p>') +
+          '<div class="row-btns"><button type="button" class="btn small ghost" data-act="sl-go" data-k="iv">' + ED.icon('external') + 'Open Interview Prep</button></div></details>' : '';
+        link = '<section class="st-lk-box"><h3 class="gh">From your exams and interviews</h3><p class="hint">Every topic of your exams and every interview topic, kept up to date by itself. They are also in the subjects below (added for you), so you can plan sessions on them.' +
+          (!sl.exam || !sl.iv ? ' <b>Copying into the subjects is off for ' + (!sl.exam && !sl.iv ? 'both' : !sl.exam ? 'exams' : 'interviews') + '</b> — switch it on in ' + (!sl.exam ? 'Exam preparation' : 'Interview Prep') + '.' : '') + '</p>' +
+          '<div class="mx-key hint st-lk-key"><span><i class="st-lk-c s0"></i>not started</span><span><i class="st-lk-c s1"></i>learning</span><span><i class="st-lk-c s2"></i>done</span><span><i class="st-lk-c s3"></i>revised / ready</span></div>' + ex + iv + '</section>';
+      }
+      const srcs = ST.sources();
+      const filed = (tr, name) => srcs.filter(x => (x.trackId === tr.id || !x.trackId) && (low(x.topic) === low(name) || low(x.sub) === low(name))).length;
+      const subjects = p.tracks.map(tr => {
+        const own = (p.topics || []).filter(t => t.trackId === tr.id);
+        const subNames = new Set(own.filter(t => t.parent && own.some(y => y.id === t.parent)).map(t => low(t.name)));
+        const list = ST.topicsFor(tr.id);
+        const row = (t, isSub) => {
+          const l = ST.sessions().filter(s => s.trackId === tr.id && ST.hasTopic(s, t));
+          const x = ST.stats(l), mine = own.find(o => low(o.name) === low(t)), nf = filed(tr, t);
+          const tag = mine && /^tp-ex-/.test(mine.id || '') ? ' <span class="chip st-chip-ex">exam</span>' : mine && /^tp-iv-/.test(mine.id || '') ? ' <span class="chip st-chip-iv">interview</span>' : mine && !mine.auto && !isSub ? ' <span class="chip">added</span>' : '';
+          return '<li class="' + (isSub ? 'st-sub' : '') + '"><span class="grow">' + (isSub ? '<span class="st-sub-i" aria-hidden="true">↳</span> ' : '') + e(t) + tag + (nf ? ' <span class="hint">· 📚 ' + nf + '</span>' : '') + '</span><span class="hint num">' + (x.n ? x.done + '/' + x.n + ' · ' + h1(x.doneMin) + ' h' : 'no sessions') + '</span>' +
+            (!isSub ? '<button type="button" class="icon-btn sm" data-act="study-topic-add" data-track="' + e(tr.id) + '" data-parent="' + e(t) + '" aria-label="Add a subtopic to ' + e(t) + '" title="Add a subtopic">' + ED.icon('plus') + '</button>' : '') +
+            (mine && !x.n && !/^tp-(ex|iv)-/.test(mine.id || '') ? '<button type="button" class="icon-btn sm" data-act="study-topic-del" data-id="' + e(mine.id) + '" aria-label="Remove ' + e(t) + '">' + ED.icon('x') + '</button>' : '<span class="st-tp-sp"></span>') + '</li>';
+        };
+        const rows = list.filter(t => !subNames.has(low(t))).map(t => {
+          const me = own.find(o => !o.parent && low(o.name) === low(t));
+          const kids = me ? own.filter(o => o.parent === me.id) : [];
+          return row(t, false) + kids.map(k => row(k.name, true)).join('');
+        }).join('');
+        return '<details class="st-tp"' + (list.length <= 14 ? ' open' : '') + '><summary><i class="sx-sw" style="--c:' + e(ST.color(tr)) + '"></i><b>' + e(tr.name) + '</b> <span class="hint num">· ' + U.plural(list.length, 'topic') + '</span>' + (tr.auto === 'link' ? ' <span class="chip">added for your exams / interviews</span>' : '') + '</summary>' + (rows ? '<ul class="st-tplist">' + rows + '</ul>' : '<p class="hint">No topics yet.</p>') +
+          '<button type="button" class="btn small" data-act="study-topic-add" data-track="' + e(tr.id) + '">' + ED.icon('plus') + 'Add a topic</button></details>';
+      }).join('');
+      return link + '<h3 class="gh">Topics of each subject</h3><p class="hint">Each week’s topic from the plan, plus any you add — and subtopics under them (＋ beside a topic). They are offered when you add or edit a session, and books, lectures and papers can be filed under them (📚 shows how many).</p>' + subjects;
     },
     notes(p) {
       return (p.intro ? '<p class="st-intro">' + e(p.intro) + '</p>' : '') +
@@ -326,7 +403,7 @@
           const tr = ST.track(s.trackId);
           return '<span class="sc' + (s.done ? ' on' : '') + '" style="--c:' + ST.color(tr) + '" data-sid="' + e(s.id) + '">' +
             '<button type="button" class="sc-tick" data-act="study-toggle" aria-label="' + e((s.done ? 'Done: ' : 'Mark done: ') + ST.short(tr)) + '">' + (s.done ? '✓' : '') + '</button>' +
-            '<button type="button" class="sc-t" data-act="study-open" title="' + e(ST.short(tr) + (s.kind ? ' (' + s.kind + ')' : '') + ' — ' + s.topic + ' · ' + s.min + ' min') + '">' + e(ST.short(tr)) + (s.kind ? '<span class="hint"> ' + e(s.kind) + '</span>' : '') + '</button></span>';
+            '<button type="button" class="sc-t" data-act="study-open" title="' + e(ST.short(tr) + (s.kind ? ' (' + s.kind + ')' : '') + ' — ' + ST.topicText(s) + ' · ' + s.min + ' min') + '">' + e(ST.short(tr)) + (s.kind ? '<span class="hint"> ' + e(s.kind) + '</span>' : '') + '</button></span>';
         }).join('');
         return '<div class="sm-cell' + (other ? ' other' : '') + (k === today ? ' today' : '') + (k === sel ? ' sel' : '') + (d.n && d.done === d.n ? ' full' : '') + '">' +
           '<button type="button" class="sm-num num" data-act="study-day" data-date="' + k + '" data-go="studyWeek" aria-label="Open ' + e(U.fmtLong(k)) + '">' + (+k.slice(8)) + (U.dow(k) === 1 && w ? '<span class="sm-wk">W' + w.n + '</span>' : '') + '</button>' +
@@ -371,7 +448,7 @@
         return '<section class="st-day' + (k === day ? ' sel' : '') + (k === U.today() ? ' today' : '') + '">' +
           '<button type="button" class="st-dayh" data-act="study-day" data-date="' + k + '"><b>' + U.DAY3[U.dow(k)] + ' ' + (+k.slice(8)) + ' ' + U.MON[+k.slice(5, 7) - 1] + '</b>' + (k === U.today() ? '<span class="chip chip-today">Today</span>' : '') +
           '<span class="grow"></span>' + (d.n || sm ? '<span class="hint num">' + d.done + '/' + d.n + ' · ' + h1(sm) + ' of ' + h1(d.min) + ' h</span>' : '<span class="hint">Rest</span>') + '</button>' +
-          l.map(s => { const tr = ST.track(s.trackId); return '<div class="st-row' + (s.done ? ' done' : '') + '" data-sid="' + e(s.id) + '">' + tick(s) + trackChip(tr, s.kind) + '<button type="button" class="plain-btn st-row-t" data-act="study-open">' + e(s.topic || '—') + '</button><span class="hint num">' + (s.done && ST.spent(s) !== s.min ? ST.spent(s) + '/' : '') + s.min + '′</span></div>'; }).join('') +
+          l.map(s => { const tr = ST.track(s.trackId); return '<div class="st-row' + (s.done ? ' done' : '') + '" data-sid="' + e(s.id) + '">' + tick(s) + trackChip(tr, s.kind) + '<button type="button" class="plain-btn st-row-t" data-act="study-open">' + e(ST.topicText(s) || '—') + '</button><span class="hint num">' + (s.done && ST.spent(s) !== s.min ? ST.spent(s) + '/' : '') + s.min + '′</span></div>'; }).join('') +
           '</section>';
       }).join('');
       return '<div class="study st-week">' + head + meta + '<div class="st-scroll scroll" data-keep-scroll="st-week">' + compass('week') + chart + topics + '<div class="st-days">' + days + '</div></div></div>';
@@ -392,7 +469,7 @@
           '<div class="st-card-h">' + tick(s) + '<div class="st-card-m"><span class="st-slot">' + e(other ? 'Planned for ' + U.fmtDM(s.date) : (s.slot || ST.slotText(s.slotNo, s.kind))) + '</span>' + trackChip(tr) + '</div>' +
           '<span class="st-min num">' + (t && !other ? e(U.fmtTime(t, h12)) + ' · ' : '') + ST.fmtMin(s.min) + '</span>' +
           '<button type="button" class="icon-btn sm" data-act="study-open" aria-label="Edit session" title="Edit session">' + ED.icon('pencil') + '</button></div>' +
-          '<h3 class="st-card-t">' + e(s.topic || 'No topic') + '</h3>' +
+          '<h3 class="st-card-t">' + e(ST.topicText(s) || 'No topic') + '</h3>' +
           (src ? '<p class="st-card-s">' + ST.srcIcon(src) + ' <b>' + e(src.title) + '</b>' + (s.source ? ' — ' + e(s.source) : '') + '</p>' : s.source ? '<p class="st-card-s">' + e(s.source) + '</p>' : '') +
           '<div class="st-spent"><label for="sp-' + e(s.id) + '">Time spent</label><input id="sp-' + e(s.id) + '" class="field num st-spent-in" type="number" min="0" max="900" step="5" data-sid="' + e(s.id) + '" value="' + (s.done ? ST.spent(s) : '') + '" placeholder="' + s.min + '"><span class="hint">min' + (s.done ? ' · studied ' + (ST.doneOn(s) === k ? 'this day' : 'on ' + e(U.fmtDM(ST.doneOn(s)))) : ' · typing a time marks it done') + '</span></div>' +
           '<label class="sr-only" for="sn-' + e(s.id) + '">Notes</label><textarea id="sn-' + e(s.id) + '" class="st-note-in" rows="2" data-sid="' + e(s.id) + '" placeholder="Notes — what you covered, page reached, questions…">' + e(s.note || '') + '</textarea>' +
@@ -454,6 +531,28 @@
   reg('studyWeek', 'Study · Weekly & Daily', 'Weekly & Daily', weekly);
 
   /* ---------- actions ---------- */
+  A['study-srcview'] = el => { st().srcView = el.dataset.v; ED.app.renderPage('right'); CH.bind(document.getElementById('pg-right')); };
+  A['study-src-here'] = (el, ev) => {
+    if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+    const o = { trackId: el.dataset.track || '', topic: el.dataset.topic || '', sub: el.dataset.sub || '' };
+    ED.ui.menu(el, [{ label: 'Book', icon: 'plus', onClick: () => ST.editSource(null, Object.assign({ kind: 'book' }, o)) }, { label: 'Lecture or course', icon: 'plus', onClick: () => ST.editSource(null, Object.assign({ kind: 'lecture' }, o)) }]
+      .concat(ST.srcCats().map(c => ({ label: c.icon + ' ' + c.name, onClick: () => ST.editItem(null, Object.assign({ kind: c.id }, o)) }))));
+  };
+  /* search in the tree: hide what does not match, open what does */
+  document.addEventListener('input', ev => {
+    if (!ev.target || ev.target.id !== 'st-src-q') return;
+    const tree = document.getElementById('st-src-tree'); if (!tree) return;
+    const terms = ev.target.value.toLowerCase().split(/\s+/).filter(Boolean);
+    let n = 0;
+    U.$$('.sx-i', tree).forEach(li => { const ok = !terms.length || terms.every(t => li.dataset.q.indexOf(t) >= 0); li.hidden = !ok; if (ok) n++; });
+    U.$$('details', tree).reverse().forEach(d => {
+      if (d.dataset.open == null) d.dataset.open = d.open ? '1' : '';
+      const any = U.$$('.sx-i', d).some(li => !li.hidden);
+      d.hidden = !!terms.length && !any;
+      d.open = terms.length ? any : d.dataset.open === '1';
+    });
+    const out = document.getElementById('st-src-n'); if (out) out.textContent = terms.length ? U.plural(n, 'match', 'matches') : '';
+  });
   A['study-ytab'] = el => { st().ytab = el.dataset.tab; ED.app.renderPage('right'); CH.bind(document.getElementById('pg-right')); };
   A['study-yrange'] = el => { st().yrange = el.dataset.r; ED.app.renderPage('left'); CH.bind(document.getElementById('pg-left')); };
   // the chosen day moves with the month, so Week & Day opens in the month you were looking at
@@ -489,7 +588,7 @@
     if (!l.length && !late.length) return '';
     const d = ST.stats(l); const sm = ST.studied(k);
     // 1.22.1: subject and topic on two lines (nothing cut short); no "—" when a session has no topic yet
-    const row = (s, old) => { const tr = ST.track(s.trackId); const t = ST.timeOf(s); const what = s.topic || ST.sourceText(s);
+    const row = (s, old) => { const tr = ST.track(s.trackId); const t = ST.timeOf(s); const what = ST.topicText(s) || ST.sourceText(s);
       return '<li class="st-row st-row2' + (s.done ? ' done' : '') + (old ? ' st-late' : '') + '" data-sid="' + e(s.id) + '">' + tick(s) +
         '<button type="button" class="plain-btn st-row-b" data-act="study-open" title="Open this session">' + trackChip(tr, s.kind) + '<span class="st-row-t' + (what ? '' : ' none') + '">' + (what ? e(what) : 'no topic yet — click to add one') + '</span></button>' +
         '<span class="hint num st-row-m">' + (old ? e(U.fmtDM(s.date)) : t ? e(U.fmtTime(t, S().h12)) : '') + '<b>' + ST.fmtMin(s.min) + '</b></span></li>'; };

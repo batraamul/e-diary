@@ -184,8 +184,8 @@
       if (!l.length) return '';
       return '<div class="cp-lg cp-study"><span class="cp-lg-h"><span class="emo">📘</span>Study</span>' + l.map(x => {
         const tr = ED.study.track(x.trackId);
-        return '<div class="cp-li' + (x.done ? ' st-done' : '') + '" data-act="study-open" data-sid="' + e(x.id) + '" title="' + e((tr ? tr.name : 'Study') + (x.topic ? ' — ' + x.topic : '') + ' · ' + x.min + ' min') + '">' +
-          '<span class="code num">' + (x.done ? '✓' : x.min + '′') + '</span><span class="ttl tinted" style="--c:' + e(ED.study.color(tr)) + '">' + e(ED.study.short(tr) + (x.topic ? ' — ' + x.topic : '')) + '</span></div>';
+        return '<div class="cp-li' + (x.done ? ' st-done' : '') + '" data-act="study-open" data-sid="' + e(x.id) + '" title="' + e((tr ? tr.name : 'Study') + (ED.study.topicText(x) ? ' — ' + ED.study.topicText(x) : '') + ' · ' + x.min + ' min') + '">' +
+          '<span class="code num">' + (x.done ? '✓' : x.min + '′') + '</span><span class="ttl tinted" style="--c:' + e(ED.study.color(tr)) + '">' + e(ED.study.short(tr) + (ED.study.topicText(x) ? ' — ' + ED.study.topicText(x) : '')) + '</span></div>';
       }).join('') + '</div>';
     },
 
@@ -208,7 +208,7 @@
       if (ED.study && !(s && s.filter)) ED.study.timedOn(k).forEach(x => {
         const a = U.toMin(x.time), b = a + Math.max(15, x.s.min || 60);
         items.push({ a, b, html: pos => '<div class="tg-item tg-study' + (x.s.done ? ' done' : '') + '" style="' + pos + ';--c:' + e(x.color) + '" data-act="study-open" data-tg="study" data-sid="' + e(x.s.id) + '" data-k="' + k + '" data-a="' + a + '" data-b="' + b + '" title="Study: ' + e(x.track + ' — ' + (x.s.topic || '')) + '">' +
-          '<b>' + (x.s.done ? '✓ ' : '') + e(x.short) + '</b><span class="num tg-when">' + e(U.fmtTime(x.time, h12)) + '</span><span>' + e(x.s.topic || '') + '</span>' + rs + '</div>' });
+          '<b>' + (x.s.done ? '✓ ' : '') + e(x.short) + '</b><span class="num tg-when">' + e(U.fmtTime(x.time, h12)) + '</span><span>' + e(ED.study.topicText(x.s) || '') + '</span>' + rs + '</div>' });
       });
       return items;
     },
@@ -278,7 +278,7 @@
           const sl = ED.study.on(k);
           if (sl.length) {
             const dn = sl.filter(x => x.done).length, late = k < today && dn < sl.length;
-            study = '<button type="button" class="m-st' + (dn === sl.length ? ' done' : late ? ' late' : '') + '" data-act="study-day" data-date="' + k + '" data-go="studyWeek" title="Study: ' + e(sl.map(x => ED.study.short(ED.study.track(x.trackId)) + (x.topic ? ' — ' + x.topic : '')).join(', ')) + '">📘 ' + dn + '/' + sl.length + ' study</button>';
+            study = '<button type="button" class="m-st' + (dn === sl.length ? ' done' : late ? ' late' : '') + '" data-act="study-day" data-date="' + k + '" data-go="studyWeek" title="Study: ' + e(sl.map(x => ED.study.short(ED.study.track(x.trackId)) + (ED.study.topicText(x) ? ' — ' + ED.study.topicText(x) : '')).join(', ')) + '">📘 ' + dn + '/' + sl.length + ' study</button>';
           }
         }
         return '<div class="m-cell' + (other ? ' other' : '') + (k === today ? ' today' : '') + (k === ED.state.date ? ' sel' : '') + '" data-drop="day" data-date="' + k + '">' +

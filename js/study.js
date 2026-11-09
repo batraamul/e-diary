@@ -132,7 +132,22 @@
   ST.srcFinished = x => FINISHED.test(x.status || '');
   ST.sources = () => { const p = ST.plan(); return p ? (p.books || []).concat(p.lectures || [], p.items || []) : []; };
   ST.source = id => id ? ST.sources().find(x => x.id === id) || null : null;
-  ST.sourceText = s => { const b = ST.source(s.sourceId); return [b ? b.title : '', s.source || ''].filter(Boolean).join(' — '); };
+  /* 1.25: a session can have several topics and several books / lectures / papers. The first stays in s.topic and
+     s.sourceId (everything that reads one keeps working); the others are in s.moreTopics and s.moreSrc. */
+  ST.topicsOf = s => { const out = []; [s.topic].concat(Array.isArray(s.moreTopics) ? s.moreTopics : []).forEach(t => { t = String(t || '').trim(); if (t && !out.some(y => y.toLowerCase() === t.toLowerCase())) out.push(t); }); return out; };
+  ST.srcIdsOf = s => Array.from(new Set([s.sourceId].concat(Array.isArray(s.moreSrc) ? s.moreSrc : []).filter(Boolean)));
+  ST.hasTopic = (s, t) => ST.topicsOf(s).some(y => y.toLowerCase() === String(t || '').toLowerCase());
+  ST.usesSrc = (s, id) => ST.srcIdsOf(s).indexOf(id) >= 0;
+  ST.topicText = s => ST.topicsOf(s).join(' · ');
+  ST.sourceText = s => { const t = ST.srcIdsOf(s).map(id => (ST.source(id) || {}).title).filter(Boolean).join(' · '); return [t, s.source || ''].filter(Boolean).join(' — '); };
+  /* a book / lecture / paper deleted: its name stays written in the sessions that used it */
+  ST.dropSrcFromSessions = (id, title) => ST.sessions().forEach(s => {
+    if (!ST.usesSrc(s, id)) return;
+    s.source = [title, s.source].filter(Boolean).join(' — ');
+    const rest = ST.srcIdsOf(s).filter(x => x !== id); s.sourceId = rest[0] || ''; s.moreSrc = rest.slice(1); s.updatedAt = Date.now();
+  });
+  /* topics and subtopics of a subject: [{ id, name, parent }] — a subtopic has parent = its topic's id */
+  ST.topicTree = trackId => { const l = ((ST.plan() || {}).topics || []).filter(x => x.trackId === trackId); return l.filter(x => !x.parent || !l.some(y => y.id === x.parent)).map(t => ({ t, subs: l.filter(y => y.parent === t.id) })); };
   /* topics offered for a subject: each week's topic in order, then your own list, then any others used */
   ST.topicsFor = trackId => {
     const p = ST.plan(); if (!p) return [];
@@ -140,7 +155,7 @@
     const add = t => { t = String(t || '').trim(); if (t && !seen.has(t.toLowerCase())) { seen.add(t.toLowerCase()); out.push(t); } };
     ST.weeks().forEach(w => add(w.themes && w.themes[trackId]));
     (p.topics || []).filter(x => x.trackId === trackId).forEach(x => add(x.name));
-    ST.sessions().forEach(s => { if (s.trackId === trackId) add(s.topic); });
+    ST.sessions().forEach(s => { if (s.trackId === trackId) ST.topicsOf(s).forEach(add); });
     return out;
   };
 
@@ -212,8 +227,11 @@
   ST.span = () => {
     const p = ST.plan(); if (!p) return null;
     const list = ST.sessions();
-    const a = p.start || (list.length ? list.reduce((m, s) => s.date < m ? s.date : m, list[0].date) : null);
-    const b = p.end || (list.length ? list.reduce((m, s) => s.date > m ? s.date : m, list[0].date) : null);
+    // 1.25: the real first and last session, so moving, adding or deleting sessions moves the end (the stored
+    // start / end were not changed by every editor, and the finish forecast and progress kept the old dates)
+    const ds = list.map(s => s.date).filter(U.isKey);
+    const a = ds.length ? ds.reduce((m, k) => k < m ? k : m) : p.start || null;
+    const b = ds.length ? ds.reduce((m, k) => k > m ? k : m) : p.end || null;
     return a && b ? { a, b } : null;
   };
   /* where you stand against the plan: planned hours covered vs planned hours due before today */
@@ -574,7 +592,7 @@
     const rows = [['Week', 'Week of', 'Date', 'Day', 'Slot', 'Track', 'Min', 'Topic', 'Source / task', 'Done', 'Studied on', 'Time spent (min)', 'Start time', 'Note']];
     ST.sessions().slice().sort((a, b) => a.date.localeCompare(b.date) || (a.slotNo || 0) - (b.slotNo || 0)).forEach(s => {
       const w = ST.weekByN(s.week); const tr = ST.track(s.trackId);
-      rows.push([s.week || '', w ? w.label : '', s.date, U.DAYS[U.dow(s.date)], s.slot || ST.slotText(s.slotNo, s.kind), tr ? tr.name : '', s.min, s.topic, ST.sourceText(s), s.done ? 'Y' : '', s.done ? ST.doneOn(s) : '', s.done ? ST.spent(s) : '', ST.timeOf(s) || '', s.note || '']);
+      rows.push([s.week || '', w ? w.label : '', s.date, U.DAYS[U.dow(s.date)], s.slot || ST.slotText(s.slotNo, s.kind), tr ? tr.name : '', s.min, ST.topicText(s), ST.sourceText(s), s.done ? 'Y' : '', s.done ? ST.doneOn(s) : '', s.done ? ST.spent(s) : '', ST.timeOf(s) || '', s.note || '']);
     });
     await U.download(slug(p.title) + '-progress-' + U.today() + '.csv', X.toCSV(rows), 'text/csv');
   };
@@ -680,6 +698,10 @@
     });
   }
 
+  /* 1.25: more topics and more books / lectures / papers in one session */
+  let rowN = 0;
+  function moreTopicRow(trackId, cur) { const n = ++rowN; return '<div class="st-more-r" data-r="t"><div class="st-stack grow">' + topicSelect('ss-mt' + n, trackId, cur, '— choose a topic —').replace('<select ', '<select data-mt aria-label="Another topic" ') + '<input class="field" data-mtn placeholder="Type the new topic" hidden></div><button type="button" class="icon-btn sm" data-x="r-del" aria-label="Remove this topic" title="Remove">' + ED.icon('x') + '</button></div>'; }
+  function moreSrcRow(trackId, cur) { const n = ++rowN; return '<div class="st-more-r" data-r="s">' + sourceSelect('ss-ms' + n, trackId, cur).replace('<select ', '<select data-ms aria-label="Another book, lecture or paper" ') + '<button type="button" class="icon-btn sm" data-x="r-del" aria-label="Remove" title="Remove">' + ED.icon('x') + '</button></div>'; }
   ST.editSession = (id, create) => {
     const p = ST.plan(); if (!p) return;
     const s = id ? ST.session(id) : null;
@@ -696,8 +718,10 @@
       '<input id="ss-kind" class="field" list="ss-kinds" value="' + e(d.kind || '') + '" placeholder="Reading, Lecture, Code…" aria-label="Kind of work"><datalist id="ss-kinds">' + KINDS.map(k => '<option value="' + e(k) + '">').join('') + '</datalist></div>' +
       '<label class="lbl" for="ss-min">Planned minutes</label><input id="ss-min" class="field num" type="number" min="5" max="600" step="5" value="' + (d.min || 60) + '">' +
       '<label class="lbl" for="ss-time">Start time</label><div class="te-dt"><input id="ss-time" class="field" type="time" value="' + e(d.time || '') + '"><span class="hint" id="ss-tdef"></span></div>' +
-      '<label class="lbl" for="ss-topic">Topic</label><div class="st-stack">' + topicSelect('ss-topic', d.trackId, d.topic) + '<input id="ss-topic-new" class="field" placeholder="Type the new topic — it is added to this subject’s list" hidden></div>' +
-      '<label class="lbl" for="ss-src">Book / lecture</label>' + sourceSelect('ss-src', d.trackId, d.sourceId) +
+      '<label class="lbl" for="ss-topic">Topics</label><div class="st-stack">' + topicSelect('ss-topic', d.trackId, d.topic) + '<input id="ss-topic-new" class="field" placeholder="Type the new topic — it is added to this subject’s list" hidden>' +
+        '<div class="st-more" id="ss-tmore">' + (d.moreTopics || []).map(t => moreTopicRow(d.trackId, t)).join('') + '</div><button type="button" class="link-btn st-more-add" data-x="t-add">＋ Another topic</button></div>' +
+      '<label class="lbl" for="ss-src">Books / lectures</label><div class="st-stack">' + sourceSelect('ss-src', d.trackId, d.sourceId) +
+        '<div class="st-more" id="ss-smore">' + (d.moreSrc || []).map(id => moreSrcRow(d.trackId, id)).join('') + '</div><button type="button" class="link-btn st-more-add" data-x="s-add">＋ Another book / lecture / paper</button></div>' +
       '<label class="lbl" for="ss-source">Chapter / task</label><textarea id="ss-source" class="field" rows="2" placeholder="Chapters, pages, lecture numbers, exercises…">' + e(d.source) + '</textarea>' +
       '<label class="lbl" for="ss-note">My notes</label><textarea id="ss-note" class="field" rows="2" placeholder="What you covered, questions, page reached…">' + e(d.note || '') + '</textarea>' +
       '</div>' +
@@ -716,12 +740,29 @@
         const trackNow = () => v('track');
         wireTopic(el, $('topic'), $('topic-new'));
         wireSource(el, $('src'), trackNow);
+        const wireMore = r => {
+          const ts = r.querySelector('[data-mt]'); if (ts) wireTopic(el, ts, r.querySelector('[data-mtn]'));
+          const ss = r.querySelector('[data-ms]'); if (ss) wireSource(el, ss, trackNow);
+        };
+        U.$$('.st-more-r', el).forEach(wireMore);
+        el.addEventListener('click', ev => {
+          const b = ev.target.closest('[data-x]'); if (!b) return;
+          if (b.dataset.x === 'r-del') { b.closest('.st-more-r').remove(); return; }
+          if (b.dataset.x === 't-add' || b.dataset.x === 's-add') {
+            const box = $(b.dataset.x === 't-add' ? 'tmore' : 'smore');
+            box.insertAdjacentHTML('beforeend', b.dataset.x === 't-add' ? moreTopicRow(trackNow(), '') : moreSrcRow(trackNow(), ''));
+            const r = box.lastElementChild; wireMore(r); const f = r.querySelector('select'); if (f) f.focus();
+          }
+        });
         $('track').addEventListener('change', () => {
           const t = trackNow(); const w = ST.weekOf(v('date'));
           const theme = w && w.themes[t] || '';
           $('topic').outerHTML = topicSelect('ss-topic', t, theme);
           wireTopic(el, $('topic'), $('topic-new'));
           const src = v('src'); $('src').outerHTML = sourceSelect('ss-src', t, src); wireSource(el, $('src'), trackNow);
+          U.$$('#ss-tmore .st-more-r', el).forEach(r => { const cur = r.querySelector('[data-mt]').value; r.outerHTML = moreTopicRow(t, cur === NEW ? '' : cur); });
+          U.$$('#ss-smore .st-more-r', el).forEach(r => { const cur = r.querySelector('[data-ms]').value; r.outerHTML = moreSrcRow(t, cur === NEW ? '' : cur); });
+          U.$$('.st-more-r', el).forEach(wireMore);
         });
         $('slotno').addEventListener('change', async () => {
           if (v('slotno') !== NEW) { const sl = ST.slot(+v('slotno')); if (sl && !s && sl.min) $('min').value = sl.min; tdef(); return; }
@@ -747,8 +788,12 @@
           const min = Math.max(5, Math.min(600, parseInt(v('min'), 10) || 60));
           if (!p.slots.some(x => x.no === slotNo)) p.slots.push({ no: slotNo, name: 'Slot ' + slotNo, time: '', min });
           const src = v('src') === NEW ? '' : v('src');
+          // all topics and books in the order shown; the first stays in topic / sourceId
+          const tl = [readTopic($('topic'), $('topic-new'), trackId)].concat(U.$$('#ss-tmore .st-more-r', el).map(r => readTopic(r.querySelector('[data-mt]'), r.querySelector('[data-mtn]'), trackId))).map(x => String(x || '').trim()).filter(Boolean);
+          const tops = tl.filter((x, i) => tl.findIndex(y => y.toLowerCase() === x.toLowerCase()) === i);
+          const srcs = Array.from(new Set([src].concat(U.$$('#ss-smore [data-ms]', el).map(x => x.value)).filter(x => x && x !== NEW)));
           Object.assign(tgt, { date, trackId, slotNo, kind, slot: ST.slotText(slotNo, kind), min, time: v('time') || null,
-            topic: readTopic($('topic'), $('topic-new'), trackId), sourceId: src, source: v('source').trim(), note: v('note').trim(), updatedAt: Date.now() });
+            topic: tops[0] || '', moreTopics: tops.slice(1), sourceId: srcs[0] || '', moreSrc: srcs.slice(1), source: v('source').trim(), note: v('note').trim(), updatedAt: Date.now() });
           const done = $('done').checked;
           if (done !== !!tgt.done) markDone(tgt, done);
           if (done) {
@@ -881,14 +926,54 @@
     return tr;
   };
 
+  /* 1.25: Topic → Subtopic for a book, lecture or paper (suggested from the subject's topics; a new name is added there) */
+  const lowS = v => String(v || '').trim().toLowerCase();
+  ST.mainTopics = trackId => {
+    const own = ((ST.plan() || {}).topics || []).filter(t => t.trackId === trackId);
+    const subs = new Set(own.filter(t => t.parent && own.some(y => y.id === t.parent)).map(t => lowS(t.name)));
+    return trackId ? ST.topicsFor(trackId).filter(t => !subs.has(lowS(t))) : Array.from(new Set(((ST.plan() || {}).tracks || []).reduce((a, tr) => a.concat(ST.mainTopics(tr.id)), [])));
+  };
+  ST.subTopics = (trackId, topic) => {
+    const all = ((ST.plan() || {}).topics || []).filter(t => !trackId || t.trackId === trackId);
+    const par = all.filter(t => !t.parent && lowS(t.name) === lowS(topic)).map(t => t.id);
+    return all.filter(t => par.indexOf(t.parent) >= 0).map(t => t.name);
+  };
+  const dl = (id, l) => '<datalist id="' + id + '">' + l.map(t => '<option value="' + e(t) + '">').join('') + '</datalist>';
+  const fileFields = (pf, x) => '<label class="lbl" for="' + pf + '-tp">Topic</label><div><input id="' + pf + '-tp" class="field" list="' + pf + '-tpl" value="' + e(x.topic || '') + '" placeholder="e.g. Radar signal processing" autocomplete="off">' + dl(pf + '-tpl', ST.mainTopics(x.trackId)) + '</div>' +
+    '<label class="lbl" for="' + pf + '-sb">Subtopic</label><div><input id="' + pf + '-sb" class="field" list="' + pf + '-sbl" value="' + e(x.sub || '') + '" placeholder="e.g. Doppler filtering — optional" autocomplete="off">' + dl(pf + '-sbl', ST.subTopics(x.trackId, x.topic)) + '<span class="hint fx-hint">Filed as Subject → Topic → Subtopic, so you find it in a tidy tree and by search.</span></div>';
+  const wireFile = (el, pf, getTrack) => {
+    const tp = el.querySelector('#' + pf + '-tp'), upd = () => {
+      el.querySelector('#' + pf + '-tpl').innerHTML = ST.mainTopics(getTrack()).map(t => '<option value="' + e(t) + '">').join('');
+      el.querySelector('#' + pf + '-sbl').innerHTML = ST.subTopics(getTrack(), tp.value).map(t => '<option value="' + e(t) + '">').join('');
+    };
+    tp.addEventListener('input', upd); tp.addEventListener('change', upd);
+    const tr = el.querySelector('#' + pf + '-track'); if (tr) tr.addEventListener('change', upd);
+  };
+  /* read the two fields; a new topic / subtopic joins the subject's list */
+  const readFile = (el, pf, trackId) => {
+    const p = ST.plan(), topic = el.querySelector('#' + pf + '-tp').value.trim(), sub = topic ? el.querySelector('#' + pf + '-sb').value.trim() : '';
+    if (p && trackId && topic) {
+      p.topics = p.topics || [];
+      let par = p.topics.find(t => t.trackId === trackId && !t.parent && lowS(t.name) === lowS(topic));
+      if (!par && !ST.topicsFor(trackId).some(t => lowS(t) === lowS(topic))) { par = { id: U.uid('tp'), trackId, name: topic }; p.topics.push(par); }
+      if (sub && !ST.subTopics(trackId, topic).some(t => lowS(t) === lowS(sub))) {
+        if (!par) { par = { id: U.uid('tp'), trackId, name: topic }; p.topics.push(par); }
+        p.topics.push({ id: U.uid('tp'), trackId, name: sub, parent: par.id });
+      }
+    }
+    return { topic, sub };
+  };
+  ST.fileFields = fileFields; ST.wireFile = wireFile; ST.readFile = readFile;
+
   /* a book or a lecture course */
   ST.editSource = (id, o) => {
     const p = ST.plan(); if (!p) return;
     o = o || {};
-    const x = id ? ST.source(id) : { id: U.uid('bk'), kind: o.kind || 'book', trackId: o.trackId || (p.tracks[0] || {}).id || '', title: '', use: '', access: '', where: '' };
+    const x = id ? ST.source(id) : { id: U.uid('bk'), kind: o.kind || 'book', trackId: o.trackId != null && o.trackId !== undefined ? o.trackId : (p.tracks[0] || {}).id || '', title: '', use: '', access: '', where: '', topic: o.topic || '', sub: o.sub || '' };
     const body = '<form class="st-form"><div class="seg fin-type" role="group" aria-label="Type"><button type="button" data-k="book" aria-pressed="' + (x.kind !== 'lecture') + '">📖 Book</button><button type="button" data-k="lecture" aria-pressed="' + (x.kind === 'lecture') + '">🎓 Lecture / course</button></div><div class="st-grid">' +
       '<label class="lbl" for="sr-title">Title</label><input id="sr-title" class="field" value="' + e(x.title) + '" placeholder="Author – Title, or course name">' +
       '<label class="lbl" for="sr-track">Subject</label><select id="sr-track" class="field">' + opt('', 'All subjects', !x.trackId) + p.tracks.map(t => opt(t.id, t.name, t.id === x.trackId)).join('') + '</select>' +
+      fileFields('sr', x) +
       '<label class="lbl" for="sr-use">Used for</label><input id="sr-use" class="field" value="' + e(x.use || '') + '" placeholder="Main text, weeks 3–8, reference only…">' +
       '<label class="lbl" for="sr-access">Access</label><input id="sr-access" class="field" value="' + e(x.access || '') + '" placeholder="Free PDF, Buy, Library…">' +
       '<label class="lbl" for="sr-where">Link / where</label><input id="sr-where" class="field" value="' + e(x.where || '') + '" placeholder="https://… or shelf, drive folder">' +
@@ -899,13 +984,14 @@
       onMount(el, api) {
         let kind = x.kind === 'lecture' ? 'lecture' : 'book';
         el.querySelector('.fin-type').addEventListener('click', ev => { const b = ev.target.closest('[data-k]'); if (!b) return; kind = b.dataset.k; U.$$('.fin-type button', el).forEach(y => y.setAttribute('aria-pressed', String(y === b))); });
+        wireFile(el, 'sr', () => el.querySelector('#sr-track').value);
         setTimeout(() => el.querySelector('#sr-title').focus(), 30);
         el.querySelector('[data-x="save"]').addEventListener('click', () => {
           const title = el.querySelector('#sr-title').value.trim(); if (!title) { ED.ui.toast('Give it a title'); return; }
           ED.store.checkpoint('Book or lecture');
           const trackId = el.querySelector('#sr-track').value;
           const tr = ST.track(trackId);
-          const f = { kind, title, trackId, track: tr ? ST.short(tr) : '', use: el.querySelector('#sr-use').value.trim(), access: el.querySelector('#sr-access').value.trim(), where: el.querySelector('#sr-where').value.trim() };
+          const f = Object.assign({ kind, title, trackId, track: tr ? ST.short(tr) : '', use: el.querySelector('#sr-use').value.trim(), access: el.querySelector('#sr-access').value.trim(), where: el.querySelector('#sr-where').value.trim(), updatedAt: Date.now() }, readFile(el, 'sr', trackId));
           p.books = p.books.filter(y => y.id !== x.id); p.lectures = p.lectures.filter(y => y.id !== x.id);
           const item = Object.assign(x, f);
           (kind === 'lecture' ? p.lectures : p.books).push(item);
@@ -915,11 +1001,11 @@
         });
         const del = el.querySelector('[data-x="del"]');
         if (del) del.addEventListener('click', async () => {
-          const n = ST.sessions().filter(s => s.sourceId === x.id).length;
+          const n = ST.sessions().filter(s => ST.usesSrc(s, x.id)).length;
           const ok = await ED.ui.confirm({ title: 'Delete', message: 'Delete “' + x.title + '”?' + (n ? ' Its name stays written in the ' + U.plural(n, 'session') + ' that use it.' : ''), ok: 'Delete', danger: true });
           if (!ok) return;
           ED.store.checkpoint('Delete book');
-          ST.sessions().forEach(s => { if (s.sourceId === x.id) { s.source = [x.title, s.source].filter(Boolean).join(' — '); s.sourceId = ''; } });
+          ST.dropSrcFromSessions(x.id, x.title);
           p.books = p.books.filter(y => y.id !== x.id); p.lectures = p.lectures.filter(y => y.id !== x.id);
           ED.store.commit(); api.close(); ED.ui.undoToast('Deleted');
         });
@@ -931,7 +1017,7 @@
     const p = ST.plan(); if (!p) return;
     o = o || {};
     const x = id ? (p.items || []).find(y => y.id === id) : null;
-    const d = x ? U.clone(x) : { id: U.uid('ri'), kind: o.kind || 'paper-r', trackId: o.trackId || '', title: '', by: '', venue: '', status: '', due: '', where: '', use: '' };
+    const d = x ? U.clone(x) : { id: U.uid('ri'), kind: o.kind || 'paper-r', trackId: o.trackId || '', title: '', by: '', venue: '', status: '', due: '', where: '', use: '', topic: o.topic || '', sub: o.sub || '' };
     const cats = ST.srcCats();
     const c0 = ST.srcCat(d.kind) || cats[0];
     const statusOpts = (c, cur) => (c.status.indexOf(cur) < 0 && cur ? [cur] : []).concat(c.status).map(s => opt(s, s, s === (cur || c.status[0]))).join('');
@@ -944,6 +1030,7 @@
       '<label class="lbl" for="ri-due" id="ri-l-due">' + e(c0.f.due) + '</label><input id="ri-due" class="field" type="date" value="' + e(d.due || '') + '">' +
       '<label class="lbl" for="ri-where" id="ri-l-where">' + e(c0.f.where) + '</label><input id="ri-where" class="field" value="' + e(d.where || '') + '" placeholder="https://…">' +
       '<label class="lbl" for="ri-track">Subject</label><select id="ri-track" class="field">' + opt('', 'All subjects', !d.trackId) + p.tracks.map(t => opt(t.id, t.name, t.id === d.trackId)).join('') + '</select>' +
+      fileFields('ri', d) +
       '<label class="lbl" for="ri-use">Notes</label><textarea id="ri-use" class="field" rows="3" placeholder="Summary, next step, reviewer comments, eligibility…">' + e(d.use || '') + '</textarea>' +
       '</div></form>';
     ED.ui.modal({
@@ -956,12 +1043,14 @@
           ['title', 'by', 'venue', 'due', 'where'].forEach(k => { el.querySelector('#ri-l-' + k).textContent = c.f[k]; });
           const cur = $('status').value; $('status').innerHTML = statusOpts(c, c.status.indexOf(cur) >= 0 ? cur : '');
         });
+        wireFile(el, 'ri', () => $('track').value);
         setTimeout(() => $('title').focus(), 30);
         el.querySelector('[data-x="save"]').addEventListener('click', () => {
           const title = $('title').value.trim(); if (!title) { ED.ui.toast('Give it a title'); $('title').focus(); return; }
           const tr = ST.track($('track').value);
           const f = { kind: $('kind').value, title, by: $('by').value.trim(), venue: $('venue').value.trim(), status: $('status').value, due: U.isKey($('due').value) ? $('due').value : '', where: $('where').value.trim(), trackId: $('track').value, track: tr ? ST.short(tr) : '', use: $('use').value.trim(), updatedAt: Date.now() };
           ED.store.checkpoint('Reading and writing');
+          Object.assign(f, readFile(el, 'ri', f.trackId));
           f.updatedAt = Date.now();
           if (x) Object.assign(x, f); else { p.items = p.items || []; p.items.push(Object.assign(d, f)); }
           ED.store.commit(); api.close(); ED.ui.toast('Saved');
@@ -969,11 +1058,11 @@
         });
         const del = el.querySelector('[data-x="del"]');
         if (del) del.addEventListener('click', async () => {
-          const n = ST.sessions().filter(s => s.sourceId === x.id).length;
+          const n = ST.sessions().filter(s => ST.usesSrc(s, x.id)).length;
           const ok = await ED.ui.confirm({ title: 'Delete', message: 'Delete “' + x.title + '”?' + (n ? ' Its name stays written in the ' + U.plural(n, 'session') + ' that use it.' : ''), ok: 'Delete', danger: true });
           if (!ok) return;
           ED.store.checkpoint('Delete');
-          ST.sessions().forEach(s => { if (s.sourceId === x.id) { s.source = [x.title, s.source].filter(Boolean).join(' — '); s.sourceId = ''; } });
+          ST.dropSrcFromSessions(x.id, x.title);
           p.items = p.items.filter(y => y.id !== x.id);
           ED.store.commit(); api.close(); ED.ui.undoToast('Deleted');
         });
@@ -1014,20 +1103,28 @@
           if (!ok) return;
           ED.store.checkpoint('Delete category');
           const gone = new Set((p.items || []).filter(i => i.kind === x.id).map(i => i.id));
-          ST.sessions().forEach(s => { if (gone.has(s.sourceId)) { const it = p.items.find(i => i.id === s.sourceId); s.source = [it && it.title, s.source].filter(Boolean).join(' — '); s.sourceId = ''; } });
+          gone.forEach(id => { const it = p.items.find(i => i.id === id); ST.dropSrcFromSessions(id, it && it.title); });
           p.items = (p.items || []).filter(i => i.kind !== x.id); p.srcCats = p.srcCats.filter(c => c.id !== x.id);
           ED.store.commit(); api.close(); ED.ui.undoToast('Category deleted');
         });
       },
     });
   };
-  ST.addTopic = async trackId => {
+  ST.addTopic = async (trackId, parentName) => {
     const p = ST.plan(); const tr = ST.track(trackId); if (!p || !tr) return;
-    const v = await ED.ui.prompt({ title: 'New topic · ' + tr.name, label: 'Topic', ok: 'Add topic', hint: 'It appears in the Topic list when you add or edit a session of this subject.' });
+    const v = await ED.ui.prompt({ title: (parentName ? 'New subtopic · ' + parentName : 'New topic · ' + tr.name), label: parentName ? 'Subtopic of “' + parentName + '”' : 'Topic', ok: parentName ? 'Add subtopic' : 'Add topic', hint: 'It appears in the Topic list when you add or edit a session of this subject, and books, lectures and papers can be filed under it.' });
     if (!v || !v.trim()) return;
-    if (ST.topicsFor(trackId).some(t => t.toLowerCase() === v.trim().toLowerCase())) { ED.ui.toast('That topic is already in the list'); return; }
-    ED.store.checkpoint('Topic'); p.topics.push({ id: U.uid('tp'), trackId, name: v.trim() }); ED.store.commit();
+    if (ST.topicsFor(trackId).some(t => t.toLowerCase() === v.trim().toLowerCase())) { ED.ui.toast('That name is already in this subject’s list'); return; }
+    ED.store.checkpoint('Topic');
+    let parent = null;
+    if (parentName) {   // a week's topic is not in the list yet: put it there so the subtopic has a home
+      parent = p.topics.find(t => t.trackId === trackId && !t.parent && t.name.toLowerCase() === parentName.toLowerCase());
+      if (!parent) { parent = { id: U.uid('tp'), trackId, name: parentName }; p.topics.push(parent); }
+    }
+    p.topics.push(Object.assign({ id: U.uid('tp'), trackId, name: v.trim() }, parent ? { parent: parent.id } : {})); ED.store.commit();
   };
+  /* the topic and subtopic a book / lecture / paper is filed under, as a label */
+  ST.filedAs = x => [x.topic, x.sub].filter(Boolean).join(' › ');
 
   /* plan settings: title, slots (any number, each with a time and a usual length), subjects */
   ST.editPlan = () => {
@@ -1472,8 +1569,8 @@
   A['study-src'] = el => ST.editSource(el.dataset.id || null, { kind: el.dataset.kind, trackId: el.dataset.track });
   A['study-item'] = el => ST.editItem(el.dataset.id || null, { kind: el.dataset.kind });
   A['study-cat'] = el => ST.editCat(el.dataset.id || null);
-  A['study-topic-add'] = el => ST.addTopic(el.dataset.track);
-  A['study-topic-del'] = el => { const p = ST.plan(); if (!p) return; ED.store.checkpoint('Topic'); p.topics = p.topics.filter(t => t.id !== el.dataset.id); ED.store.commit(); ED.ui.undoToast('Topic removed'); };
+  A['study-topic-add'] = el => ST.addTopic(el.dataset.track, el.dataset.parent || null);
+  A['study-topic-del'] = el => { const p = ST.plan(); if (!p) return; ED.store.checkpoint('Topic'); p.topics = p.topics.filter(t => t.id !== el.dataset.id); p.topics.forEach(t => { if (t.parent === el.dataset.id) delete t.parent; }); ED.store.commit(); ED.ui.undoToast('Topic removed'); };
   A['study-day'] = el => { const st = ED.state.study || (ED.state.study = {}); st.day = el.dataset.date; if (el.dataset.go) ED.go.tab(el.dataset.go); else ED.app.render(); };
   A['study-menu'] = el => {
     const p = ST.plan();

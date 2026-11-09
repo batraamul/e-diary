@@ -886,3 +886,10 @@ tr.st-clash::after { display: none; }
 /* dreams: link to an existing goal */
 .dr-glink { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 10px; }
 .dr-glink select { max-width: 100%; min-width: 0; flex: 1 1 220px; }
+/* 1.25: live values — rows (shares on NSE / BSE, NPS schemes) */
+.mv-rows { display: flex; flex-direction: column; gap: 6px; margin: 4px 0; }
+.mv-rows:empty { display: none; }
+.mv-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.mv-row .mv-sym { flex: 2 1 170px; min-width: 0; } .mv-row .mv-qty { flex: 0 1 90px; min-width: 70px; } .mv-row .mv-rn { flex: 2 1 150px; min-width: 0; }
+.mv-row .mv-rname { flex: 3 1 220px; min-width: 0; font-size: 12.5px; } .mv-row .mv-units { flex: 0 1 120px; min-width: 90px; }
+.mv-kind { flex-wrap: wrap; }
