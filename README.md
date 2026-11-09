@@ -568,6 +568,8 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 
 ### v1.25 — Daily Manifestation Journal (Purpose → Manifest)
 
+**FD maturity amount (within 1.25):** an FD can take the *Maturity amount* from its receipt; its value then grows to exactly that amount on the maturity date (the bank's own rounding and day count). A cumulative FD's “Interest accruing / payable” table (one row per financial year) is the interest accrued each year for TDS and income tax — it is paid with the principal at maturity.
+
 **Fixed deposits (within 1.25, 9 Nov 2026):** *Interest added* now says how the interest is paid — compounded every quarter / month / half year / year and **paid at maturity** (cumulative FD), **paid at maturity as simple interest, not compounded**, or **paid out to your bank account** (payout FD: the deposit stays at its principal and the note shows the yearly interest to your bank). SCSS and Post office MIS use the payout option.
 
 **Funds and ETFs (within 1.25, 9 Nov 2026):** a share / ETF symbol Google Finance has no price for (many Indian ETFs, e.g. NSE:SETFGOLD) is read through your price reader's Yahoo Finance / NSE lookup (newest script). A mutual fund can be set up from the value on your statement instead of units: *Don't know the units?* → value on the “Units as on” date → **Work out the units** (value ÷ that day's NAV).

@@ -65,9 +65,18 @@
     }
     return r2(v);
   };
+  /* 1.25: with the maturity amount from the FD receipt, the value grows to exactly that amount (the bank's own
+     rounding and day count), at the same compound pace each day; without it, the rate and the compounding are used */
+  MV.fdVal = (P, rate, comp, start, due, k, matAmt) => {
+    if (+matAmt > 0 && P > 0 && comp !== 'p' && U.isKey(start) && U.isKey(due) && due > start) {
+      if (k <= start) return r2(P); if (k >= due) return r2(+matAmt);
+      return r2(P * Math.pow(+matAmt / P, U.diffDays(start, k) / U.diffDays(start, due)));
+    }
+    return MV.fdAt(P, rate, comp, start, k);
+  };
   MV.maturity = h => {
     const m = h.mk || {}; if (!U.isKey(h.due)) return null;
-    if (m.kind === 'fd') return MV.fdAt(FN().hInvested(h), m.rate, m.comp, h.start, h.due);
+    if (m.kind === 'fd') return MV.fdVal(FN().hInvested(h), m.rate, m.comp, h.start, h.due, h.due, m.matAmt);
     if (m.kind === 'rd') return MV.rdAt(+h.premium || +m.inst || 0, m.rate, m.comp, h.start, h.due, h.due);
     return null;
   };
@@ -257,7 +266,7 @@
     const set = (h, v) => { if (!(v >= 0) || !isFinite(v)) return; h.value = r2(v); h.valueAt = now; h.mk.at = now; h.mk.err = ''; n++; };
     const fail = (h, err) => { h.mk.err = String(err && err.message || err).slice(0, 140); bad++; };
     try {
-      list.filter(h => h.mk.kind === 'fd').forEach(h => set(h, MV.fdAt(FN().hInvested(h), h.mk.rate, h.mk.comp, h.start, U.isKey(h.due) && h.due < today ? h.due : today)));
+      list.filter(h => h.mk.kind === 'fd').forEach(h => set(h, MV.fdVal(FN().hInvested(h), h.mk.rate, h.mk.comp, h.start, h.due, U.isKey(h.due) && h.due < today ? h.due : today, h.mk.matAmt)));
       list.filter(h => h.mk.kind === 'rd').forEach(h => set(h, MV.rdAt(+h.premium || +h.mk.inst || 0, h.mk.rate, h.mk.comp, h.start, h.due, U.isKey(h.due) && h.due < today ? h.due : today)));
       const mfs = list.filter(h => h.mk.kind === 'mf' && h.mk.code);
       await Promise.all(mfs.map(h => doMF(h).then(v => set(h, v), err => fail(h, err))));
@@ -381,6 +390,7 @@
         '<label class="lbl" for="mv-c">Interest added</label><select id="mv-c" class="field">' + COMP.map(c => o(c[0], c[1], (m0.comp || 'q') === c[0])).join('') + '</select>' +
         '<label class="lbl" for="mv-st">Started on</label><input id="mv-st" class="field" type="date" value="' + e(h.start || '') + '">' +
         '<label class="lbl" for="mv-du">Matures on</label><input id="mv-du" class="field" type="date" value="' + e(h.due || '') + '">' +
+        '<label class="lbl mv-fdo" for="mv-ma">Maturity amount (₹)</label><div class="mv-fdo"><input id="mv-ma" class="field num" type="number" step="0.01" min="0" value="' + e(m0.kind === 'fd' && m0.matAmt ? m0.matAmt : '') + '" placeholder="optional — from your FD receipt"><span class="hint fx-hint">If you type it, the value grows to exactly this amount by the maturity date (the bank’s own rounding and day count). Leave empty to use the rate.</span></div>' +
         '<label class="lbl mv-rd" for="mv-in">Monthly instalment (₹)</label><input id="mv-in" class="field num mv-rd" type="number" min="0" value="' + e(h.premium || m0.inst || '') + '">' +
         '<span class="lbl"></span><p class="hint" id="mv-fdx"></p></div></div>';
     let kind = guess, pick = m0.code ? { code: m0.code, name: m0.sname } : null;
@@ -393,7 +403,7 @@
         const show = () => {
           U.$$('.mv-kind [data-k]', el).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === kind)));
           U.$$('.mv-sec', el).forEach(s => { s.hidden = s.dataset.k.split(' ').indexOf(key()) < 0; });
-          U.$$('.mv-rd', el).forEach(x => { x.hidden = kind !== 'rd'; });
+          U.$$('.mv-rd', el).forEach(x => { x.hidden = kind !== 'rd'; }); U.$$('.mv-fdo', el).forEach(x => { x.hidden = kind !== 'fd'; });
           U.$$('.mv-gyr', el).forEach(x => { x.hidden = key() !== 'gs'; }); U.$$('.mv-gfd', el).forEach(x => { x.hidden = key() !== 'gsfd'; });
           calc();
         };
@@ -460,8 +470,9 @@
           const P = FN().hInvested(h), r = +$('r').value, c = $('c').value, s = $('st').value, d = $('du').value, inst = +$('in').value, t = U.today();
           if (!U.isKey(s) || !r) { $('fdx').textContent = 'Fill the rate and the start date to see the value.'; return; }
           const fdLike = kind !== 'rd';
-          const now = fdLike ? MV.fdAt(P, r, c, s, U.isKey(d) && d < t ? d : t) : MV.rdAt(inst, r, c, s, d, U.isKey(d) && d < t ? d : t);
-          const mat = U.isKey(d) ? (fdLike ? MV.fdAt(P, r, c, s, d) : MV.rdAt(inst, r, c, s, d, d)) : null;
+          const ma = kind === 'fd' ? +$('ma').value : 0;
+          const now = fdLike ? MV.fdVal(P, r, c, s, d, U.isKey(d) && d < t ? d : t, ma) : MV.rdAt(inst, r, c, s, d, U.isKey(d) && d < t ? d : t);
+          const mat = U.isKey(d) ? (fdLike ? MV.fdVal(P, r, c, s, d, d, ma) : MV.rdAt(inst, r, c, s, d, d)) : null;
           $('fdx').innerHTML = (fdLike && !P ? '⚠️ Type the amount put in as “Invested” on the investment first. ' : '') + 'Worth today: <b>' + e(M$(Math.round(now))) + '</b>' + (mat != null ? ' · at maturity: <b>' + e(M$(Math.round(mat))) + '</b>' : '');
         };
         el.addEventListener('input', calc); el.addEventListener('change', calc);
@@ -520,6 +531,7 @@
           } else {
             if (!(+$('r').value > 0) || !U.isKey($('st').value)) { ED.ui.toast('Fill the interest rate and the start date'); return; }
             Object.assign(mk, { rate: +$('r').value, comp: $('c').value }); if (kind === 'gs') mk.scheme = sch();
+            if (kind === 'fd') mk.matAmt = +$('ma').value > 0 ? +$('ma').value : null;
             h.start = $('st').value; if (U.isKey($('du').value)) h.due = $('du').value;
             if (kind === 'rd') { mk.inst = +$('in').value || 0; if (mk.inst) h.premium = mk.inst; h.frequency = 'monthly'; }
           }
