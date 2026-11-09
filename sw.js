@@ -1,6 +1,6 @@
 /* E-Diary — offline support. Serves the app from a local cache and refreshes it in the background.
    Change VERSION whenever you edit the app so installed copies pick up the new files. */
-const VERSION = 'e-diary-1.25-r7';   // still version 1.25 — '-r2' only refreshes installed copies (ETF price fallback, units from value)
+const VERSION = 'e-diary-1.25-r8';   // still version 1.25 — '-r2' only refreshes installed copies (FD interest paid at maturity)
 const ASSETS = [
   './',
   './index.html',

@@ -671,6 +671,8 @@ There is no automated test runner in the package; test by hand in the browser:
 
 ## 1.25 — Manifestation journal
 
+**1.25 (sw `e-diary-1.25-r8`):** FD `comp` adds `'p'` (payout: `fdAt` = principal); `'s'` = simple interest paid at maturity; GS scss / pomis → `'p'`.
+
 **1.25 (sw `e-diary-1.25-r7`):** `MV.quote(sym)` (reader `f=quote`) fills px rows with no GOOGLEFINANCE price; `MV.navOn(code, k)` = NAV on/before k; MF dialog `#mv-uv` + `data-x="units"` computes units = value ÷ NAV.
 
 **1.25 (sw `e-diary-1.25-r6`):** SGB `mk.how` = `mkt` (`mk.sym`, `MV.sgbQuote` → reader `f=quote&s=` → script `quote()`: Yahoo chart `SYM-GB.NS/.NS/-GB.BO/.BO`, then NSE quote-equity with cookies; on success `prem`/`calOn` re-derived from `goldGram`) | `gold` (`prem`, calibrated from the broker price → `calOn`) | `manual` (`price`, `priceOn`); `mk.est` marks estimates (note starts “≈”). Reader script `v: 3`.

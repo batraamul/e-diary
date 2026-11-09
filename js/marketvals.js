@@ -30,14 +30,17 @@
      quarterly notification changes. 'yr' = interest on the monthly balance, added every 31 March; 'fd' = fixed rate from the start */
   const GS = {
     ppf: { n: 'PPF', rate: 7.1, how: 'yr' }, epf: { n: 'EPF / VPF', rate: 8.25, how: 'yr' }, gpf: { n: 'GPF', rate: 7.1, how: 'yr' }, ssy: { n: 'Sukanya Samriddhi (SSY)', rate: 8.2, how: 'yr' },
-    nsc: { n: 'NSC (5 years)', rate: 7.7, how: 'fd', comp: 'y' }, kvp: { n: 'Kisan Vikas Patra', rate: 7.5, how: 'fd', comp: 'y' }, scss: { n: 'Senior Citizens (SCSS) — interest paid out', rate: 8.2, how: 'fd', comp: 's' },
-    pomis: { n: 'Post office Monthly Income — interest paid out', rate: 7.4, how: 'fd', comp: 's' }, td1: { n: 'Post office Time Deposit 1 year', rate: 6.9, how: 'fd', comp: 'q' }, td2: { n: 'Post office Time Deposit 2 years', rate: 7.0, how: 'fd', comp: 'q' },
+    nsc: { n: 'NSC (5 years)', rate: 7.7, how: 'fd', comp: 'y' }, kvp: { n: 'Kisan Vikas Patra', rate: 7.5, how: 'fd', comp: 'y' }, scss: { n: 'Senior Citizens (SCSS) — interest paid out', rate: 8.2, how: 'fd', comp: 'p' },
+    pomis: { n: 'Post office Monthly Income — interest paid out', rate: 7.4, how: 'fd', comp: 'p' }, td1: { n: 'Post office Time Deposit 1 year', rate: 6.9, how: 'fd', comp: 'q' }, td2: { n: 'Post office Time Deposit 2 years', rate: 7.0, how: 'fd', comp: 'q' },
     td3: { n: 'Post office Time Deposit 3 years', rate: 7.1, how: 'fd', comp: 'q' }, td5: { n: 'Post office Time Deposit 5 years', rate: 7.5, how: 'fd', comp: 'q' },
   };
   MV.GS = GS;
   const GRAM_OZ = 31.1034768;
   const NPSAPI = 'https://npsnav.in/api/';
-  const COMP = [['q', 'Every quarter (most banks)'], ['m', 'Every month'], ['h', 'Every half year'], ['y', 'Every year'], ['s', 'Simple interest / paid out']];
+  /* 1.25: 's' = simple interest paid at maturity (not compounded); 'p' = interest paid out to your bank (payout FD) — the
+     deposit's value stays the principal. ('s' used to mean both; payout schemes now use 'p'.) */
+  const COMP = [['q', 'Compounded every quarter, paid at maturity (most bank FDs)'], ['m', 'Compounded every month, paid at maturity'], ['h', 'Compounded every half year, paid at maturity'], ['y', 'Compounded every year, paid at maturity'],
+    ['s', 'Paid at maturity — simple interest, not compounded'], ['p', 'Paid out to my bank account (monthly / quarterly payout FD)']];
   const PER = { q: 4, m: 12, h: 2, y: 1 };
   MV.KINDS = KINDS;
   const st = () => ED.state.mv || (ED.state.mv = { busy: false });
@@ -49,6 +52,7 @@
   MV.fdAt = (P, rate, comp, start, k) => {
     const t = years(start, k), r = (+rate || 0) / 100;
     if (!P || !U.isKey(start) || k < start) return P || 0;
+    if (comp === 'p') return r2(P);                       // interest goes to your bank; the FD stays at its principal
     if (comp === 's') return r2(P * (1 + r * t));
     const n = PER[comp] || 4; return r2(P * Math.pow(1 + r / n, n * t));
   };
@@ -57,7 +61,7 @@
     const r = (+rate || 0) / 100, n = PER[comp] || 4; let v = 0;
     for (let i = 0; i < 600; i++) {
       const d = U.addMonths(start, i); if (d > k || (U.isKey(end) && d >= end)) break;
-      const t = years(d, k); v += comp === 's' ? inst * (1 + r * t) : inst * Math.pow(1 + r / n, n * t);
+      const t = years(d, k); v += comp === 's' || comp === 'p' ? inst * (1 + r * t) : inst * Math.pow(1 + r / n, n * t);
     }
     return r2(v);
   };
@@ -318,7 +322,7 @@
     if (m.kind === 'sgb') t = m.gold ? (m.est ? '≈ ' : '') + (+m.grams || 0) + ' g × ' + inr(m.gold) + '/g (' + (m.goldSrc || '') + ')' + (m.issue ? ' · interest 2.5% a year ' + inr(Math.round((+m.grams || 0) * m.issue * 0.025), 0) + ' to your bank' : '') : 'gold price not read yet';
     if (m.kind === 'nps') t = (m.rows || []).map(x => r3(+x.units || 0) + ' × ' + (x.nav ? inr(x.nav, 4) : '?') + ' ' + (x.short || x.name || x.code)).join(' + ') + (m.navOn ? ' (' + U.fmtDM(m.navOn) + ')' : '');
     if (m.kind === 'gs') { const g = gsOf(m); t = g.n + ' · ' + (+m.rate || g.rate) + '%' + (g.how === 'yr' ? (m.accrued ? ' · includes ' + inr(Math.round(m.accrued), 0) + ' interest earned since April (added on 31 March)' : '') : (() => { const mt = U.isKey(h.due) ? MV.fdAt(FN().hInvested(h), m.rate, m.comp || g.comp, h.start, h.due) : null; return mt != null ? ' · ' + inr(Math.round(mt), 0) + ' at maturity' : ''; })()); }
-    if (m.kind === 'fd' || m.kind === 'rd') { const mt = MV.maturity(h); t = (+m.rate || 0) + '% ' + (COMP.find(c => c[0] === (m.comp || 'q')) || COMP[0])[1].toLowerCase().replace(' (most banks)', '') + (mt != null ? ' · ₹' + Math.round(mt).toLocaleString('en-IN') + ' at maturity' + (h.due ? ' (' + U.fmtShort(h.due) + ')' : '') : ''); }
+    if (m.kind === 'fd' || m.kind === 'rd') { const mt = MV.maturity(h); t = (+m.rate || 0) + '% ' + (COMP.find(c => c[0] === (m.comp || 'q')) || COMP[0])[1].toLowerCase().replace(/ \((most bank fds|monthly \/ quarterly payout fd)\)/, '').replace('paid out to my bank account', 'interest paid out') + (m.comp === 'p' ? ' · ₹' + Math.round(FN().hInvested(h) * (+m.rate || 0) / 100).toLocaleString('en-IN') + ' a year to your bank' : '') + (mt != null ? ' · ₹' + Math.round(mt).toLocaleString('en-IN') + ' at maturity' + (h.due ? ' (' + U.fmtShort(h.due) + ')' : '') : ''); }
     const inv = FN().hInvested(h), val = FN().hValue(h), g = val - inv;
     return '<div class="mv-note' + (m.err ? ' bad' : '') + '">📈 ' + e(t) + (inv && m.at && !m.err ? ' · <span class="' + (g >= 0 ? 'fin-ok' : 'fin-bad') + '">' + (g >= 0 ? '+' : '−') + e(M$(Math.abs(g))) + ' (' + (g >= 0 ? '+' : '−') + Math.abs(Math.round(g / inv * 1000) / 10) + '%)</span>' : '') + (m.err ? ' · <b>' + e(m.err) + '</b>' : '') + '</div>';
   };

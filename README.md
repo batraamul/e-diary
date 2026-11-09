@@ -568,6 +568,8 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 
 ### v1.25 — Daily Manifestation Journal (Purpose → Manifest)
 
+**Fixed deposits (within 1.25, 9 Nov 2026):** *Interest added* now says how the interest is paid — compounded every quarter / month / half year / year and **paid at maturity** (cumulative FD), **paid at maturity as simple interest, not compounded**, or **paid out to your bank account** (payout FD: the deposit stays at its principal and the note shows the yearly interest to your bank). SCSS and Post office MIS use the payout option.
+
 **Funds and ETFs (within 1.25, 9 Nov 2026):** a share / ETF symbol Google Finance has no price for (many Indian ETFs, e.g. NSE:SETFGOLD) is read through your price reader's Yahoo Finance / NSE lookup (newest script). A mutual fund can be set up from the value on your statement instead of units: *Don't know the units?* → value on the “Units as on” date → **Work out the units** (value ÷ that day's NAV).
 
 **SGB at its market price (within 1.25, 9 Nov 2026):** a Sovereign Gold Bond is now valued, by choice, at **its own market price on NSE / BSE** (symbol, e.g. SGBDE31III — read by your price reader's newest script through Yahoo Finance, then NSE; the same price your broker shows), at the **gold rate matched to your broker's price** (type the broker's price once; the premium over world gold is worked out and the value then follows gold), or at **a price you type**. When the market price cannot be read, the note starts with ≈ and says so, and the estimate uses the premium seen at the last market price. (The world price + 6% used before was about 10% below the market.)
