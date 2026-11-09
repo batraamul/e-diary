@@ -203,7 +203,9 @@
             const l = list.filter(s => s.trackId === t.id);
             const d = l.filter(s => s.done).length;
             const lvl = !l.length ? 'na' : d === 0 ? (w.start > today ? 'f' : 0) : d < l.length ? (d / l.length < 0.5 ? 1 : 2) : 3;
-            return '<td class="mx mx-' + lvl + '" title="' + e((w.themes[t.id] || '') + ' — ' + d + ' of ' + l.length + ' done') + '"><button type="button" class="plain-btn" data-act="study-theme" data-week="' + w.n + '" data-track="' + e(t.id) + '">' + e(w.themes[t.id] || (l.length ? '—' : '')) + '</button>' + (l.length ? '<span class="mx-n num">' + d + '/' + l.length + '</span>' : '') + '</td>';
+            // 1.25: a week without a theme shows the topics of its sessions (weeks added for moved / extra sessions too)
+            const th = (w.themes && w.themes[t.id]) || Array.from(new Set([].concat(...l.map(ST.topicsOf)))).join(', ');
+            return '<td class="mx mx-' + lvl + '" title="' + e((th || '') + ' — ' + d + ' of ' + l.length + ' done') + '"><button type="button" class="plain-btn" data-act="study-theme" data-week="' + w.n + '" data-track="' + e(t.id) + '">' + e(th || (l.length ? '—' : '')) + '</button>' + (l.length ? '<span class="mx-n num">' + d + '/' + l.length + '</span>' : '') + '</td>';
           }).join('') + '</tr>';
       }).join('');
       return '<p class="hint">All subjects as columns, weeks down the rows. A cell darkens as that week’s sessions are done; click a topic to change it.</p>' +

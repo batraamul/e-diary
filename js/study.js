@@ -161,6 +161,72 @@
 
   /* ---------------- weeks ---------------- */
   ST.weeks = () => { const p = ST.plan(); return p && p.weeks ? p.weeks : []; };
+
+  /* ---------------- 1.25: the plan keeps up with its sessions ----------------
+     After every change (a subject added or deleted, sessions added, moved or deleted, the plan edited, a sync):
+     • plan weeks are added for sessions outside them (and such added weeks go again when they are empty), so
+       Subjects by week, Hours per plan week and Phases show every session;
+     • each session's week number follows its date;
+     • the plan's start, end and its heading ("… to …", "N weeks", "N hours") follow the sessions;
+     • sessions whose subject is gone (e.g. brought by a sync) get a subject again, so no total counts what no page shows. */
+  const wkLabel = ws => U.fmtDM(ws) + ' – ' + U.fmtDM(U.addDays(ws, 6)) + ' ' + U.addDays(ws, 6).slice(0, 4);
+  ST.keepInStep = () => {
+    const p = ST.plan(); if (!p) return false;
+    let ch = false;
+    if (!Array.isArray(p.weeks)) p.weeks = [];
+    if (!Array.isArray(p.tracks)) p.tracks = [];
+    const ss = ST.sessions();
+    // sessions without a subject here
+    const ids = new Set(p.tracks.map(t => t.id));
+    ss.forEach(s => {
+      if (ids.has(s.trackId)) return;
+      if (!s.trackId) { const t = p.tracks.find(x => x.name === 'Study') || ST.addTrack('Study'); s.trackId = t.id; ids.add(t.id); ch = true; return; }
+      const i = p.tracks.length; p.tracks.push({ id: s.trackId, name: 'Subject (restored)', short: '', day: null, slot: '', idx: i, color: i < 8 ? SERIES[i] : 'var(--ink-3)' }); ids.add(s.trackId); ch = true;
+    });
+    const dates = ss.map(s => s.date).filter(U.isKey).sort();
+    if (dates.length) {
+      const a = dates[0], z = dates[dates.length - 1];
+      let W = p.weeks.slice().sort((x, y) => x.start < y.start ? -1 : 1);
+      const has = (w) => ss.some(s => s.date >= w.start && s.date <= U.addDays(w.start, 6));
+      if (!W.length) { W.push({ n: 1, start: U.startOfWeek(a, 1), label: wkLabel(U.startOfWeek(a, 1)), phase: '', note: '', themes: {}, auto: true }); ch = true; }
+      // weeks your plan never had, before and after
+      let guard = 0;
+      while (a < W[0].start && guard++ < 520) { const ws = U.addDays(W[0].start, -7); W.unshift({ n: 0, start: ws, label: wkLabel(ws), phase: W[0].phase || '', note: '', themes: {}, auto: true }); ch = true; }
+      while (U.addDays(W[W.length - 1].start, 6) < z && guard++ < 1040) { const l = W[W.length - 1], ws = U.addDays(l.start, 7); W.push({ n: 0, start: ws, label: wkLabel(ws), phase: l.phase || '', note: '', themes: {}, auto: true }); ch = true; }
+      // added weeks that are empty again at either end
+      while (W.length > 1 && W[W.length - 1].auto && !has(W[W.length - 1])) { W.pop(); ch = true; }
+      while (W.length > 1 && W[0].auto && !has(W[0])) { W.shift(); ch = true; }
+      // number the weeks 1, 2, 3 … in order
+      const ren = {};
+      W.forEach((w, i) => { if (w.n !== i + 1) { ren[w.n] = i + 1; w.n = i + 1; ch = true; } });
+      if (ch || W.length !== p.weeks.length || W.some((w, i) => w !== p.weeks[i])) p.weeks = W;
+      // each session's week follows its date
+      ss.forEach(s => { const w = ST.weekOf(s.date), n = w ? w.n : 0; if (s.week !== n) { s.week = n; ch = true; } });
+      // start, end and the heading
+      const oldA = p.start, oldZ = p.end, oldN = p.subtitle;
+      if (p.start !== a) { p.start = a; ch = true; }
+      if (p.end !== z) { p.end = z; ch = true; }
+      if (p.subtitle) {
+        let t = p.subtitle;
+        if (oldA && oldA !== a) t = t.split(U.fmtShort(oldA)).join(U.fmtShort(a));
+        if (oldZ && oldZ !== z) t = t.split(U.fmtShort(oldZ)).join(U.fmtShort(z));
+        t = t.replace(/\b\d+ weeks?\b/, U.plural(p.weeks.length, 'week'));
+        const hrs = Math.round(ss.reduce((m, s) => m + (+s.min || 0), 0) / 60);
+        t = t.replace(/\b\d+(\.\d+)? hours?\b/, U.plural(hrs, 'hour'));
+        if (t !== oldN) { p.subtitle = t; ch = true; }
+      }
+    }
+    if (ch) p.updatedAt = Date.now();
+    return ch;
+  };
+  let stepBusy = false;
+  ED.store.on((type, detail) => {
+    if (type !== 'change' || stepBusy || (detail && detail.reason === 'study-step')) return;
+    stepBusy = true;
+    try { if (ST.keepInStep()) ED.store.commit({ reason: 'study-step' }); } catch (err) { console.warn('[e-diary] study plan in step', err); }
+    finally { stepBusy = false; }
+  });
+  setTimeout(() => { try { if (ST.keepInStep()) ED.store.commit({ reason: 'study-step' }); } catch (err) { /* not ready yet */ } }, 350);
   ST.weekOf = k => { for (const w of ST.weeks()) if (k >= w.start && k <= U.addDays(w.start, 6)) return w; return null; };
   ST.weekByN = n => ST.weeks().find(w => w.n === n) || null;
   /* the week shown for day k (Week & Day page, the yearly "This week"): its plan week, else Monday to Sunday */

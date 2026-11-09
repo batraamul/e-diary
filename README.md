@@ -568,6 +568,8 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 
 ### v1.25 — Daily Manifestation Journal (Purpose → Manifest)
 
+**Study keeps up with every change (within 1.25, 9 Nov 2026):** after any change — a subject added or deleted, sessions added, moved or deleted, the plan edited, a sync — the plan's weeks grow to take sessions outside them (and shrink again when those are gone), each session's week follows its date, and the heading's dates, number of weeks and hours follow the sessions. *Subjects*, *Subjects by week* (a week without a theme shows its sessions' topics), *Topics*, *Books & lectures*, *Insights*, the Year / Month / Week & Day pages and the daily list all show the change at once. Sessions of a subject deleted on another device are kept under “Subject (restored)”.
+
 **Study and Finance (within 1.25, 9 Nov 2026):**
 - **Year at a glance → Topics** starts with *From your exams and interviews*: every exam's topics (by subject, coloured by not started / learning / done / revised) and every interview topic. Subjects that were missing from the study plan are now added for you (once — a subject you delete stays deleted), so the topics are offered when you plan sessions.
 - **A study session can have several topics and several books / lectures / papers** (＋ Another topic, ＋ Another book / lecture / paper). The session counts under each topic.
