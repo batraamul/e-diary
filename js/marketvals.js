@@ -32,6 +32,7 @@
     ppf: { n: 'PPF', rate: 7.1, how: 'yr' }, epf: { n: 'EPF / VPF', rate: 8.25, how: 'yr' }, gpf: { n: 'GPF', rate: 7.1, how: 'yr' }, ssy: { n: 'Sukanya Samriddhi (SSY)', rate: 8.2, how: 'yr' },
     nsc: { n: 'NSC (5 years)', rate: 7.7, how: 'fd', comp: 'y' }, kvp: { n: 'Kisan Vikas Patra', rate: 7.5, how: 'fd', comp: 'y' }, scss: { n: 'Senior Citizens (SCSS) — interest paid out', rate: 8.2, how: 'fd', comp: 'p' },
     pomis: { n: 'Post office Monthly Income — interest paid out', rate: 7.4, how: 'fd', comp: 'p' }, td1: { n: 'Post office Time Deposit 1 year', rate: 6.9, how: 'fd', comp: 'q' }, td2: { n: 'Post office Time Deposit 2 years', rate: 7.0, how: 'fd', comp: 'q' },
+    frsb: { n: 'RBI Floating Rate Savings Bond 2020 (Taxable) — interest paid out', rate: 8.05, how: 'fd', comp: 'p' },
     td3: { n: 'Post office Time Deposit 3 years', rate: 7.1, how: 'fd', comp: 'q' }, td5: { n: 'Post office Time Deposit 5 years', rate: 7.5, how: 'fd', comp: 'q' },
   };
   MV.GS = GS;
@@ -318,7 +319,7 @@
       (l.length ? '<button type="button" class="btn small primary" data-act="mv-refresh"' + (s.busy ? ' disabled' : '') + '>' + ED.icon('sync') + (s.busy ? 'Updating…' : 'Refresh values') + '</button>' : '') +
       '<button type="button" class="icon-btn" data-act="mv-settings" aria-label="Live value settings and the share price reader" title="Settings · share price reader">' + ED.icon('gear') + '</button></div>';
   };
-  const LIVE_TYPES = ['mf', 'etf', 'stocks', 'gold', 'sgb', 'bonds', 'fd', 'rd', 'nps', 'ppf', 'epf', 'ssy', 'small', 'other', ''];
+  const LIVE_TYPES = ['mf', 'etf', 'stocks', 'gold', 'sgb', 'bonds', 'fd', 'rd', 'nps', 'ppf', 'epf', 'ssy', 'small', 'rbib', 'other', ''];
   MV.btn = h => (h.mk && h.mk.kind) || LIVE_TYPES.indexOf(h.type || '') >= 0 ? MV._btn(h) : '';
   MV._btn = h => '<button type="button" class="icon-btn sm mv-btn' + (h.mk && h.mk.kind ? ' on' : '') + '" data-act="mv-setup" data-id="' + e(h.id) + '" title="' + (h.mk && h.mk.kind ? 'Live value — change' : 'Let its value update itself') + '" aria-label="Live value for ' + e(h.name) + '">📈</button>';
   MV.note = h => {
@@ -330,7 +331,7 @@
     if (m.kind === 'etf') t = m.nav ? (+m.qty || 0) + ' units × NAV ' + inr(m.nav, 4) + (m.navOn ? ' (' + U.fmtDM(m.navOn) + ')' : '') + ' · ' + (m.sname || m.code) : 'NAV not read yet';
     if (m.kind === 'sgb') t = m.gold ? (m.est ? '≈ ' : '') + (+m.grams || 0) + ' g × ' + inr(m.gold) + '/g (' + (m.goldSrc || '') + ')' + (m.issue ? ' · interest 2.5% a year ' + inr(Math.round((+m.grams || 0) * m.issue * 0.025), 0) + ' to your bank' : '') : 'gold price not read yet';
     if (m.kind === 'nps') t = (m.rows || []).map(x => r3(+x.units || 0) + ' × ' + (x.nav ? inr(x.nav, 4) : '?') + ' ' + (x.short || x.name || x.code)).join(' + ') + (m.navOn ? ' (' + U.fmtDM(m.navOn) + ')' : '');
-    if (m.kind === 'gs') { const g = gsOf(m); t = g.n + ' · ' + (+m.rate || g.rate) + '%' + (g.how === 'yr' ? (m.accrued ? ' · includes ' + inr(Math.round(m.accrued), 0) + ' interest earned since April (added on 31 March)' : '') : (() => { const mt = U.isKey(h.due) ? MV.fdAt(FN().hInvested(h), m.rate, m.comp || g.comp, h.start, h.due) : null; return mt != null ? ' · ' + inr(Math.round(mt), 0) + ' at maturity' : ''; })()); }
+    if (m.kind === 'gs') { const g = gsOf(m); t = g.n + ' · ' + (+m.rate || g.rate) + '%' + (g.how === 'yr' ? (m.accrued ? ' · includes ' + inr(Math.round(m.accrued), 0) + ' interest earned since April (added on 31 March)' : '') : (() => { const P0 = FN().hInvested(h), c0 = m.comp || g.comp; if (c0 === 'p') { const y = P0 * (+m.rate || g.rate) / 100; return ' · ' + inr(Math.round(y), 0) + ' a year to your bank' + (m.scheme === 'frsb' ? ' (' + inr(Math.round(y / 2), 0) + ' on 1 Jan and 1 Jul; the rate is reset every 6 months — NSC rate + 0.35%)' : ''); } const mt = U.isKey(h.due) ? MV.fdAt(P0, m.rate, c0, h.start, h.due) : null; return mt != null ? ' · ' + inr(Math.round(mt), 0) + ' at maturity' : ''; })()); }
     if (m.kind === 'fd' || m.kind === 'rd') { const mt = MV.maturity(h); t = (+m.rate || 0) + '% ' + (COMP.find(c => c[0] === (m.comp || 'q')) || COMP[0])[1].toLowerCase().replace(/ \((most bank fds|monthly \/ quarterly payout fd)\)/, '').replace('paid out to my bank account', 'interest paid out') + (m.comp === 'p' ? ' · ₹' + Math.round(FN().hInvested(h) * (+m.rate || 0) / 100).toLocaleString('en-IN') + ' a year to your bank' : '') + (mt != null ? ' · ₹' + Math.round(mt).toLocaleString('en-IN') + ' at maturity' + (h.due ? ' (' + U.fmtShort(h.due) + ')' : '') : ''); }
     const inv = FN().hInvested(h), val = FN().hValue(h), g = val - inv;
     return '<div class="mv-note' + (m.err ? ' bad' : '') + '">📈 ' + e(t) + (inv && m.at && !m.err ? ' · <span class="' + (g >= 0 ? 'fin-ok' : 'fin-bad') + '">' + (g >= 0 ? '+' : '−') + e(M$(Math.abs(g))) + ' (' + (g >= 0 ? '+' : '−') + Math.abs(Math.round(g / inv * 1000) / 10) + '%)</span>' : '') + (m.err ? ' · <b>' + e(m.err) + '</b>' : '') + '</div>';
@@ -349,8 +350,8 @@
   const npsRow = x => '<div class="mv-row" data-row="nps" data-code="' + e(x.code) + '" data-name="' + e(x.name || '') + '"><span class="mv-rname">' + e(x.name || x.code) + ' <span class="hint">' + e(x.code) + '</span></span><input class="field num mv-units" type="number" step="0.0001" min="0" value="' + e(x.units != null ? x.units : '') + '" placeholder="Units" aria-label="Units of ' + e(x.name || x.code) + '"><button type="button" class="icon-btn sm" data-x="row-del" aria-label="Remove ' + e(x.name || x.code) + '">' + ED.icon('x') + '</button></div>';
   MV.setup = id => {
     const h = FN().holding(id); if (!h) return;
-    const m0 = h.mk || {}, guess = m0.kind || ({ mf: 'mf', etf: 'etf', bonds: 'etf', stocks: 'px', gold: 'px', sgb: 'sgb', nps: 'nps', ppf: 'gs', epf: 'gs', ssy: 'gs', small: 'gs', fd: 'fd', rd: 'rd' })[h.type] || 'mf';
-    const gs0 = m0.scheme || ({ epf: 'epf', ssy: 'ssy', small: 'nsc' })[h.type] || 'ppf';
+    const m0 = h.mk || {}, guess = m0.kind || ({ mf: 'mf', etf: 'etf', bonds: 'etf', stocks: 'px', gold: 'px', sgb: 'sgb', nps: 'nps', ppf: 'gs', epf: 'gs', ssy: 'gs', small: 'gs', rbib: 'gs', fd: 'fd', rd: 'rd' })[h.type] || 'mf';
+    const gs0 = m0.scheme || ({ epf: 'epf', ssy: 'ssy', small: 'nsc', rbib: 'frsb' })[h.type] || 'ppf';
     const o = (v, l, s) => '<option value="' + e(v) + '"' + (s ? ' selected' : '') + '>' + e(l) + '</option>';
     const body = '<div class="st-form mv-form"><p class="hint">Fill these once; <b>Refresh values</b> then keeps <b>' + e(h.name) + '</b> up to date. Its invested amount stays as it is (' + e(M$(FN().hInvested(h))) + ').</p>' +
       '<div class="seg mv-kind" role="group" aria-label="How its value is found">' + KINDS.map(k => '<button type="button" data-k="' + k[0] + '" aria-pressed="' + (k[0] === guess) + '">' + e(k[1]) + '</button>').join('') + '</div>' +

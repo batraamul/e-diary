@@ -158,7 +158,7 @@
     return out.sort((a, b) => a.date.localeCompare(b.date));
   };
 
-  const HTYPES = { insurance: 'Insurance', fd: 'Fixed deposit', rd: 'Recurring deposit', ppf: 'PPF', epf: 'EPF / GPF', nps: 'NPS', mf: 'Mutual fund', etf: 'ETF / bond ETF', stocks: 'Shares', gold: 'Gold', sgb: 'Sovereign Gold Bond (SGB)', bonds: 'Bonds', ssy: 'Sukanya Samriddhi (SSY)', small: 'NSC / KVP / SCSS / Post office', property: 'Property', loan: 'Loan', other: 'Other' };
+  const HTYPES = { insurance: 'Insurance', fd: 'Fixed deposit', rd: 'Recurring deposit', ppf: 'PPF', epf: 'EPF / GPF', nps: 'NPS', mf: 'Mutual fund', etf: 'ETF / bond ETF', stocks: 'Shares', gold: 'Gold', sgb: 'Sovereign Gold Bond (SGB)', bonds: 'Bonds', ssy: 'Sukanya Samriddhi (SSY)', small: 'NSC / KVP / SCSS / Post office', rbib: 'RBI Floating Rate Bond', property: 'Property', loan: 'Loan', other: 'Other' };
   const ATYPES = { bank: 'Bank account', card: 'Credit card', cash: 'Cash', wallet: 'UPI / wallet', other: 'Other' };
   FN.HTYPES = HTYPES;
 

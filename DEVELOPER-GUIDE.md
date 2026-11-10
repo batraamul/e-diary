@@ -671,6 +671,8 @@ There is no automated test runner in the package; test by hand in the browser:
 
 ## 1.25 — Manifestation journal
 
+**1.25 (sw `e-diary-1.25-r10`):** GS `frsb` (8.05, payout `'p'`), holding type `rbib`; gs payout notes show yearly interest.
+
 **1.25 (sw `e-diary-1.25-r9`):** `MV.fdVal(P, rate, comp, start, due, k, matAmt)` — with `mk.matAmt`, value = P·(matAmt/P)^(days/term); used by refresh, `MV.maturity` and the dialog preview (`#mv-ma`, `.mv-fdo`).
 
 **1.25 (sw `e-diary-1.25-r8`):** FD `comp` adds `'p'` (payout: `fdAt` = principal); `'s'` = simple interest paid at maturity; GS scss / pomis → `'p'`.
