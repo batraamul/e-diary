@@ -101,12 +101,14 @@
   AR.read = id => {
     const x = PD().texts.find(t => t.id === id); if (!x) return;
     const hasHi = !!String(x.hi || '').trim(), hasEn = !!String(x.en || '').trim(), hasM = !!String(x.meaning || '').trim();
-    let mode = pref('mode') || 'both'; if (mode === 'both' && !(hasHi && hasEn)) mode = hasHi ? 'hi' : 'en'; if (mode === 'hi' && !hasHi) mode = 'en'; if (mode === 'en' && !hasEn) mode = 'hi';
+    const hasFull = hasHi && hasM && verses(x.meaning).length > 1;   // a meaning written verse by verse (blank line between), lined up with the Hindi verses
+    let mode = pref('mode') || 'both'; if (mode === 'full' && !hasFull) mode = 'both'; if (mode === 'both' && !(hasHi && hasEn)) mode = hasHi ? 'hi' : 'en'; if (mode === 'hi' && !hasHi) mode = 'en'; if (mode === 'en' && !hasEn) mode = 'hi';
     let size = +pref('size') || 22, theme = pref('theme') || 'light';
     const isMantra = x.kind === 'mantra'; let keyH = null;
-    const modes = [['hi', 'हिन्दी', hasHi], ['en', 'English', hasEn], ['both', 'Both', hasHi && hasEn], ['meaning', 'Meaning', hasM]].filter(m => m[2]);
+    const modes = [['hi', 'हिन्दी', hasHi], ['en', 'English', hasEn], ['both', 'Both', hasHi && hasEn], ['full', 'अर्थ सहित', hasFull], ['meaning', 'Meaning', hasM]].filter(m => m[2]);
     const draw = () => {
       const H = verses(x.hi), E = verses(x.en), n = Math.max(H.length, E.length);
+      if (mode === 'full') { const M = verses(x.meaning); let o = ''; for (let i = 0; i < Math.max(H.length, M.length); i++) o += '<div class="ar-pair ar-full">' + (H[i] ? '<p class="ar-hi" lang="hi">' + e(H[i]) + '</p>' : '') + (E[i] ? '<p class="ar-en" lang="en">' + e(E[i]) + '</p>' : '') + (M[i] ? '<div class="ar-m">' + M[i].split('\n').map(l => '<p' + (/[\u0900-\u097F]/.test(l) ? ' lang="hi"' : ' lang="en"') + '>' + e(l) + '</p>').join('') + '</div>' : '') + '</div>'; return o; }
       if (mode === 'meaning') return '<div class="ar-meaning">' + e(x.meaning).replace(/\n/g, '<br>') + '</div>';
       if (mode === 'both') { let o = ''; for (let i = 0; i < n; i++) o += '<div class="ar-pair"><p class="ar-hi" lang="hi">' + e(H[i] || '') + '</p><p class="ar-en" lang="en">' + e(E[i] || '') + '</p></div>'; return o; }
       return (mode === 'hi' ? H : E).map(v => '<p class="ar-' + mode + '" lang="' + mode + '">' + e(v) + '</p>').join('');

@@ -570,6 +570,8 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 
 **RBI Floating Rate Savings Bonds 2020 (Taxable) (within 1.25):** investment type *RBI Floating Rate Bond*; 📈 Live value → *PPF · EPF · … · Post office* → scheme *RBI Floating Rate Savings Bond 2020* (8.05% for Jul–Dec 2026 = NSC rate + 0.35%, reset every 1 Jan and 1 Jul). Interest is paid to your bank every 6 months, so the value stays the amount invested; the note shows the half-yearly interest. Change the rate when RBI announces it.
 
+**Aartis & Mantras — “अर्थ सहित” (within 1.25):** when a text's *Meaning* is written verse by verse (a blank line between verses, in the same order as the Hindi), the reader shows an extra **अर्थ सहित** button: each verse, its English transliteration and its meaning together. The Sunderkand Path uses this.
+
 **FD maturity amount (within 1.25):** an FD can take the *Maturity amount* from its receipt; its value then grows to exactly that amount on the maturity date (the bank's own rounding and day count). A cumulative FD's “Interest accruing / payable” table (one row per financial year) is the interest accrued each year for TDS and income tax — it is paid with the principal at maturity.
 
 **Fixed deposits (within 1.25, 9 Nov 2026):** *Interest added* now says how the interest is paid — compounded every quarter / month / half year / year and **paid at maturity** (cumulative FD), **paid at maturity as simple interest, not compounded**, or **paid out to your bank account** (payout FD: the deposit stays at its principal and the note shows the yearly interest to your bank). SCSS and Post office MIS use the payout option.

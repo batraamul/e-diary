@@ -529,6 +529,9 @@ textarea.ar-in-hi, input.ar-in-hi { font-family: var(--font-deva); font-size: 17
 .ar-pair { padding: 4px 0 6px; border-bottom: 1px dashed var(--ar-rule); margin-bottom: 12px; } .ar-pair:last-child { border-bottom: 0; }
 .ar-pair .ar-hi { margin-bottom: .2em; } .ar-pair .ar-en { margin-bottom: .4em; }
 @media (min-width: 900px) { .ar-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: center; } .ar-pair .ar-hi, .ar-pair .ar-en { text-align: left; margin: 0; } .ar-text { max-width: 900px; } }
+.ar-m { font-size: calc(var(--ar-fs) * .72); line-height: 1.7; text-align: left; margin: .2em 0 .3em; padding: 8px 12px; border-left: 3px solid var(--ar-rule); background: color-mix(in srgb, var(--ar-rule) 18%, transparent); border-radius: 0 8px 8px 0; }
+.ar-m p { margin: 0 0 .35em; } .ar-m p:last-child { margin: 0; } .ar-m p[lang="hi"] { font-family: var(--font-deva); } .ar-m p[lang="en"] { color: var(--ar-soft); }
+@media (min-width: 900px) { .ar-pair.ar-full { display: block; } .ar-pair.ar-full .ar-hi, .ar-pair.ar-full .ar-en { text-align: center; margin-bottom: .3em; } }
 .ar-meaning { font-size: calc(var(--ar-fs) * .8); line-height: 1.8; padding: 4px 4px 12px; }
 .ar-notes { max-width: 760px; margin: 0 auto 16px; padding: 0 20px; font-size: 13px; color: var(--ar-soft); } .ar-notes a { color: inherit; }
 .ar-japa { display: flex; flex-direction: column; align-items: center; gap: 4px; margin: 6px 0 4px; }
