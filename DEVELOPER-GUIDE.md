@@ -689,6 +689,8 @@ There is no automated test runner in the package; test by hand in the browser:
 
 **1.26.1 (sw `e-diary-1.26.1`):** sync.js merge3 — `gone0` (both sides' markers) known up front; `nested()` keeps a section that one side lacks entirely, and its lists use `keepList` (mergeList, then items dropped as "deleted on one side" come back unless a deletion marker exists); top-level keys merge3 does not name are carried over (later edit wins, one-sided kept). renewals.js: open reminders whose item is not in this copy are no longer removed; `RN.restoreFrom(raw)` / action `rn-restore` adds missing items from a backup, device copy or `{renewals:{list}}` file.
 
+**1.26.2 (sw `e-diary-1.26.2`):** renewals item `usage` = { on, total, unit, every day|week|month|days, days, start, log{date: used} }. `RN.period(x, k)` → { ps, pe, len } (month periods by `U.addMonths` from `start`); `RN.usage(x, k)` → share = total/len, availToday = share×(idx+1) − used before today, leftToday, left, pace, runsOut, days[]. `RN.logUse` (action `rn-use`; 'meter' mode stores reading − earlier days of the period). Log trimmed to ~400 days.
+
 **1.25 (sw `e-diary-1.25-r9`):** `MV.fdVal(P, rate, comp, start, due, k, matAmt)` — with `mk.matAmt`, value = P·(matAmt/P)^(days/term); used by refresh, `MV.maturity` and the dialog preview (`#mv-ma`, `.mv-fdo`).
 
 **1.25 (sw `e-diary-1.25-r8`):** FD `comp` adds `'p'` (payout: `fdAt` = principal); `'s'` = simple interest paid at maturity; GS scss / pomis → `'p'`.

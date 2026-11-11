@@ -133,6 +133,76 @@
   /* Money → Overview → Coming up */
   RN.dues = () => { const lim = U.addDays(U.today(), 45); return R().list.filter(x => live(x) && x.due <= lim).map(x => ({ kind: 'renewal', item: x, date: x.due, amount: +x.cost || 0, name: kind(x.kind)[2] + ' ' + x.name + ' — renewal' })); };
 
+  /* ---------------- 1.26.2: usage allowance — an amount (100 % by default) spread evenly over a period (a day,
+     a week, a month or some days); each day's share is that amount ÷ the days in the period, and whatever is not used
+     carries over to the next day: available today = share × days so far − used on the days before today ---------------- */
+  const EVERY = [['day', 'Every day'], ['week', 'Every week'], ['month', 'Every month'], ['days', 'Every few days (set below)']];
+  const useOn = x => !!(x.usage && x.usage.on && +x.usage.total > 0);
+  const num1 = v => { const r = Math.round(v * 10) / 10; return (Math.abs(r) % 1 ? r.toFixed(1) : String(r)); };
+  const unitOf = x => (x.usage && x.usage.unit != null ? String(x.usage.unit) : '%');
+  const qty = (x, v) => { const u = unitOf(x); return num1(v) + (u === '%' ? '%' : u ? ' ' + u : ''); };
+  RN.period = (x, k) => {
+    const u = x.usage || {}, today = k || U.today(), anchor = U.isKey(u.start) ? u.start : today;
+    let ps, len;
+    if (u.every === 'month') {
+      ps = anchor; let g = 0;
+      while (ps > today && g++ < 600) ps = U.addMonths(ps, -1);
+      while (U.addMonths(ps, 1) <= today && g++ < 1200) ps = U.addMonths(ps, 1);
+      len = U.diffDays(ps, U.addMonths(ps, 1));
+    } else {
+      len = u.every === 'day' ? 1 : u.every === 'days' ? Math.max(1, Math.round(+u.days || 1)) : 7;
+      const i = Math.floor(U.diffDays(anchor, today) / len); ps = U.addDays(anchor, i * len);
+    }
+    return { ps, pe: U.addDays(ps, len), len };
+  };
+  RN.usage = (x, k) => {
+    const today = k || U.today(), P = RN.period(x, today), u = x.usage || {}, log = u.log || {}, share = (+u.total || 0) / P.len;
+    const idx = U.diffDays(P.ps, today), days = [];
+    let before = 0, all = 0;
+    for (let i = 0; i < P.len; i++) {
+      const d = U.addDays(P.ps, i), used = +log[d] || 0, avail = share * (i + 1) - all;
+      days.push({ k: d, used, avail, has: log[d] != null, past: d < today, today: d === today });
+      if (d < today) before += used; all += used;
+    }
+    const usedToday = +log[today] || 0, availToday = share * (idx + 1) - before;
+    const pace = idx > 0 || usedToday ? (before + usedToday) / (idx + 1) : 0;
+    return { P, share, idx, days, usedToday, availToday, leftToday: availToday - usedToday, used: all, left: (+u.total || 0) - all, total: +u.total || 0, pace,
+      runsOut: pace > 0 && pace * P.len > (+u.total || 0) ? U.addDays(P.ps, Math.max(0, Math.ceil((+u.total || 0) / pace) - 1)) : null };
+  };
+  const useLine = x => {
+    if (!useOn(x)) return '';
+    const s = RN.usage(x), cls = s.leftToday < 0 ? 'bad' : s.leftToday < s.share * 0.5 ? 'warn' : 'ok';
+    const bar = s.P.len > 1 && s.P.len <= 62 ? '<span class="rn-ubar" aria-hidden="true">' + s.days.map(d => '<i class="' + (d.today ? 'now ' : '') + (d.k > U.today() ? 'fut' : d.used > d.avail + 1e-9 ? 'over' : d.used > 0 ? 'used' : d.has ? 'nil' : 'none') + '" style="--h:' + Math.max(8, Math.min(100, (d.used || (d.k > U.today() ? s.share : 0)) / s.share * 100)).toFixed(0) + '%"></i>').join('') + '</span>' : '';
+    return '<span class="rn-use ' + cls + '">' + bar + '<span>Today <b>' + e(qty(x, Math.max(0, s.leftToday))) + '</b> left' + (s.usedToday ? ' (used ' + e(qty(x, s.usedToday)) + ')' : '') + ' · ' + e(qty(x, Math.max(0, s.left))) + ' left this ' + (s.P.len === 7 ? 'week' : s.P.len === 1 ? 'day' : (x.usage.every === 'month' ? 'month' : 'period')) + '</span></span>';
+  };
+  RN.logUse = id => {
+    const x = R().list.find(y => y.id === id); if (!x || !useOn(x)) return;
+    const s0 = RN.usage(x);
+    FX().form({
+      title: 'Usage · ' + x.name,
+      intro: 'Each day’s share is ' + qty(x, s0.share) + ' (' + qty(x, s0.total) + ' over ' + U.plural(s0.P.len, 'day') + '); what is not used carries over to the next day. Today you have ' + qty(x, Math.max(0, s0.availToday)) + ' to use.',
+      data: { date: U.today(), how: 'day', amt: s0.usedToday || null },
+      fields: [
+        { k: 'date', label: 'Day', type: 'date', req: true },
+        { k: 'how', label: 'What you enter', type: 'select', options: [['day', 'Used on that day'], ['meter', 'Total used so far this period (the meter reading)']] },
+        { k: 'amt', label: 'Amount (' + (unitOf(x) || 'units') + ')', type: 'number', min: 0, step: 'any', hint: 'Enter 0 for a day it was not used.' },
+      ],
+      save(v, api) {
+        if (v.amt == null || v.amt === '' || isNaN(+v.amt)) { ED.ui.toast('Fill in: Amount'); return; }
+        const P = RN.period(x, v.date), log = (x.usage.log = x.usage.log || {});
+        let amt = +v.amt;
+        if (v.how === 'meter') { let before = 0; for (let d = P.ps; d < v.date; d = U.addDays(d, 1)) before += +log[d] || 0; amt = Math.max(0, amt - before); }
+        ED.store.checkpoint('Usage');
+        log[v.date] = Math.round(amt * 100) / 100;
+        // the log keeps the last year
+        const old = U.addDays(U.today(), -400); Object.keys(log).forEach(d => { if (d < old) delete log[d]; });
+        x.updatedAt = Date.now(); ED.store.commit(); api.close();
+        const s = RN.usage(x); ED.ui.toast('Logged ' + qty(x, amt) + ' — today ' + qty(x, Math.max(0, s.leftToday)) + ' left, ' + qty(x, Math.max(0, s.left)) + ' this period');
+      },
+    });
+  };
+  A['rn-use'] = el => RN.logUse(el.dataset.id);
+
   /* ---------------- the pages ---------------- */
   const ring = (x, size) => {
     const n = daysTo(x), span = Math.max(60, 2 * (+x.remind || 0)), u = urg(x);   // the ring fills up over the last two months (or twice the reminder time)
@@ -144,9 +214,10 @@
     const k = kind(x.kind), n = live(x) ? daysTo(x) : null;
     return '<li class="rn-card u-' + urg(x) + '" style="--g:' + GCOL[k[3]] + '"><button type="button" class="plain-btn rn-main" data-act="rn-edit" data-id="' + e(x.id) + '">' + ring(x) +
       '<span class="grow rn-m"><b>' + k[2] + ' ' + e(x.name) + '</b><span class="hint">' + e(k[1]) + (x.provider ? ' · ' + e(x.provider) : '') + (x.ref ? ' · ' + e(x.ref) : '') + '</span>' +
-      '<span class="rn-when">' + (live(x) ? e(U.fmtShort(x.due)) + ' · <em>' + e(whenTxt(n)) + '</em>' : 'Stopped') + (x.cal ? ' · ' + ED.icon('calendar') : '') + (x.auto !== false && live(x) ? ' · <span class="hint">auto-records</span>' : '') + '</span></span>' +
+      '<span class="rn-when">' + (live(x) ? e(U.fmtShort(x.due)) + ' · <em>' + e(whenTxt(n)) + '</em>' : 'Stopped') + (x.cal ? ' · ' + ED.icon('calendar') : '') + (x.auto !== false && live(x) ? ' · <span class="hint">auto-records</span>' : '') + '</span>' + useLine(x) + '</span>' +
       '<span class="rn-cost num"><b>' + e(money(+x.cost || 0)) + '</b><span class="hint">' + e(cyc(x.cycle)[1].replace('Every ', '/ ').replace('One time (does not renew)', 'one time')) + '</span></span></button>' +
-      (live(x) ? '<button type="button" class="btn small rn-pay" data-act="rn-pay" data-id="' + e(x.id) + '" title="Record the payment in Money and set the next renewal">' + ED.icon('check') + 'Paid</button>' : '') + '</li>';
+      '<span class="rn-btns">' + (useOn(x) ? '<button type="button" class="btn small rn-usebtn" data-act="rn-use" data-id="' + e(x.id) + '" title="Log how much you used">' + ED.icon('plus') + 'Use</button>' : '') +
+      (live(x) ? '<button type="button" class="btn small rn-pay" data-act="rn-pay" data-id="' + e(x.id) + '" title="Record the payment in Money and set the next renewal">' + ED.icon('check') + 'Paid</button>' : '') + '</span></li>';
   };
   const left = () => {
     const s = st(), all = R().list.filter(x => !s.g || kind(x.kind)[3] === s.g);
@@ -188,7 +259,19 @@
     const stack = ks.length ? '<div class="rn-stack">' + ks.map(k => '<i style="width:' + (byK[k] / yr * 100).toFixed(2) + '%;--g:' + GCOL[kind(k)[3]] + ';opacity:' + (0.45 + 0.55 * byK[k] / byK[ks[0]]).toFixed(2) + '" title="' + e(kind(k)[1] + ' · ' + money(byK[k]) + ' a year') + '"></i>').join('') + '</div><ul class="rn-legend">' + ks.map(k => '<li><span>' + kind(k)[2] + ' ' + e(kind(k)[1]) + '</span><b class="num">' + e(money(byK[k])) + '</b><span class="hint num">' + Math.round(byK[k] / yr * 100) + '%</span></li>').join('') + '</ul>' : '<p class="hint">Add a price to see where the money goes.</p>';
     const ins = l.filter(x => /^ins/.test(x.kind) && +x.cover > 0);
     const cover = ins.length ? '<h3 class="gh fin-gap">Insurance cover</h3><ul class="rn-legend">' + ins.map(x => '<li><span>' + kind(x.kind)[2] + ' ' + e(x.name) + '</span><b class="num">' + e(money(+x.cover)) + '</b><span class="hint num">' + e(money(perYear(x))) + ' / yr</span></li>').join('') + '</ul>' : '';
-    const body = tiles + '<h3 class="gh">Deadline runway · next 12 months</h3>' + (occ.length ? runway : '<p class="hint">Nothing due in the next 12 months.</p>') +
+    const tracked = R().list.filter(useOn);
+    const usage = tracked.map(x => {
+      const s = RN.usage(x), mx = Math.max(s.share, ...s.days.map(d => d.used), ...s.days.map(d => d.k <= today ? d.avail : 0)) || 1;
+      const cols = s.P.len <= 62 ? '<div class="rn-ucols" role="img" aria-label="' + e(x.name) + ': use by day this period">' + s.days.map(d => {
+        const fut = d.k > today;
+        return '<span class="rn-uc' + (d.today ? ' now' : '') + (fut ? ' fut' : '') + '" title="' + e(U.fmtShort(d.k) + (fut ? ' · share ' + qty(x, s.share) : ' · available ' + qty(x, Math.max(0, d.avail)) + ' · used ' + (d.has ? qty(x, d.used) : 'not logged'))) + '">' +
+          '<i class="av" style="height:' + ((fut ? s.share : Math.max(0, d.avail)) / mx * 100).toFixed(1) + '%"></i><i class="us' + (d.used > d.avail + 1e-9 ? ' over' : '') + '" style="height:' + (Math.min(d.used, mx) / mx * 100).toFixed(1) + '%"></i><em>' + (s.P.len <= 8 ? 'SMTWTFS'[new Date(d.k + 'T00:00').getDay()] : (+d.k.slice(8)) % 5 === 0 || d.today ? +d.k.slice(8) : '') + '</em></span>'; }).join('') + '</div>' : '';
+      const tip = s.runsOut && s.runsOut < U.addDays(s.P.pe, -1) ? 'At this pace it runs out on ' + U.fmtShort(s.runsOut) + '.' : s.pace ? 'At this pace about ' + qty(x, Math.max(0, s.total - s.pace * s.P.len)) + ' will be left at the end.' : 'Nothing logged yet this period.';
+      return '<div class="rn-ucard"><div class="rn-uhead"><b>' + kind(x.kind)[2] + ' ' + e(x.name) + '</b><button type="button" class="btn small" data-act="rn-use" data-id="' + e(x.id) + '">' + ED.icon('plus') + 'Log use</button></div>' +
+        '<div class="rn-ustats"><span><b class="' + (s.leftToday < 0 ? 'bad' : '') + '">' + e(qty(x, Math.max(0, s.leftToday))) + '</b>left today</span><span><b>' + e(qty(x, s.share)) + '</b>a day</span><span><b>' + e(qty(x, Math.max(0, s.left))) + '</b>left of ' + e(qty(x, s.total)) + '</span><span><b>' + e(U.fmtDM(s.P.ps)) + '–' + e(U.fmtDM(U.addDays(s.P.pe, -1))) + '</b>this period</span></div>' +
+        cols + '<p class="hint">' + e(tip) + ' Unused share carries over to the next day.</p></div>';
+    }).join('');
+    const body = tiles + (usage ? '<h3 class="gh">Daily usage</h3>' + usage : '') + '<h3 class="gh' + (usage ? ' fin-gap' : '') + '">Deadline runway · next 12 months</h3>' + (occ.length ? runway : '<p class="hint">Nothing due in the next 12 months.</p>') +
       (soon ? '<h3 class="gh fin-gap">Countdown</h3><ul class="rn-soon">' + soon + '</ul>' : '') + '<h3 class="gh fin-gap">What it costs a year, by kind</h3>' + stack + cover;
     return '<div class="xp rn-r"><div class="pg-head st-head"><h2 class="pg-title">Renewals at a glance</h2></div><div class="st-scroll scroll" data-keep-scroll="rn-r">' + body + '</div></div>';
   };
@@ -203,6 +286,8 @@
     const data = x ? Object.assign({}, x) : Object.assign({ name: '', kind: 'ins-health', provider: '', ref: '', cover: null, cost: null, cycle: 'yearly', due: U.addMonths(U.today(), 1), remind: 15, auto: true, accountId: '', categoryId: '', cal: '', link: '', notes: '', active: true }, preset || {});
     if (!data.categoryId) data.categoryId = defCat(data.kind);
     data.stopped = data.active === false;
+    const u0 = data.usage || {};
+    Object.assign(data, { useOn: !!u0.on, useTotal: u0.total != null ? u0.total : 100, useUnit: u0.unit != null ? u0.unit : '%', useEvery: u0.every || 'week', useDays: u0.days || 7, useStart: u0.start || U.today() });
     FX().form({
       title: x ? 'Insurance / subscription' : 'Add insurance or subscription', wide: true,
       intro: 'A reminder goes into the Daily planner the chosen number of days before the due date. When it is paid (on the due date automatically, or when you tick the reminder / press Paid), the amount is recorded in Money and the next renewal date is set.',
@@ -224,6 +309,13 @@
         { k: 'link', label: 'Website / renew link', ph: 'https://…' },
         { k: 'stopped', label: 'Stopped (cancelled / not renewing)', type: 'check' },
         { k: 'notes', label: 'Notes', type: 'textarea', rows: 2 },
+        { type: 'head', label: 'Usage allowance (optional)' },
+        { k: 'useOn', label: 'Track how much of it I use each day', type: 'check' },
+        { k: 'useTotal', label: 'Amount for the period', type: 'number', min: 0, step: 'any', hint: 'e.g. 100 (%) of a weekly limit; spread evenly over the days, unused share carries over.' },
+        { k: 'useUnit', label: 'Unit', ph: '%, hours, GB, messages…' },
+        { k: 'useEvery', label: 'Resets', type: 'select', options: EVERY },
+        { k: 'useDays', label: 'Days in the period (for “every few days”)', type: 'number', min: 1, max: 366 },
+        { k: 'useStart', label: 'A day the period starts', type: 'date', hint: 'e.g. the day the weekly limit resets.' },
       ],
       extra: x && live(x) ? '<button type="button" class="btn" data-x="paid">' + ED.icon('check') + 'Paid now</button>' : '',
       del: x ? async () => { if (!await ED.ui.confirm({ title: 'Delete', message: 'Delete “' + x.name + '” and its open reminder? Payments already recorded in Money stay.', ok: 'Delete', danger: true })) return false; ED.store.checkpoint('Delete renewal'); FX().dropEvent(x); w.list = w.list.filter(y => y !== x); D().tasks = D().tasks.filter(t => !(t.link && t.link.k === 'renewal' && t.link.id === x.id && !M.isClosed(t.status))); ED.store.commit(); ED.ui.undoToast('Deleted'); } : null,
@@ -238,6 +330,10 @@
         const due0 = it.due;
         Object.assign(it, v, { cost: +v.cost || 0, cover: +v.cover || 0, remind: Math.max(0, Math.round(+v.remind || 0)), active: !v.stopped, updatedAt: Date.now() });
         delete it.stopped;
+        const ul = (it.usage && it.usage.log) || {};
+        it.usage = { on: !!v.useOn, total: +v.useTotal || 0, unit: v.useUnit == null ? '%' : String(v.useUnit).trim(), every: v.useEvery || 'week', days: Math.max(1, Math.round(+v.useDays || 7)), start: U.isKey(v.useStart) ? v.useStart : U.today(), log: ul };
+        ['useOn', 'useTotal', 'useUnit', 'useEvery', 'useDays', 'useStart'].forEach(k => { delete it[k]; });
+        if (!it.usage.on && !Object.keys(ul).length) delete it.usage;
         if (due0 !== it.due) delete it.skipTask;
         if (!x) w.list.push(it);
         // a reminder for the old date goes; the new one is made by reconcile

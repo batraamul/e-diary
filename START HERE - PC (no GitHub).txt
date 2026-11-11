@@ -1,4 +1,4 @@
-E-Diary Planner 1.26.1 — the copy that runs from your own PC (no GitHub, no internet needed)
+E-Diary Planner 1.26.2 — the copy that runs from your own PC (no GitHub, no internet needed)
 ===========================================================================================
 
 1. Unzip this folder to a place you will keep, e.g.  Documents\E-Diary   (not in Downloads, not inside the zip).
