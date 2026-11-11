@@ -1,6 +1,6 @@
 /* E-Diary — offline support. Serves the app from a local cache and refreshes it in the background.
    Change VERSION whenever you edit the app so installed copies pick up the new files. */
-const VERSION = 'e-diary-1.25.2';   // 1.25.2 — Study topics as a tree of any depth, each line can be renamed or deleted
+const VERSION = 'e-diary-1.25.3';   // 1.25.3 — a study session can be for an exam or an interview, with its topics
 const ASSETS = [
   './',
   './index.html',

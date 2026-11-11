@@ -160,6 +160,33 @@
     return { ns, nt };
   };
 
+  /* ---------------- 1.25.3: a study session for an exam or an interview ---------------- */
+  /* the exams (today or later, or without a date) and interview preparation, each with its topics and the subject they go under */
+  SL.prepChoices = keep => {
+    const out = [], t0 = U.today();
+    ((D().exam && D().exam.list) || []).filter(x => !x.date || x.date >= t0 || 'ex:' + x.id === keep).forEach(x => {
+      const tops = examTopics(x.id).filter(t => t.name).map(t => ({ subj: subjOf(t), name: t.name }));
+      out.push({ key: 'ex:' + x.id, label: '📝 ' + (x.name || 'Exam') + (x.date ? ' · ' + U.fmtShort(x.date) : ''), tops, subj: x.name || 'Exam' });
+    });
+    const cats = Array.from(new Set(((D().interview && D().interview.qs) || []).map(q => q.cat).filter(Boolean)));
+    const ivs = ((D().interview && D().interview.list) || []).filter(x => !x.date || x.date >= t0);
+    if (cats.length || ivs.length || keep === 'iv') out.push({ key: 'iv', label: '🎤 Interview preparation' + (ivs[0] && ivs[0].date ? ' · ' + U.fmtShort(ivs[0].date) : ''), tops: cats.map(c => ({ subj: IVSUBJ, name: c })), subj: IVSUBJ });
+    return out;
+  };
+  /* make sure its subject and topics are in the study plan, and return that subject: one named like the exam if you
+     have it, else the subject most of its topics are filed under (if you have it), else a new subject named after the exam */
+  SL.prepEnsure = key => {
+    const p = ST().plan(), c = SL.prepChoices(key).find(x => x.key === key); if (!p || !c) return null;
+    if (!Array.isArray(p.topics)) p.topics = [];
+    const find = name => p.tracks.find(t => low(t.name) === low(name));
+    const n = {}; c.tops.forEach(t => { n[t.subj] = (n[t.subj] || 0) + 1; });
+    const most = Object.keys(n).sort((a, b) => n[b] - n[a]).map(find).find(Boolean);
+    const tr = find(c.subj) || most || ST().addTrack(c.subj);
+    c.tops.forEach(t => { if (t.name && !p.topics.some(x => x.trackId === tr.id && low(x.name) === low(t.name))) p.topics.push({ id: U.uid('tp'), trackId: tr.id, name: t.name }); });
+    return tr.id;
+  };
+  SL.prepLabel = key => { const c = key && SL.prepChoices(key).find(x => x.key === key); return c ? c.label : ''; };
+
   /* ---------------- "Add to my plans…" ---------------- */
   /* 1.16.2: exams and interviews go under the FROG heading (the day's most important task) with the category Career */
   const role = () => { const r = D().roles; return ((r.find(x => x.id === 'role-frog') || r.find(x => /^frog|frog: to be tamed/i.test(x.name)) || r.find(x => /frog/i.test(x.name))) || {}).id || null; };

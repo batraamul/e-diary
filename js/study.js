@@ -776,9 +776,11 @@
     if (!s) { const w = ST.weekOf(d.date); const tr = ST.track(d.trackId); d.week = w ? w.n : 0; if (!d.topic && w && tr) d.topic = w.themes[tr.id] || ''; }
     const h12 = ED.store.data.settings.h12;
     const slotHas = slots.some(x => x.no === d.slotNo);
+    const prepC = ED.studyLink && ED.studyLink.prepChoices ? ED.studyLink.prepChoices(d.prep) : [];   // 1.25.3: exams and interview
     const body = '<form class="st-form">' +
       '<div class="st-grid">' +
       '<label class="lbl" for="ss-date">Date</label><input id="ss-date" class="field" type="date" value="' + e(d.date) + '">' +
+      (prepC.length ? '<label class="lbl" for="ss-prep">For</label><div class="st-stack"><select id="ss-prep" class="field">' + opt('', '— regular study —', !d.prep) + prepC.map(c => opt(c.key, c.label, c.key === d.prep)).join('') + '</select><span class="hint" id="ss-prep-h">' + (d.prep ? 'Its subject and topics are below.' : 'Choose an exam or an interview to study its topics.') + '</span></div>' : '') +
       '<label class="lbl" for="ss-track">Subject</label><select id="ss-track" class="field">' + (p.tracks.length ? '' : opt('', 'Study', true)) + p.tracks.map(t => opt(t.id, t.name, t.id === d.trackId)).join('') + '</select>' +
       '<label class="lbl" for="ss-slotno">Slot</label><div class="st-inline"><select id="ss-slotno" class="field">' + slots.map(x => slotOpt(x, x.no === d.slotNo)).join('') + (slotHas ? '' : opt(d.slotNo, 'Slot ' + d.slotNo, true)) + opt(NEW, '＋ A new slot…', false) + '</select>' +
       '<input id="ss-kind" class="field" list="ss-kinds" value="' + e(d.kind || '') + '" placeholder="Reading, Lecture, Code…" aria-label="Kind of work"><datalist id="ss-kinds">' + KINDS.map(k => '<option value="' + e(k) + '">').join('') + '</datalist></div>' +
@@ -830,6 +832,16 @@
           U.$$('#ss-smore .st-more-r', el).forEach(r => { const cur = r.querySelector('[data-ms]').value; r.outerHTML = moreSrcRow(t, cur === NEW ? '' : cur); });
           U.$$('.st-more-r', el).forEach(wireMore);
         });
+        if ($('prep')) $('prep').addEventListener('change', () => {   // 1.25.3: an exam / interview brings its subject and topics
+          const key = v('prep'); if (!key) { $('prep-h').textContent = 'Choose an exam or an interview to study its topics.'; return; }
+          const trId = ED.studyLink.prepEnsure(key); if (!trId) return;
+          $('track').innerHTML = p.tracks.map(t => opt(t.id, t.name, t.id === trId)).join(''); $('track').value = trId;
+          $('track').dispatchEvent(new Event('change'));
+          const c = prepC.find(x => x.key === key) || {}, tops = (c.tops || []).filter(t => t.name);
+          const first = tops[0];
+          if (first && Array.from($('topic').options).some(o => o.value === first.name)) $('topic').value = first.name;
+          $('prep-h').textContent = tops.length ? U.plural(tops.length, 'topic') + ' — pick one in Topics (＋ Another topic for more).' : 'No topics yet — type one in Topics, or add them in ' + (key === 'iv' ? 'Interview Prep' : 'Exam preparation') + '.';
+        });
         $('slotno').addEventListener('change', async () => {
           if (v('slotno') !== NEW) { const sl = ST.slot(+v('slotno')); if (sl && !s && sl.min) $('min').value = sl.min; tdef(); return; }
           const name = await ED.ui.prompt({ title: 'New study slot', label: 'Name of the slot (for example “Night revision”)', value: 'Slot ' + (Math.max(0, ...ST.slots().map(x => x.no)) + 1), ok: 'Add slot' });
@@ -860,6 +872,7 @@
           const srcs = Array.from(new Set([src].concat(U.$$('#ss-smore [data-ms]', el).map(x => x.value)).filter(x => x && x !== NEW)));
           Object.assign(tgt, { date, trackId, slotNo, kind, slot: ST.slotText(slotNo, kind), min, time: v('time') || null,
             topic: tops[0] || '', moreTopics: tops.slice(1), sourceId: srcs[0] || '', moreSrc: srcs.slice(1), source: v('source').trim(), note: v('note').trim(), updatedAt: Date.now() });
+          if ($('prep') && v('prep')) tgt.prep = v('prep'); else delete tgt.prep;
           const done = $('done').checked;
           if (done !== !!tgt.done) markDone(tgt, done);
           if (done) {
@@ -897,7 +910,9 @@
     const sp = ST.span() || { a: U.today(), b: U.addDays(U.today(), 83) };
     const from = preset.from || (U.today() > sp.a && U.today() <= sp.b ? U.today() : sp.a);
     const days = [1, 2, 3, 4, 5, 6, 0];
+    const baPrep = ED.studyLink && ED.studyLink.prepChoices ? ED.studyLink.prepChoices() : [];   // 1.25.3
     const body = '<form class="st-form"><p class="hint" style="margin-bottom:10px">Adds one session on each chosen weekday between the two dates — for example a third slot for revision every evening, or an extra subject on weekends.</p><div class="st-grid">' +
+      (baPrep.length ? '<label class="lbl" for="ba-prep">For</label><div class="st-stack"><select id="ba-prep" class="field">' + opt('', '— regular study —', true) + baPrep.map(c => opt(c.key, c.label, false)).join('') + '</select><span class="hint" id="ba-prep-h">Choose an exam or an interview to study its topics.</span></div>' : '') +
       '<label class="lbl" for="ba-track">Subject</label><select id="ba-track" class="field">' + (p.tracks.length ? '' : opt('', '— choose —', true)) + p.tracks.map((t, i) => opt(t.id, t.name, preset.trackId ? t.id === preset.trackId : i === 0)).join('') + opt(NEW, '＋ A new subject…', false) + '</select>' +
       '<label class="lbl" for="ba-slot">Slot</label><select id="ba-slot" class="field">' + slots.map(x => slotOpt(x, x.no === (preset.slotNo || (slots[slots.length - 1] || {}).no))).join('') + opt(NEW, '＋ A new slot…', !slots.length) + '</select>' +
       '<label class="lbl" for="ba-min">Minutes</label><input id="ba-min" class="field num" type="number" min="5" max="600" step="5" value="' + (preset.min || 45) + '">' +
@@ -936,6 +951,14 @@
           $('topic').outerHTML = topicSelect('ba-topic', t, '', 'Each week’s topic for this subject'); wireTopic(el, $('topic'), $('topic-new'));
           const src = $('src').value; $('src').outerHTML = sourceSelect('ba-src', t, src); wireSource(el, $('src'), () => $('track').value);
         });
+        if ($('prep')) $('prep').addEventListener('change', () => {   // 1.25.3: an exam / interview brings its subject and topics
+          const key = $('prep').value; if (!key) { $('prep-h').textContent = 'Choose an exam or an interview to study its topics.'; return; }
+          const trId = ED.studyLink.prepEnsure(key); if (!trId) return;
+          $('track').innerHTML = p.tracks.map(t => opt(t.id, t.name, t.id === trId)).join('') + opt(NEW, '＋ A new subject…', false); $('track').value = trId;
+          $('track').dispatchEvent(new Event('change'));
+          const tops = ((baPrep.find(x => x.key === key) || {}).tops || []).filter(t => t.name);
+          $('prep-h').textContent = tops.length ? U.plural(tops.length, 'topic') + ' — choose one in Topic, or leave the week’s topic.' : 'No topics yet — add them in ' + (key === 'iv' ? 'Interview Prep' : 'Exam preparation') + '.';
+        });
         $('slot').addEventListener('change', async () => {
           if ($('slot').value !== NEW) { const sl = ST.slot(+$('slot').value); if (sl && sl.min) $('min').value = sl.min; count(); return; }
           const no = Math.max(0, ...ST.slots().map(x => x.no)) + 1;
@@ -951,12 +974,12 @@
           const slotNo = +$('slot').value; if (!slotNo) { ED.ui.toast('Choose a slot'); return; }
           const min = Math.max(5, Math.min(600, +$('min').value || 45));
           const kind = $('kind').value.trim();
-          const fixed = readTopic($('topic'), $('topic-new'), trackId);
+          const fixed = readTopic($('topic'), $('topic-new'), trackId), prep = $('prep') ? $('prep').value : '';
           const src = $('src').value === NEW ? '' : $('src').value;
           ED.store.checkpoint('Add sessions');
           ks.forEach(k => {
             const w = ST.weekOf(k);
-            D().study.sessions.push({ id: U.uid('ss'), week: w ? w.n : 0, date: k, slotNo, kind, slot: ST.slotText(slotNo, kind), trackId, min, topic: fixed || (w && w.themes[trackId]) || '', sourceId: src, source: $('source').value.trim(), done: false, doneAt: null, doneOn: null, spent: null, time: null, note: '', own: true, updatedAt: Date.now() });
+            D().study.sessions.push({ ...(prep ? { prep } : {}), id: U.uid('ss'), week: w ? w.n : 0, date: k, slotNo, kind, slot: ST.slotText(slotNo, kind), trackId, min, topic: fixed || (w && w.themes[trackId]) || '', sourceId: src, source: $('source').value.trim(), done: false, doneAt: null, doneOn: null, spent: null, time: null, note: '', own: true, updatedAt: Date.now() });
           });
           ST.extendWeeks();
           ED.store.commit(); api.close();
