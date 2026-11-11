@@ -175,29 +175,46 @@
     const bar = s.P.len > 1 && s.P.len <= 62 ? '<span class="rn-ubar" aria-hidden="true">' + s.days.map(d => '<i class="' + (d.today ? 'now ' : '') + (d.k > U.today() ? 'fut' : d.used > d.avail + 1e-9 ? 'over' : d.used > 0 ? 'used' : d.has ? 'nil' : 'none') + '" style="--h:' + Math.max(8, Math.min(100, (d.used || (d.k > U.today() ? s.share : 0)) / s.share * 100)).toFixed(0) + '%"></i>').join('') + '</span>' : '';
     return '<span class="rn-use ' + cls + '">' + bar + '<span>Today <b>' + e(qty(x, Math.max(0, s.leftToday))) + '</b> left' + (s.usedToday ? ' (used ' + e(qty(x, s.usedToday)) + ')' : '') + ' · ' + e(qty(x, Math.max(0, s.left))) + ' left this ' + (s.P.len === 7 ? 'week' : s.P.len === 1 ? 'day' : (x.usage.every === 'month' ? 'month' : 'period')) + '</span></span>';
   };
+  /* 1.26.3: you enter only the usage meter reading — the total used so far this period, as the service shows it.
+     The day's use is worked out: this reading − the last reading before it in the same period (10, then 20 → 10 that day).
+     Readings are kept in usage.meter{date: reading}; usage.log{date: used} is rebuilt from them for that period. */
+  const meterOf = (x, P) => {
+    const u = x.usage, m = (u.meter = u.meter || {}), log = (u.log = u.log || {});
+    const inP = d => d >= P.ps && d < P.pe;
+    if (!Object.keys(m).some(inP)) {   // a period logged before 1.26.3 (day amounts): turn them into readings once
+      let run = 0; Object.keys(log).filter(inP).sort().forEach(d => { run += +log[d] || 0; m[d] = Math.round(run * 100) / 100; });
+    }
+    return m;
+  };
+  const relog = (x, P) => {
+    const m = meterOf(x, P), log = x.usage.log, inP = d => d >= P.ps && d < P.pe;
+    Object.keys(log).filter(inP).forEach(d => { delete log[d]; });
+    let prev = 0; Object.keys(m).filter(inP).sort().forEach(d => { log[d] = Math.max(0, Math.round((+m[d] - prev) * 100) / 100); prev = Math.max(prev, +m[d]); });
+  };
+  const lastReading = (x, P, before) => { const m = (x.usage && x.usage.meter) || {}; const k = Object.keys(m).filter(d => d >= P.ps && d < P.pe && (!before || d < before)).sort().pop(); return k ? { d: k, r: +m[k] } : null; };
   RN.logUse = id => {
     const x = R().list.find(y => y.id === id); if (!x || !useOn(x)) return;
-    const s0 = RN.usage(x);
+    const s0 = RN.usage(x), P0 = RN.period(x), m0 = (x.usage.meter || {})[U.today()];
+    const prev = lastReading(x, P0, U.today()) || (s0.used - s0.usedToday > 0 ? { d: null, r: s0.used - s0.usedToday } : null);
     FX().form({
       title: 'Usage · ' + x.name,
-      intro: 'Each day’s share is ' + qty(x, s0.share) + ' (' + qty(x, s0.total) + ' over ' + U.plural(s0.P.len, 'day') + '); what is not used carries over to the next day. Today you have ' + qty(x, Math.max(0, s0.availToday)) + ' to use.',
-      data: { date: U.today(), how: 'day', amt: s0.usedToday || null },
+      intro: 'Enter the usage as the service shows it now — the total used so far this period (' + U.fmtDM(P0.ps) + '–' + U.fmtDM(U.addDays(P0.pe, -1)) + '). The diary works out what was used today from the last reading' + (prev ? ' (' + qty(x, prev.r) + (prev.d ? ' on ' + U.fmtDM(prev.d) : '') + ')' : '') + '. Today’s share is ' + qty(x, s0.share) + '; unused share carries over — today you have ' + qty(x, Math.max(0, s0.availToday)) + '.',
+      data: { amt: m0 != null ? m0 : null, date: U.today() },
       fields: [
-        { k: 'date', label: 'Day', type: 'date', req: true },
-        { k: 'how', label: 'What you enter', type: 'select', options: [['day', 'Used on that day'], ['meter', 'Total used so far this period (the meter reading)']] },
-        { k: 'amt', label: 'Amount (' + (unitOf(x) || 'units') + ')', type: 'number', min: 0, step: 'any', hint: 'Enter 0 for a day it was not used.' },
+        { k: 'amt', label: 'Used so far this period (' + (unitOf(x) || 'units') + ')', type: 'number', min: 0, step: 'any', hint: prev ? 'Last reading ' + qty(x, prev.r) + ' — today’s use = this − ' + qty(x, prev.r) + '.' : 'The first reading of this period.' },
+        { k: 'date', label: 'Reading taken on', type: 'date', req: true, hint: 'Today, unless you are filling in a missed day.' },
       ],
       save(v, api) {
-        if (v.amt == null || v.amt === '' || isNaN(+v.amt)) { ED.ui.toast('Fill in: Amount'); return; }
-        const P = RN.period(x, v.date), log = (x.usage.log = x.usage.log || {});
-        let amt = +v.amt;
-        if (v.how === 'meter') { let before = 0; for (let d = P.ps; d < v.date; d = U.addDays(d, 1)) before += +log[d] || 0; amt = Math.max(0, amt - before); }
+        if (v.amt == null || v.amt === '' || isNaN(+v.amt)) { ED.ui.toast('Fill in: Used so far this period'); return; }
+        const P = RN.period(x, v.date), pr = lastReading(x, P, v.date);
         ED.store.checkpoint('Usage');
-        log[v.date] = Math.round(amt * 100) / 100;
-        // the log keeps the last year
-        const old = U.addDays(U.today(), -400); Object.keys(log).forEach(d => { if (d < old) delete log[d]; });
+        meterOf(x, P)[v.date] = Math.round(+v.amt * 100) / 100;
+        relog(x, P);
+        // readings and the log keep the last year
+        const old = U.addDays(U.today(), -400); ['log', 'meter'].forEach(k => Object.keys(x.usage[k] || {}).forEach(d => { if (d < old) delete x.usage[k][d]; }));
         x.updatedAt = Date.now(); ED.store.commit(); api.close();
-        const s = RN.usage(x); ED.ui.toast('Logged ' + qty(x, amt) + ' — today ' + qty(x, Math.max(0, s.leftToday)) + ' left, ' + qty(x, Math.max(0, s.left)) + ' this period');
+        const day = x.usage.log[v.date] || 0, s = RN.usage(x);
+        ED.ui.toast((pr && +v.amt < pr.r ? 'Lower than the last reading (' + qty(x, pr.r) + ') — counted as 0 used. ' : '') + 'Used ' + qty(x, day) + (v.date === U.today() ? ' today' : ' on ' + U.fmtDM(v.date)) + ' — today ' + qty(x, Math.max(0, s.leftToday)) + ' left, ' + qty(x, Math.max(0, s.left)) + ' this period');
       },
     });
   };

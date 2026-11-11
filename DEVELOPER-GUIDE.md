@@ -691,6 +691,8 @@ There is no automated test runner in the package; test by hand in the browser:
 
 **1.26.2 (sw `e-diary-1.26.2`):** renewals item `usage` = { on, total, unit, every day|week|month|days, days, start, log{date: used} }. `RN.period(x, k)` → { ps, pe, len } (month periods by `U.addMonths` from `start`); `RN.usage(x, k)` → share = total/len, availToday = share×(idx+1) − used before today, leftToday, left, pace, runsOut, days[]. `RN.logUse` (action `rn-use`; 'meter' mode stores reading − earlier days of the period). Log trimmed to ~400 days.
 
+**1.26.3 (sw `e-diary-1.26.3`):** `usage.meter{date: reading}` (cumulative for the period); `relog(x, P)` rebuilds `usage.log` for that period as reading − previous reading (≥ 0). `meterOf` seeds readings once from an older day-amount log. The log dialog has only reading + date.
+
 **1.25 (sw `e-diary-1.25-r9`):** `MV.fdVal(P, rate, comp, start, due, k, matAmt)` — with `mk.matAmt`, value = P·(matAmt/P)^(days/term); used by refresh, `MV.maturity` and the dialog preview (`#mv-ma`, `.mv-fdo`).
 
 **1.25 (sw `e-diary-1.25-r8`):** FD `comp` adds `'p'` (payout: `fdAt` = principal); `'s'` = simple interest paid at maturity; GS scss / pomis → `'p'`.
