@@ -675,6 +675,8 @@ There is no automated test runner in the package; test by hand in the browser:
 
 **1.25 (sw `e-diary-1.25-r11`):** aarti reader mode `full` (“अर्थ सहित”), shown when `verses(meaning).length > 1`: per index i renders H[i], E[i] and M[i] (lines split, `lang` by script) in `.ar-pair.ar-full` with `.ar-m`; falls back to `both` when a text has no per-verse meaning.
 
+**1.25.1 (sw `e-diary-1.25.1`):** `ED.VERSION = '1.25.1'`. studyplus `line(pins, x)`: pins sorted by %, grouped when < 24% apart; each pin draws a `.tick`, each group one `.pin` label block (`.lft` < 12%, `.rgt` > 88%), height from `--rows`. Pace < 60 min/day shown in minutes. Versioning: patch releases 1.25.x bump `ED.VERSION` and the sw cache name together; a major change starts 1.26.0.
+
 **1.25 (sw `e-diary-1.25-r9`):** `MV.fdVal(P, rate, comp, start, due, k, matAmt)` — with `mk.matAmt`, value = P·(matAmt/P)^(days/term); used by refresh, `MV.maturity` and the dialog preview (`#mv-ma`, `.mv-fdo`).
 
 **1.25 (sw `e-diary-1.25-r8`):** FD `comp` adds `'p'` (payout: `fdAt` = principal); `'s'` = simple interest paid at maturity; GS scss / pomis → `'p'`.

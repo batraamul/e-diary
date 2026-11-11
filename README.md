@@ -572,6 +572,8 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 
 **Aartis & Mantras — “अर्थ सहित” (within 1.25):** when a text's *Meaning* is written verse by verse (a blank line between verses, in the same order as the Hindi), the reader shows an extra **अर्थ सहित** button: each verse, its English transliteration and its meaning together. The Sunderkand Path uses this.
 
+**1.25.1 — Study → Insights → When you will finish:** marks that fall close together on the timeline (Start, Today, Plan ends, At this pace) now share one label block, so the labels no longer overlap; a far-off finish shows its year, and a very slow pace reads in minutes a day. *Version numbers from here on:* small fixes go 1.25.1, 1.25.2 …; a major change starts 1.26.0 (then 1.26.1 …).
+
 **FD maturity amount (within 1.25):** an FD can take the *Maturity amount* from its receipt; its value then grows to exactly that amount on the maturity date (the bank's own rounding and day count). A cumulative FD's “Interest accruing / payable” table (one row per financial year) is the interest accrued each year for TDS and income tax — it is paid with the principal at maturity.
 
 **Fixed deposits (within 1.25, 9 Nov 2026):** *Interest added* now says how the interest is paid — compounded every quarter / month / half year / year and **paid at maturity** (cumulative FD), **paid at maturity as simple interest, not compounded**, or **paid out to your bank account** (payout FD: the deposit stays at its principal and the note shows the yearly interest to your bank). SCSS and Post office MIS use the payout option.

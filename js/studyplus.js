@@ -12,6 +12,16 @@
   const A = (ED.actions = ED.actions || {});
   const SP = (ED.studyPlus = {});
   const h1 = m => Math.round(m / 6) / 10;
+  // 1.25.1: the finish timeline — marks that sit close together share one label block, so labels never overlap
+  const line = (pins, x) => {
+    const GAP = 24, yr = String(U.today()).slice(0, 4);   // % of the line one label block needs
+    const P = pins.map(p => ({ cls: p[0], lab: p[2], d: p[3], at: parseFloat(x(p[1])) })).sort((p, q) => p.at - q.at || (p.cls === 'a' ? -1 : 1));
+    const G = []; P.forEach(p => { const g = G[G.length - 1]; if (g && p.at - g[0].at < GAP) g.push(p); else G.push([p]); });
+    const dt = d => d ? ' <span>' + e(U.fmtDM(d)) + (String(d).slice(0, 4) !== yr ? ' ' + String(d).slice(0, 4) : '') + '</span>' : '';
+    const ticks = P.map(p => '<i class="tick ' + p.cls + '" style="left:' + p.at.toFixed(1) + '%"></i>').join('');
+    const labels = G.map(g => { const a = g[0].at; return '<span class="pin' + (a < 12 ? ' lft' : a > 88 ? ' rgt' : '') + '" style="left:' + a.toFixed(1) + '%">' + g.map(p => '<em class="' + p.cls + '"><b>' + e(p.lab) + '</b>' + dt(p.d) + '</em>').join('') + '</span>'; }).join('');
+    return '<div class="sp-line" role="img" aria-label="Plan start, today, plan end and the forecast finish" style="--rows:' + Math.max(...G.map(g => g.length)) + '"><i class="bar"></i><i class="done" style="width:' + x(pins[1][1]) + '"></i>' + ticks + labels + '</div>';
+  };
   const fm = m => ST.fmtMin ? ST.fmtMin(m) : Math.round(m) + ' min';
   const sum = (l, f) => l.reduce((a, x) => a + (f(x) || 0), 0);
 
@@ -82,11 +92,9 @@
     else {
       const need = Math.ceil(left / pace14), fin = U.addDays(today, need), late = U.diffDays(sp.b, fin);
       const span = Math.max(U.diffDays(sp.a, sp.b), U.diffDays(sp.a, fin), 1), x = k => Math.max(0, Math.min(100, U.diffDays(sp.a, k) / span * 100)).toFixed(1) + '%';
-      fc = '<p class="sp-fc-t">At your last-14-day pace (<b>' + h1(pace14) + ' h a day</b>) the <b>' + h1(left) + ' h</b> left take about <b>' + U.plural(need, 'day') + '</b>: you finish around <b>' + e(U.fmtLong(fin)) + '</b> — ' +
+      fc = '<p class="sp-fc-t">At your last-14-day pace (<b>' + (pace14 < 60 ? Math.max(1, Math.round(pace14)) + ' min' : h1(pace14) + ' h') + ' a day</b>) the <b>' + h1(left) + ' h</b> left take about <b>' + U.plural(need, 'day') + '</b>: you finish around <b>' + e(U.fmtLong(fin)) + '</b> — ' +
         (late > 0 ? '<span class="fin-bad">' + U.plural(late, 'day') + ' after the plan ends</span>. To finish on time: <b>' + h1(left / Math.max(1, daysLeft)) + ' h a day</b>.' : late < 0 ? '<span class="ok-text">' + U.plural(-late, 'day') + ' early</span>.' : 'right on time.') + '</p>' +
-        '<div class="sp-line" role="img" aria-label="Plan start, today, plan end and the forecast finish"><i class="bar"></i><i class="done" style="width:' + x(today) + '"></i>' +
-        '<span class="pin a" style="left:0"><b>Start</b>' + e(U.fmtDM(sp.a)) + '</span><span class="pin t" style="left:' + x(today) + '"><b>Today</b></span><span class="pin b" style="left:' + x(sp.b) + '"><b>Plan ends</b>' + e(U.fmtDM(sp.b)) + '</span>' +
-        '<span class="pin f' + (late > 0 ? ' bad' : ' good') + '" style="left:' + x(fin) + '"><b>At this pace</b>' + e(U.fmtDM(fin)) + '</span></div>';
+        line([['a', sp.a, 'Start', sp.a], ['t', today, 'Today', null], ['b', sp.b, 'Plan ends', sp.b], ['f' + (late > 0 ? ' bad' : ' good'), fin, 'At this pace', fin]], x);
     }
     const fcHtml = '<figure class="chart sp-fc"><figcaption><span class="gh">When you will finish</span></figcaption>' + fc + '</figure>';
     // weekdays over the last eight weeks

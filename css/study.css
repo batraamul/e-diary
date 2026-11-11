@@ -268,8 +268,15 @@
 .sp-line .pin { position: absolute; top: 0; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; padding-top: 22px; font-size: 10.5px; color: var(--ink-3); white-space: nowrap; }
 .sp-line .pin::before { content: ''; position: absolute; top: 4px; width: 3px; height: 20px; border-radius: 2px; background: var(--ink-3); }
 .sp-line .pin b { font-size: 10.5px; color: var(--ink-2); } .sp-line .pin.t::before { background: var(--ink); } .sp-line .pin.f.bad::before { background: var(--bad); } .sp-line .pin.f.good::before { background: var(--good); }
-.sp-line .pin.f { top: 26px; padding-top: 14px; } .sp-line .pin.f::before { top: -6px; height: 18px; }
-.sp-line { height: 70px; }
+.sp-line { height: calc(34px + var(--rows, 1) * 17px); }
+.sp-line .tick { position: absolute; top: 4px; width: 3px; height: 20px; margin-left: -1.5px; border-radius: 2px; background: var(--ink-3); }
+.sp-line .tick.t { background: var(--ink); } .sp-line .tick.f.bad { background: var(--bad); } .sp-line .tick.f.good { background: var(--good); }
+.sp-line .pin, .sp-line .pin::before { all: unset; }
+.sp-line .pin { position: absolute; top: 30px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 1px; font-size: 11px; line-height: 1.35; color: var(--ink-3); white-space: nowrap; }
+.sp-line .pin.lft { transform: none; align-items: flex-start; } .sp-line .pin.rgt { transform: translateX(-100%); align-items: flex-end; }
+.sp-line .pin em { font-style: normal; } .sp-line .pin b { font-size: 11px; color: var(--ink-2); }
+.sp-line .pin em.t b { color: var(--ink); } .sp-line .pin em.f.bad b { color: var(--bad); } .sp-line .pin em.f.good b { color: var(--good); }
+@media (max-width: 560px) { .sp-line { margin: 0 8px 6px; } }
 .sp-two { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
 .sp-ok { padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--good) 10%, var(--paper-3)); font-weight: 600; }
 /* keyboard focus on the study pages */
