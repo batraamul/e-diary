@@ -154,7 +154,8 @@
       if (d >= -7 && d <= 45) out.push({ kind: 'holding', item: h, date: h.due, amount: h.premium || h.value || h.amount || 0, name: h.name + (h.type === 'insurance' ? ' — renewal' : ' — ' + (HTYPES[h.type] || 'due')) });
     });
     if (ED.purchases) ED.purchases.dues().forEach(x => out.push(x));   // groceries and clothes to buy (js/purchases.js)
-    if (ED.finLinks) ED.finLinks.dues().forEach(x => out.push(x));     // 1.19: SIP instalments and goal withdrawals (js/finlinks.js)
+    if (ED.finLinks) ED.finLinks.dues().forEach(x => out.push(x));
+    if (ED.renewals) ED.renewals.dues().forEach(x => out.push(x));       // 1.26.0: Insurance & Subscriptions (js/renewals.js)     // 1.19: SIP instalments and goal withdrawals (js/finlinks.js)
     return out.sort((a, b) => a.date.localeCompare(b.date));
   };
 
@@ -525,7 +526,7 @@
         const days = U.diffDays(U.today(), d.date);
         const when = days < 0 ? Math.abs(days) + ' days late' : days === 0 ? 'today' : days === 1 ? 'tomorrow' : 'in ' + days + ' days';
         return '<li class="' + (days < 0 ? 'late' : days <= 3 ? 'soon' : '') + '"><span class="fin-due-d num">' + e(U.fmtDM(d.date)) + '</span><span class="grow">' + e(d.name) + '<span class="hint"> · ' + e(when) + (days < 0 ? ' ⚠' : '') + '</span></span><span class="num">' + (d.amount ? e(M$(d.amount)) : '') + '</span>' +
-          (d.kind === 'sip' ? '<button type="button" class="btn small ghost" data-act="fl-sip" data-id="' + e(d.item.id) + '">SIP</button>' : d.kind === 'commit' ? '<button type="button" class="btn small ghost" data-act="fl-commit" data-id="' + e(d.item.id) + '">Goal</button>' : d.kind === 'purchase' ? '<button type="button" class="btn small" data-act="pu-pay" data-key="' + e(d.key) + '">Bought</button>' : d.kind === 'bill' ? '<button type="button" class="btn small" data-act="fin-billpay" data-id="' + e(d.item.id) + '">Paid</button>' : '<button type="button" class="btn small ghost" data-act="fin-remind" data-id="' + e(d.item.id) + '" title="Add a task on the due date">' + ED.icon('bell') + '</button>') + '</li>';
+          (d.kind === 'renewal' ? '<button type="button" class="btn small ghost" data-act="rn-open" data-id="' + e(d.item.id) + '">Renewal</button>' : d.kind === 'sip' ? '<button type="button" class="btn small ghost" data-act="fl-sip" data-id="' + e(d.item.id) + '">SIP</button>' : d.kind === 'commit' ? '<button type="button" class="btn small ghost" data-act="fl-commit" data-id="' + e(d.item.id) + '">Goal</button>' : d.kind === 'purchase' ? '<button type="button" class="btn small" data-act="pu-pay" data-key="' + e(d.key) + '">Bought</button>' : d.kind === 'bill' ? '<button type="button" class="btn small" data-act="fin-billpay" data-id="' + e(d.item.id) + '">Paid</button>' : '<button type="button" class="btn small ghost" data-act="fin-remind" data-id="' + e(d.item.id) + '" title="Add a task on the due date">' + ED.icon('bell') + '</button>') + '</li>';
       }).join('') + '</ul>' : '<p class="hint">No bills or renewals due soon.</p>');
       return duesHtml + fyCard + groups + where + rate;
     },

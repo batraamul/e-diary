@@ -582,6 +582,13 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 
 **1.25.5 — Ideal Day: print / save as PDF:** ⋯ → *Print / save as PDF…* → *This day only* or *Every season, working days and holidays*. Each day plan prints on its own A4 page: a 24-hour colour strip, the time-table (time, activity, kind, length, notes) and the hours by kind. In the print window choose *Save as PDF* to keep a PDF.
 
+**1.26.0 — Finance → Insurance & Subscriptions (new page):** everything that renews — health / life / vehicle / home / travel insurance, OTT, music, cloud, news, mobile & internet, gym and club memberships, domains, licences, AMCs — with its price, how often it renews and the next due date.
+- **Reminder:** a task “🔁 Renew … — ₹… · due …” goes into the Daily planner the number of days before that you choose (15 by default). Tick it when paid.
+- **Payment in Money:** on the due date (if *Record the payment automatically* is on), or when you tick the reminder or press **Paid**, a spending record goes into Money (category and account as you set) — never twice — and the next renewal date is set by the cycle. Renewals also appear in Money → Overview → *Coming up*.
+- **Calendar:** optional all-day entry on the due date in the diary calendar, or in the diary and Google Calendar (copied by your Google Calendar link; if that is not set up, Google Calendar opens with the entry filled in).
+- **At a glance:** what it all costs a year and a month, what is due in 30 days, a 12-month *deadline runway* (dots sized by amount, coloured overdue / this week / this month / later), a countdown list, cost by kind and insurance cover. Each item has a countdown ring.
+- Insurance policies already in Money → Accounts & policies can be brought in with one button.
+
 **FD maturity amount (within 1.25):** an FD can take the *Maturity amount* from its receipt; its value then grows to exactly that amount on the maturity date (the bank's own rounding and day count). A cumulative FD's “Interest accruing / payable” table (one row per financial year) is the interest accrued each year for TDS and income tax — it is paid with the principal at maturity.
 
 **Fixed deposits (within 1.25, 9 Nov 2026):** *Interest added* now says how the interest is paid — compounded every quarter / month / half year / year and **paid at maturity** (cumulative FD), **paid at maturity as simple interest, not compounded**, or **paid out to your bank account** (payout FD: the deposit stays at its principal and the note shows the yearly interest to your bank). SCSS and Post office MIS use the payout option.

@@ -685,6 +685,8 @@ There is no automated test runner in the package; test by hand in the browser:
 
 **1.25.5 (sw `e-diary-1.25.5`):** `ED.ideal.print(all)` builds a self-contained A4 HTML document (one `<section>` per season × day type with blocks) in a hidden iframe and calls its `print()` (fallback: a new window). Menu: `id-menu` → `id-print`.
 
+**1.26.0 (sw `e-diary-1.26.0`):** new `js/renewals.js` (`ED.renewals`, view `renewals` in the Finance group between Money and Financial Plan), styles at the end of `css/finance.css`. Data `renewals.list[]` = { id, name, kind, provider, ref, cover, cost, cycle (monthly|quarterly|half|yearly|2y|3y|5y|10y|once), due, remind, auto, accountId, categoryId, cal ''|diary|google, link, notes, active, paid{due: recordId}, skipTask, eventId, holdingId }. `RN.reconcile` (store change + day change): ticked reminder → pay; auto + due ≤ today → pay (record `fr-rn-<id>-<due>`, due += cycle); reminder task `tk-rn-<id>-<due>` (link.k 'renewal') on due − remind; stale open reminders removed. Calendar via `FX.linkEvent`; Google via `GC.setPick('e:'+eventId)` or `GC.templateUrl`. Sync: `nested('renewals', ['list'])`. `FN.dues` includes `RN.dues()`.
+
 **1.25 (sw `e-diary-1.25-r9`):** `MV.fdVal(P, rate, comp, start, due, k, matAmt)` — with `mk.matAmt`, value = P·(matAmt/P)^(days/term); used by refresh, `MV.maturity` and the dialog preview (`#mv-ma`, `.mv-fdo`).
 
 **1.25 (sw `e-diary-1.25-r8`):** FD `comp` adds `'p'` (payout: `fdAt` = principal); `'s'` = simple interest paid at maturity; GS scss / pomis → `'p'`.

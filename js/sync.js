@@ -100,6 +100,8 @@
     out.pooja = nested('pooja', ['daily', 'custom', 'texts'], { skip: 1, vratEnd: 1, japa: 2 }) || undefined;
     out.exercise = nested('exercise', ['log'], { steps: 1, ticks: 2, watch: 1 }) || undefined;
     out.welfare = nested('welfare', ['list']) || undefined;
+    // 1.26.0: Insurance & Subscriptions
+    out.renewals = nested('renewals', ['list']) || undefined;
     // 1.17: Research papers
     out.research = nested('research', ['topics', 'papers', 'bits']) || undefined;
     // 1.18: Projects
