@@ -681,6 +681,8 @@ There is no automated test runner in the package; test by hand in the browser:
 
 **1.25.3 (sw `e-diary-1.25.3`):** studylink `SL.prepChoices(keep)` → [{key 'ex:<id>'|'iv', label, tops:[{subj,name}], subj}], `SL.prepEnsure(key)` → trackId (track named like the exam, else the existing track holding most of its topics, else new; topics added with plain `tp` ids so the auto link never removes them), `SL.prepLabel`. Session field `s.prep` (set from `#ss-prep` / `#ba-prep`, deleted for regular study).
 
+**1.25.4 (sw `e-diary-1.25.4`):** idealday timeline: segments sorted, grouped while their drawn boxes (min height `MINH` 20 px) overlap, greedy column per group; a group with >1 column sets `left`/`width` as calc fractions of the lane.
+
 **1.25 (sw `e-diary-1.25-r9`):** `MV.fdVal(P, rate, comp, start, due, k, matAmt)` — with `mk.matAmt`, value = P·(matAmt/P)^(days/term); used by refresh, `MV.maturity` and the dialog preview (`#mv-ma`, `.mv-fdo`).
 
 **1.25 (sw `e-diary-1.25-r8`):** FD `comp` adds `'p'` (payout: `fdAt` = principal); `'s'` = simple interest paid at maturity; GS scss / pomis → `'p'`.

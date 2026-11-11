@@ -132,9 +132,15 @@
       let hours = ''; for (let h = w0; h <= w1; h += 60) hours += '<span class="id-hr" style="top:' + ((h - w0) * PX) + 'px">' + e(ft(U.fromMin(Math.min(h, 1439))).replace(':00', '').replace('23:59', '24').replace(/^11:59 PM$/, '12 AM')) + '</span>';
       const segs = [];
       list.forEach(b => { const a = U.toMin(b.from), l = len(b); if (!l) return; const parts = a + l <= 1440 ? [[a, a + l]] : [[a, 1440], [0, a + l - 1440]]; parts.forEach(p => { const y0 = Math.max(p[0], w0), y1 = Math.min(p[1], w1); if (y1 > y0) segs.push({ b, y0, y1 }); }); });
-      const bl = segs.map(({ b, y0, y1 }) => {
+      // 1.25.4: blocks that overlap in time (or are too short to show their name) sit side by side in columns, never behind one another
+      const MINH = 20, vis = g => ({ a: g.y0 * PX, z: g.y0 * PX + Math.max(MINH - 2, (g.y1 - g.y0) * PX - 2) });   // the box as drawn
+      segs.sort((p, q) => p.y0 - q.y0 || q.y1 - p.y1);
+      let grp = [], gEnd = -1;
+      const flush = () => { const ends = []; grp.forEach(g => { const v = vis(g); let c = ends.findIndex(z => z <= v.a); if (c < 0) { c = ends.length; ends.push(0); } ends[c] = v.z; g.col = c; }); grp.forEach(g => { g.cols = ends.length; }); grp = []; };
+      segs.forEach(g => { const v = vis(g); if (grp.length && v.a >= gEnd) flush(); grp.push(g); gEnd = Math.max(gEnd, v.z); }); flush();
+      const bl = segs.map(({ b, y0, y1, col, cols }) => {
         const c = cat(b.cat), h = (y1 - y0) * PX, l = len(b), live = showNow && ((n - U.toMin(b.from) + 1440) % 1440 < l);
-        return '<button type="button" class="id-b' + (h < 26 ? ' tiny' : h < 44 ? ' small' : '') + (live ? ' live' : '') + '" style="top:' + ((y0 - w0) * PX) + 'px;height:' + Math.max(12, h - 2) + 'px;--c:' + c[3] + '" data-act="id-edit" data-id="' + e(b.id) + '" title="' + e(ft(b.from) + ' – ' + ft(b.to) + ' · ' + b.what) + '">' +
+        return '<button type="button" class="id-b' + (h < 26 ? ' tiny' : h < 44 ? ' small' : '') + (live ? ' live' : '') + '" style="top:' + ((y0 - w0) * PX) + 'px;height:' + Math.max(MINH - 2, h - 2) + 'px;' + (cols > 1 ? 'left:calc(6px + (100% - 10px) * ' + col + ' / ' + cols + ');right:auto;width:calc((100% - 10px) / ' + cols + ' - 3px);' : '') + '--c:' + c[3] + '" data-act="id-edit" data-id="' + e(b.id) + '" title="' + e(ft(b.from) + ' – ' + ft(b.to) + ' · ' + b.what) + '">' +
           '<span class="id-bi" aria-hidden="true">' + c[2] + '</span><span class="id-bt"><b>' + e(b.what || c[1]) + '</b><span class="num">' + e(ft(b.from)) + ' – ' + e(ft(b.to)) + ' · ' + hm(l) + '</span></span></button>';
       }).join('');
       const nowLine = showNow && n >= w0 ? '<div class="id-nowl" style="top:' + ((n - w0) * PX) + 'px"><span>' + e(ft(U.fromMin(n))) + '</span></div>' : '';

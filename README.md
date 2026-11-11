@@ -578,6 +578,8 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 
 **1.25.3 — a study session for an exam or an interview:** *New study session* and *Add to the schedule* have a **For** list: regular study, each exam (today or later) or Interview preparation. Choosing one puts the session under that exam's subject (the subject named like the exam if you have it; otherwise one is added), adds the exam's syllabus topics / your interview question categories to that subject, and fills Topics so you pick one (＋ Another topic for more). The choice is kept with the session.
 
+**1.25.4 — Purpose → Ideal Day:** blocks whose times overlap (or that are too short to fit their name, like a 3-minute wake-up) are placed side by side in columns instead of hiding behind the next block. Hover or tap a narrow block for its full name and times.
+
 **FD maturity amount (within 1.25):** an FD can take the *Maturity amount* from its receipt; its value then grows to exactly that amount on the maturity date (the bank's own rounding and day count). A cumulative FD's “Interest accruing / payable” table (one row per financial year) is the interest accrued each year for TDS and income tax — it is paid with the principal at maturity.
 
 **Fixed deposits (within 1.25, 9 Nov 2026):** *Interest added* now says how the interest is paid — compounded every quarter / month / half year / year and **paid at maturity** (cumulative FD), **paid at maturity as simple interest, not compounded**, or **paid out to your bank account** (payout FD: the deposit stays at its principal and the note shows the yearly interest to your bank). SCSS and Post office MIS use the payout option.
