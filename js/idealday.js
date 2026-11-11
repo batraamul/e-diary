@@ -281,11 +281,43 @@
   A['id-put'] = () => ID.put();
   A['id-suggest'] = () => { const s = curS(), t = curT(); ED.store.checkpoint('Ideal day'); fill(s, t, ID.suggest(s, t)); ED.store.commit(); ED.ui.undoToast('A suggested ' + season(s).name.toLowerCase() + ' day — change any block to make it yours'); };
   A['id-copy'] = el => { const s = curS(), t = curT(); ED.store.checkpoint('Ideal day'); fill(s, t, blocks(el.dataset.from, el.dataset.ft).map(b => ({ from: b.from, to: b.to, cat: b.cat, what: b.what, notes: b.notes || '' }))); ED.store.commit(); ED.ui.undoToast('Copied — change what differs in ' + season(s).name); };
+  /* 1.25.5: print / save as PDF — one A4 page per day plan: the time-table, the hours by kind and the notes */
+  ID.print = all => {
+    const days = []; (all ? SEASONS.map(x => x.id) : [curS()]).forEach(sid => (all ? TYPES.map(x => x[0]) : [curT()]).forEach(t => { const l = blocks(sid, t); if (l.length) days.push({ sid, t, l }); }));
+    if (!days.length) { ED.ui.toast('Nothing planned yet to print'); return; }
+    const page = d => {
+      const ss = season(d.sid), tot = {}; d.l.forEach(b => { tot[b.cat] = (tot[b.cat] || 0) + len(b); });
+      const rows = d.l.map(b => { const c = cat(b.cat); return '<tr style="--c:' + c[3] + '"><td class="t">' + e(ft(b.from)) + ' – ' + e(ft(b.to)) + '</td><td class="w"><span class="i">' + c[2] + '</span> ' + e(b.what || c[1]) + (b.notes ? '<div class="n">' + e(b.notes) + '</div>' : '') + '</td><td class="k">' + e(c[1]) + '</td><td class="d">' + e(hm(len(b))) + '</td></tr>'; }).join('');
+      const kinds = Object.keys(tot).sort((x, y) => tot[y] - tot[x]).map(k => { const c = cat(k); return '<li style="--c:' + c[3] + '"><i style="width:' + (tot[k] / 1440 * 100).toFixed(1) + '%"></i><span>' + c[2] + ' ' + e(c[1]) + '</span><b>' + e(hm(tot[k])) + '</b></li>'; }).join('');
+      const strip = d.l.map(b => { const a = U.toMin(b.from), l = len(b), c = cat(b.cat); return [[a, Math.min(1440, a + l)], a + l > 1440 ? [0, a + l - 1440] : null].filter(Boolean).map(r => '<i style="left:' + (r[0] / 14.4).toFixed(2) + '%;width:' + ((r[1] - r[0]) / 14.4).toFixed(2) + '%;background:' + c[3] + '" title="' + e(b.what) + '"></i>').join(''); }).join('');
+      return '<section><header><h1>' + ss.icon + ' Ideal day — ' + e(ss.name) + ' · ' + (d.t === 'work' ? 'Working day' : 'Holiday') + '</h1><p>' + e(monthsLabel(d.sid)) + ' · ' + e(ss.note) + '</p></header>' +
+        '<div class="strip">' + strip + '</div><div class="ax"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>' +
+        '<table><thead><tr><th>Time</th><th>Activity</th><th>Kind</th><th>Length</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+        '<h2>Hours by kind</h2><ul class="kinds">' + kinds + '</ul></section>';
+    };
+    const css = '@page{size:A4;margin:12mm}*{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}body{font:11pt/1.35 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1c1917;margin:0}' +
+      'section{page-break-after:always;break-after:page}section:last-child{page-break-after:auto;break-after:auto}h1{font-size:17pt;margin:0 0 2px}header p{margin:0 0 10px;color:#57534e;font-size:9.5pt}' +
+      '.strip{position:relative;height:14px;border-radius:4px;background:#f5f5f4;overflow:hidden}.strip i{position:absolute;top:0;bottom:0}.ax{display:flex;justify-content:space-between;font-size:7.5pt;color:#78716c;margin:2px 0 10px}' +
+      'table{width:100%;border-collapse:collapse}th{text-align:left;font-size:8.5pt;color:#57534e;border-bottom:1.5px solid #a8a29e;padding:4px 6px}td{padding:5px 6px;border-bottom:1px solid #e7e5e4;vertical-align:top}tr{break-inside:avoid}' +
+      'td.t{white-space:nowrap;font-variant-numeric:tabular-nums;border-left:4px solid var(--c);width:1%}td.w{font-weight:600}td.k{color:#57534e;font-size:9pt;white-space:nowrap}td.d{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;width:1%}.n{font-weight:400;color:#57534e;font-size:9pt}.i{font-weight:400}' +
+      'h2{font-size:12pt;margin:14px 0 6px}.kinds{list-style:none;padding:0;margin:0;columns:2;column-gap:18px}.kinds li{position:relative;display:flex;justify-content:space-between;padding:3px 6px;margin-bottom:3px;break-inside:avoid;font-size:9.5pt}.kinds i{position:absolute;left:0;top:0;bottom:0;background:var(--c);opacity:.18;border-radius:3px}.kinds span,.kinds b{position:relative}' +
+      'footer{position:fixed;bottom:0;left:0;right:0;font-size:7.5pt;color:#a8a29e;text-align:right}';
+    const html = '<!doctype html><html><head><meta charset="utf-8"><title>Ideal day' + (all ? ' — all seasons' : ' — ' + season(days[0].sid).name) + '</title><style>' + css + '</style></head><body>' + days.map(page).join('') + '<footer>My E-Diary · printed ' + e(U.fmtShort(U.today())) + '</footer></body></html>';
+    const f = document.createElement('iframe'); f.setAttribute('aria-hidden', 'true'); f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+    document.body.appendChild(f);
+    const w = f.contentWindow; w.document.open(); w.document.write(html); w.document.close();
+    setTimeout(() => { try { w.focus(); w.print(); } catch (_) { const x = window.open('', '_blank'); if (x) { x.document.write(html); x.document.close(); x.print(); } } setTimeout(() => f.remove(), 60000); }, 300);
+  };
+  A['id-print'] = () => ED.ui.menu(document.querySelector('[data-act="id-menu"]') || document.body, [
+    { label: 'This day only (' + season(curS()).name + ' · ' + (curT() === 'work' ? 'working day' : 'holiday') + ')', icon: 'printer', onClick: () => ID.print(false) },
+    { label: 'Every season, working days and holidays', icon: 'printer', onClick: () => ID.print(true) },
+  ]);
   A['id-menu'] = el => {
     const s = curS(), t = curT(), has = blocks(s, t).length;
     ED.ui.menu(el, [
       { label: 'Months and seasons…', icon: 'calendar', onClick: ID.months },
       has ? { label: 'Put in Daily tasks…', icon: 'checkSq', onClick: ID.put } : null,
+      IDL().blocks.length ? { label: 'Print / save as PDF…', icon: 'printer', onClick: () => setTimeout(() => A['id-print'](), 0) } : null,
       has ? { label: 'Copy as text', icon: 'copy', onClick: async () => { const lines = [season(s).name + ' — ' + (t === 'work' ? 'working day' : 'holiday')].concat(blocks(s, t).map(b => ft(b.from) + '–' + ft(b.to) + '  ' + cat(b.cat)[2] + ' ' + b.what)); ED.ui.toast(await U.copy(lines.join('\n')) ? 'Copied' : 'Could not copy'); } } : null,
       has ? { label: 'Clear this day', icon: 'trash', danger: true, onClick: async () => { if (!await ED.ui.confirm({ title: 'Clear', message: 'Remove every block of the ' + season(s).name + ' ' + (t === 'work' ? 'working day' : 'holiday') + '?', ok: 'Clear', danger: true })) return; ED.store.checkpoint('Ideal day'); IDL().blocks = IDL().blocks.filter(b => !(b.s === s && b.t === t)); ED.store.commit(); ED.ui.undoToast('Cleared'); } } : null,
     ].filter(Boolean));

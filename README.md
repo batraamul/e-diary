@@ -580,6 +580,8 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 
 **1.25.4 — Purpose → Ideal Day:** blocks whose times overlap (or that are too short to fit their name, like a 3-minute wake-up) are placed side by side in columns instead of hiding behind the next block. Hover or tap a narrow block for its full name and times.
 
+**1.25.5 — Ideal Day: print / save as PDF:** ⋯ → *Print / save as PDF…* → *This day only* or *Every season, working days and holidays*. Each day plan prints on its own A4 page: a 24-hour colour strip, the time-table (time, activity, kind, length, notes) and the hours by kind. In the print window choose *Save as PDF* to keep a PDF.
+
 **FD maturity amount (within 1.25):** an FD can take the *Maturity amount* from its receipt; its value then grows to exactly that amount on the maturity date (the bank's own rounding and day count). A cumulative FD's “Interest accruing / payable” table (one row per financial year) is the interest accrued each year for TDS and income tax — it is paid with the principal at maturity.
 
 **Fixed deposits (within 1.25, 9 Nov 2026):** *Interest added* now says how the interest is paid — compounded every quarter / month / half year / year and **paid at maturity** (cumulative FD), **paid at maturity as simple interest, not compounded**, or **paid out to your bank account** (payout FD: the deposit stays at its principal and the note shows the yearly interest to your bank). SCSS and Post office MIS use the payout option.

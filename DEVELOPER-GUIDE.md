@@ -683,6 +683,8 @@ There is no automated test runner in the package; test by hand in the browser:
 
 **1.25.4 (sw `e-diary-1.25.4`):** idealday timeline: segments sorted, grouped while their drawn boxes (min height `MINH` 20 px) overlap, greedy column per group; a group with >1 column sets `left`/`width` as calc fractions of the lane.
 
+**1.25.5 (sw `e-diary-1.25.5`):** `ED.ideal.print(all)` builds a self-contained A4 HTML document (one `<section>` per season × day type with blocks) in a hidden iframe and calls its `print()` (fallback: a new window). Menu: `id-menu` → `id-print`.
+
 **1.25 (sw `e-diary-1.25-r9`):** `MV.fdVal(P, rate, comp, start, due, k, matAmt)` — with `mk.matAmt`, value = P·(matAmt/P)^(days/term); used by refresh, `MV.maturity` and the dialog preview (`#mv-ma`, `.mv-fdo`).
 
 **1.25 (sw `e-diary-1.25-r8`):** FD `comp` adds `'p'` (payout: `fdAt` = principal); `'s'` = simple interest paid at maturity; GS scss / pomis → `'p'`.
