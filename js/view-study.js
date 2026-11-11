@@ -318,25 +318,27 @@
       const filed = (tr, name) => srcs.filter(x => (x.trackId === tr.id || !x.trackId) && (low(x.topic) === low(name) || low(x.sub) === low(name))).length;
       const subjects = p.tracks.map(tr => {
         const own = (p.topics || []).filter(t => t.trackId === tr.id);
-        const subNames = new Set(own.filter(t => t.parent && own.some(y => y.id === t.parent)).map(t => low(t.name)));
-        const list = ST.topicsFor(tr.id);
-        const row = (t, isSub) => {
+        const list = ST.topicsFor(tr.id), kidsOf = id => own.filter(o => o.parent === id);
+        const isChild = t => own.some(o => o.parent && low(o.name) === low(t) && own.some(y => y.id === o.parent));
+        // 1.25.2: a tree of any depth — ＋ adds one level below, ✎ renames, ✕ deletes (with everything under it)
+        const row = (t, lvl) => {
           const l = ST.sessions().filter(s => s.trackId === tr.id && ST.hasTopic(s, t));
-          const x = ST.stats(l), mine = own.find(o => low(o.name) === low(t)), nf = filed(tr, t);
-          const tag = mine && /^tp-ex-/.test(mine.id || '') ? ' <span class="chip st-chip-ex">exam</span>' : mine && /^tp-iv-/.test(mine.id || '') ? ' <span class="chip st-chip-iv">interview</span>' : mine && !mine.auto && !isSub ? ' <span class="chip">added</span>' : '';
-          return '<li class="' + (isSub ? 'st-sub' : '') + '"><span class="grow">' + (isSub ? '<span class="st-sub-i" aria-hidden="true">↳</span> ' : '') + e(t) + tag + (nf ? ' <span class="hint">· 📚 ' + nf + '</span>' : '') + '</span><span class="hint num">' + (x.n ? x.done + '/' + x.n + ' · ' + h1(x.doneMin) + ' h' : 'no sessions') + '</span>' +
-            (!isSub ? '<button type="button" class="icon-btn sm" data-act="study-topic-add" data-track="' + e(tr.id) + '" data-parent="' + e(t) + '" aria-label="Add a subtopic to ' + e(t) + '" title="Add a subtopic">' + ED.icon('plus') + '</button>' : '') +
-            (mine && !x.n && !/^tp-(ex|iv)-/.test(mine.id || '') ? '<button type="button" class="icon-btn sm" data-act="study-topic-del" data-id="' + e(mine.id) + '" aria-label="Remove ' + e(t) + '">' + ED.icon('x') + '</button>' : '<span class="st-tp-sp"></span>') + '</li>';
+          const x = ST.stats(l), mine = own.find(o => low(o.name) === low(t)), nf = filed(tr, t), auto = mine && /^tp-(ex|iv)-/.test(mine.id || '');
+          const kids = mine ? kidsOf(mine.id) : [];
+          const tag = mine && /^tp-ex-/.test(mine.id || '') ? ' <span class="chip st-chip-ex">exam</span>' : mine && /^tp-iv-/.test(mine.id || '') ? ' <span class="chip st-chip-iv">interview</span>' : mine && !mine.auto && !lvl ? ' <span class="chip">added</span>' : '';
+          const d = ' data-track="' + e(tr.id) + '" data-name="' + e(t) + '"';
+          return '<li class="st-tn' + (lvl ? ' st-sub' : '') + '" style="--lvl:' + lvl + '"><span class="grow">' + (lvl ? '<span class="st-sub-i" aria-hidden="true">↳</span> ' : '') + e(t) + tag + (kids.length ? ' <span class="hint num">· ' + kids.length + '</span>' : '') + (nf ? ' <span class="hint">· 📚 ' + nf + '</span>' : '') + '</span><span class="hint num">' + (x.n ? x.done + '/' + x.n + ' · ' + h1(x.doneMin) + ' h' : 'no sessions') + '</span>' +
+            '<button type="button" class="icon-btn sm" data-act="study-topic-add"' + d + ' data-parent="' + e(t) + '" data-pid="' + e(mine ? mine.id : '') + '" aria-label="Add a subtopic under ' + e(t) + '" title="Add a subtopic under it">' + ED.icon('plus') + '</button>' +
+            (auto ? '<span class="st-tp-sp" title="Change it in Exam preparation / Interview Prep"></span><span class="st-tp-sp"></span>' :
+              '<button type="button" class="icon-btn sm" data-act="study-topic-ren"' + d + ' aria-label="Rename ' + e(t) + '" title="Rename">' + ED.icon('pencil') + '</button>' +
+              '<button type="button" class="icon-btn sm" data-act="study-topic-del"' + d + ' aria-label="Delete ' + e(t) + '" title="Delete">' + ED.icon('x') + '</button>') + '</li>' +
+            kids.map(k => row(k.name, lvl + 1)).join('');
         };
-        const rows = list.filter(t => !subNames.has(low(t))).map(t => {
-          const me = own.find(o => !o.parent && low(o.name) === low(t));
-          const kids = me ? own.filter(o => o.parent === me.id) : [];
-          return row(t, false) + kids.map(k => row(k.name, true)).join('');
-        }).join('');
+        const rows = list.filter(t => !isChild(t)).map(t => row(t, 0)).join('');
         return '<details class="st-tp"' + (list.length <= 14 ? ' open' : '') + '><summary><i class="sx-sw" style="--c:' + e(ST.color(tr)) + '"></i><b>' + e(tr.name) + '</b> <span class="hint num">· ' + U.plural(list.length, 'topic') + '</span>' + (tr.auto === 'link' ? ' <span class="chip">added for your exams / interviews</span>' : '') + '</summary>' + (rows ? '<ul class="st-tplist">' + rows + '</ul>' : '<p class="hint">No topics yet.</p>') +
           '<button type="button" class="btn small" data-act="study-topic-add" data-track="' + e(tr.id) + '">' + ED.icon('plus') + 'Add a topic</button></details>';
       }).join('');
-      return link + '<h3 class="gh">Topics of each subject</h3><p class="hint">Each week’s topic from the plan, plus any you add — and subtopics under them (＋ beside a topic). They are offered when you add or edit a session, and books, lectures and papers can be filed under them (📚 shows how many).</p>' + subjects;
+      return link + '<h3 class="gh">Topics of each subject</h3><p class="hint">Each week’s topic from the plan, plus any you add, as a tree: ＋ adds a subtopic under any line (and a sub-subtopic under that, as deep as you like), ✎ renames and ✕ deletes at every level. They are offered when you add or edit a session, and books, lectures and papers can be filed under them (📚 shows how many).</p>' + subjects;
     },
     notes(p) {
       return (p.intro ? '<p class="st-intro">' + e(p.intro) + '</p>' : '') +

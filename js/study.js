@@ -1001,8 +1001,9 @@
   };
   ST.subTopics = (trackId, topic) => {
     const all = ((ST.plan() || {}).topics || []).filter(t => !trackId || t.trackId === trackId);
-    const par = all.filter(t => !t.parent && lowS(t.name) === lowS(topic)).map(t => t.id);
-    return all.filter(t => par.indexOf(t.parent) >= 0).map(t => t.name);
+    const out = [], seen = new Set(), walk = ids => { const k = all.filter(t => ids.indexOf(t.parent) >= 0 && !seen.has(t.id)); k.forEach(t => { seen.add(t.id); out.push(t.name); }); if (k.length) walk(k.map(t => t.id)); };
+    walk(all.filter(t => !t.parent && lowS(t.name) === lowS(topic)).map(t => t.id));   // 1.25.2: every level under the topic
+    return out;
   };
   const dl = (id, l) => '<datalist id="' + id + '">' + l.map(t => '<option value="' + e(t) + '">').join('') + '</datalist>';
   const fileFields = (pf, x) => '<label class="lbl" for="' + pf + '-tp">Topic</label><div><input id="' + pf + '-tp" class="field" list="' + pf + '-tpl" value="' + e(x.topic || '') + '" placeholder="e.g. Radar signal processing" autocomplete="off">' + dl(pf + '-tpl', ST.mainTopics(x.trackId)) + '</div>' +
@@ -1176,18 +1177,57 @@
       },
     });
   };
-  ST.addTopic = async (trackId, parentName) => {
+  /* 1.25.2: topics form a tree of any depth — Topic → Subtopic → Sub-subtopic … (each node's parent is its parent's id).
+     A name is used once per subject, because sessions, books and the week plan refer to topics by name. */
+  const lowT = v => String(v || '').trim().toLowerCase();
+  ST.topicNode = (trackId, name) => ((ST.plan() || {}).topics || []).find(t => t.trackId === trackId && lowT(t.name) === lowT(name)) || null;
+  ST.topicKids = (trackId, id) => ((ST.plan() || {}).topics || []).filter(t => t.trackId === trackId && id && t.parent === id);
+  const subtree = (trackId, id) => { const out = []; const go = i => ST.topicKids(trackId, i).forEach(k => { out.push(k); go(k.id); }); go(id); return out; };
+  ST.addTopic = async (trackId, parentName, parentId) => {
     const p = ST.plan(); const tr = ST.track(trackId); if (!p || !tr) return;
-    const v = await ED.ui.prompt({ title: (parentName ? 'New subtopic · ' + parentName : 'New topic · ' + tr.name), label: parentName ? 'Subtopic of “' + parentName + '”' : 'Topic', ok: parentName ? 'Add subtopic' : 'Add topic', hint: 'It appears in the Topic list when you add or edit a session of this subject, and books, lectures and papers can be filed under it.' });
+    const pn = parentName || (parentId && (p.topics.find(t => t.id === parentId) || {}).name) || '';
+    const v = await ED.ui.prompt({ title: (pn ? 'New subtopic · ' + pn : 'New topic · ' + tr.name), label: pn ? 'Subtopic of “' + pn + '”' : 'Topic', ok: pn ? 'Add subtopic' : 'Add topic', hint: 'It appears in the Topic list when you add or edit a session of this subject, and books, lectures and papers can be filed under it. Use ＋ on any line to go one level deeper.' });
     if (!v || !v.trim()) return;
     if (ST.topicsFor(trackId).some(t => t.toLowerCase() === v.trim().toLowerCase())) { ED.ui.toast('That name is already in this subject’s list'); return; }
     ED.store.checkpoint('Topic');
-    let parent = null;
-    if (parentName) {   // a week's topic is not in the list yet: put it there so the subtopic has a home
-      parent = p.topics.find(t => t.trackId === trackId && !t.parent && t.name.toLowerCase() === parentName.toLowerCase());
-      if (!parent) { parent = { id: U.uid('tp'), trackId, name: parentName }; p.topics.push(parent); }
+    let parent = parentId ? p.topics.find(t => t.id === parentId) : null;
+    if (!parent && pn) {   // a week's topic is not in the list yet: put it there so the subtopic has a home
+      parent = p.topics.find(t => t.trackId === trackId && lowT(t.name) === lowT(pn));
+      if (!parent) { parent = { id: U.uid('tp'), trackId, name: pn }; p.topics.push(parent); }
     }
     p.topics.push(Object.assign({ id: U.uid('tp'), trackId, name: v.trim() }, parent ? { parent: parent.id } : {})); ED.store.commit();
+  };
+  /* rename at any level: the list, the weeks that have it as their topic, its sessions and the books filed under it all follow */
+  ST.renameTopic = async (trackId, name) => {
+    const p = ST.plan(); const tr = ST.track(trackId); if (!p || !tr) return;
+    const v0 = await ED.ui.prompt({ title: 'Rename topic · ' + tr.name, label: 'Name', value: name, ok: 'Rename', hint: 'Sessions, week topics and books / lectures / papers filed under it are renamed too.' });
+    const v = v0 == null ? '' : v0.trim(); if (!v || v === name) return;
+    if (lowT(v) !== lowT(name) && ST.topicsFor(trackId).some(t => lowT(t) === lowT(v))) { ED.ui.toast('That name is already in this subject’s list'); return; }
+    ED.store.checkpoint('Rename topic');
+    const same = t => lowT(t) === lowT(name), now = Date.now();
+    p.topics.forEach(t => { if (t.trackId === trackId && same(t.name)) t.name = v; });
+    (p.weeks || []).forEach(w => { if (w.themes && same(w.themes[trackId])) w.themes[trackId] = v; });
+    ST.sessions().forEach(s => { if (s.trackId !== trackId) return; let ch = false; if (same(s.topic)) { s.topic = v; ch = true; } if (Array.isArray(s.moreTopics)) s.moreTopics = s.moreTopics.map(t => same(t) ? (ch = true, v) : t); if (ch) s.updatedAt = now; });
+    ST.sources().forEach(x => { if (x.trackId && x.trackId !== trackId) return; if (same(x.topic)) x.topic = v; if (same(x.sub)) x.sub = v; });
+    ED.store.commit(); ED.ui.undoToast('Renamed to “' + v + '”');
+  };
+  /* delete at any level, with everything under it; sessions keep their time, only lose these topic names */
+  ST.deleteTopic = async (trackId, name) => {
+    const p = ST.plan(); if (!p) return;
+    const node = ST.topicNode(trackId, name), under = node ? subtree(trackId, node.id) : [];
+    const names = [name].concat(under.map(t => t.name)), has = t => names.some(n => lowT(n) === lowT(t));
+    const ses = ST.sessions().filter(s => s.trackId === trackId && ST.topicsOf(s).some(has));
+    const wks = (p.weeks || []).filter(w => w.themes && has(w.themes[trackId]));
+    const bits = [under.length ? U.plural(under.length, 'subtopic') + ' under it' : '', ses.length ? U.plural(ses.length, 'session') + ' lose this topic (they stay in the plan)' : '', wks.length ? U.plural(wks.length, 'week') + ' lose it as the week’s topic' : ''].filter(Boolean);
+    if (bits.length && !(await ED.ui.confirm({ title: 'Delete topic', message: 'Delete “' + name + '”? ' + bits.join('; ') + '. Books, lectures and papers filed under it are kept, unfiled.', ok: 'Delete', danger: true }))) return;
+    ED.store.checkpoint('Delete topic');
+    const ids = new Set(under.map(t => t.id).concat(node ? [node.id] : []));
+    p.topics = p.topics.filter(t => !ids.has(t.id));
+    wks.forEach(w => { w.themes[trackId] = ''; });
+    const now = Date.now();
+    ses.forEach(s => { const l = ST.topicsOf(s).filter(t => !has(t)); s.topic = l[0] || ''; s.moreTopics = l.slice(1); s.updatedAt = now; });
+    ST.sources().forEach(x => { if (x.trackId && x.trackId !== trackId) return; if (has(x.topic)) { x.topic = ''; x.sub = ''; } else if (has(x.sub)) x.sub = ''; });
+    ED.store.commit(); ED.ui.undoToast('Topic deleted');
   };
   /* the topic and subtopic a book / lecture / paper is filed under, as a label */
   ST.filedAs = x => [x.topic, x.sub].filter(Boolean).join(' › ');
@@ -1635,8 +1675,9 @@
   A['study-src'] = el => ST.editSource(el.dataset.id || null, { kind: el.dataset.kind, trackId: el.dataset.track });
   A['study-item'] = el => ST.editItem(el.dataset.id || null, { kind: el.dataset.kind });
   A['study-cat'] = el => ST.editCat(el.dataset.id || null);
-  A['study-topic-add'] = el => ST.addTopic(el.dataset.track, el.dataset.parent || null);
-  A['study-topic-del'] = el => { const p = ST.plan(); if (!p) return; ED.store.checkpoint('Topic'); p.topics = p.topics.filter(t => t.id !== el.dataset.id); p.topics.forEach(t => { if (t.parent === el.dataset.id) delete t.parent; }); ED.store.commit(); ED.ui.undoToast('Topic removed'); };
+  A['study-topic-add'] = el => ST.addTopic(el.dataset.track, el.dataset.parent || null, el.dataset.pid || null);
+  A['study-topic-ren'] = el => ST.renameTopic(el.dataset.track, el.dataset.name);
+  A['study-topic-del'] = el => ST.deleteTopic(el.dataset.track, el.dataset.name);
   A['study-day'] = el => { const st = ED.state.study || (ED.state.study = {}); st.day = el.dataset.date; if (el.dataset.go) ED.go.tab(el.dataset.go); else ED.app.render(); };
   A['study-menu'] = el => {
     const p = ST.plan();

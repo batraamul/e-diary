@@ -677,6 +677,8 @@ There is no automated test runner in the package; test by hand in the browser:
 
 **1.25.1 (sw `e-diary-1.25.1`):** `ED.VERSION = '1.25.1'`. studyplus `line(pins, x)`: pins sorted by %, grouped when < 24% apart; each pin draws a `.tick`, each group one `.pin` label block (`.lft` < 12%, `.rgt` > 88%), height from `--rows`. Pace < 60 min/day shown in minutes. Versioning: patch releases 1.25.x bump `ED.VERSION` and the sw cache name together; a major change starts 1.26.0.
 
+**1.25.2 (sw `e-diary-1.25.2`):** `plan.topics` parent links may nest to any depth. study.js: `ST.topicNode`, `ST.topicKids`, `ST.addTopic(trackId, parentName, parentId)`, `ST.renameTopic` (topics, week themes, session topic/moreTopics, source topic/sub), `ST.deleteTopic` (subtree; confirm when sessions/weeks use it; sessions keep their slot, sources are unfiled); `ST.subTopics` returns all descendants. Actions `study-topic-add|ren|del` (data-track, data-name, data-pid). view-study topics(): recursive `row(t, lvl)` with `--lvl` indent; tp-ex-/tp-iv- topics get ＋ only.
+
 **1.25 (sw `e-diary-1.25-r9`):** `MV.fdVal(P, rate, comp, start, due, k, matAmt)` — with `mk.matAmt`, value = P·(matAmt/P)^(days/term); used by refresh, `MV.maturity` and the dialog preview (`#mv-ma`, `.mv-fdo`).
 
 **1.25 (sw `e-diary-1.25-r8`):** FD `comp` adds `'p'` (payout: `fdAt` = principal); `'s'` = simple interest paid at maturity; GS scss / pomis → `'p'`.

@@ -340,7 +340,8 @@ html.study-large .sp-sb b { font-size: 15px; } html.study-large .sp-sb span { fo
 .st-lk-c.weak { outline: 2px dashed #c0392b; outline-offset: 1px; }
 .st-lk-key i.st-lk-c { width: 14px; height: 10px; padding: 0; }
 details.st-tp > summary { cursor: pointer; }
-.st-tplist li.st-sub { padding-left: 22px; font-size: .95em; }
+.st-tplist li.st-sub { padding-left: calc(6px + var(--lvl, 1) * 18px); font-size: .95em; }
+@media (max-width: 560px) { .st-tplist li.st-sub { padding-left: calc(4px + min(var(--lvl, 1), 4) * 12px); } .st-tplist li { gap: 6px; } }
 .st-sub-i { color: var(--ink-3); }
 .st-chip-ex { background: color-mix(in srgb, #7b3fb8 16%, var(--paper)); }
 .st-chip-iv { background: color-mix(in srgb, #1f77b4 16%, var(--paper)); }
