@@ -108,9 +108,10 @@
           t.num = M.nextNum(t.prio, t.date); d.tasks.push(t); ch = true;
         } else if (t.linkTitle !== title) { if (t.title === t.linkTitle) t.title = title; t.linkTitle = title; ch = true; }
       });
-      // reminders of a past cycle or a removed item go (ticked ones stay as your record)
-      const before = d.tasks.length;
-      d.tasks = d.tasks.filter(t => !t.link || t.link.k !== 'renewal' || keep.has(t.id) || M.isClosed(t.status));
+      // reminders of a past cycle go (ticked ones stay as your record). 1.26.1: a reminder whose item is not in this
+      // copy of the diary is left alone — the item may still be on its way from another device (Delete removes its own)
+      const before = d.tasks.length, has = new Set(R().list.map(x => x.id));
+      d.tasks = d.tasks.filter(t => !t.link || t.link.k !== 'renewal' || keep.has(t.id) || M.isClosed(t.status) || !has.has(t.link.id));
       if (d.tasks.length !== before) ch = true;
     } catch (err) { console.warn('[e-diary] renewals', err); }
     finally { busy = false; }
@@ -155,7 +156,7 @@
     const seg = '<div class="seg st-seg" role="group" aria-label="Show">' + GROUPS.map(g => '<button type="button" class="seg-b' + (s.g === g[0] ? ' on' : '') + '" data-act="rn-g" data-g="' + g[0] + '" aria-pressed="' + (s.g === g[0]) + '">' + e(g[1]) + '</button>').join('') + '</div>';
     const pol = ((D().finance || {}).holdings || []).filter(h => h.type === 'insurance' && !R().list.some(x => x.holdingId === h.id));
     const body = '<p class="hint">Policies, subscriptions and memberships with their price and renewal date. A reminder goes into the Daily planner before each one is due, and the payment is recorded in Money.</p>' +
-      '<div class="xp-filters"><button type="button" class="btn small primary" data-act="rn-edit">' + ED.icon('plus') + 'Add</button>' + seg + '</div>' +
+      '<div class="xp-filters"><button type="button" class="btn small primary" data-act="rn-edit">' + ED.icon('plus') + 'Add</button>' + seg + '<button type="button" class="btn small ghost" data-act="rn-restore" title="Add the items from a diary backup or device copy (.json) that are missing here — nothing else is changed">' + ED.icon('upload') + 'Bring back from a file…</button></div>' +
       (pol.length ? '<div class="notice rn-import">' + ED.icon('info') + '<span class="grow">' + U.plural(pol.length, 'insurance policy', 'insurance policies') + ' in Money → Accounts &amp; policies ' + (pol.length === 1 ? 'is' : 'are') + ' not here yet.</span><button type="button" class="btn small" data-act="rn-import">Bring ' + (pol.length === 1 ? 'it' : 'them') + ' in</button></div>' : '') +
       (all.length ? sec('Overdue', by('late')) + sec('Due soon', by('soon')) + sec('Within 30 days', by('near')) + sec('Later', by('later')) + sec('Stopped', by('off'))
         : '<div class="empty">' + ED.icon('shield') + '<div><b>' + (R().list.length ? 'Nothing in this group.' : 'Nothing here yet.') + '</b><br>Add your health and vehicle insurance, term plan, OTT and cloud subscriptions, gym, domain, driving licence…</div></div>');
@@ -252,6 +253,30 @@
   A['rn-edit'] = el => RN.edit(el.dataset.id || null);
   A['rn-pay'] = el => RN.pay(el.dataset.id);
   A['rn-g'] = el => { st().g = el.dataset.g || ''; ED.app.render(); };
+  /* 1.26.1: bring back items from a backup / device-copy file (or a file holding only this page's items):
+     only items that are not here are added; everything else in the diary stays as it is */
+  RN.restoreFrom = raw => {
+    const o = raw && raw.data ? raw.data : raw, src = (o && o.renewals && o.renewals.list) || (Array.isArray(o) ? o : null);
+    if (!Array.isArray(src)) return -1;
+    const have = new Set(R().list.map(x => x.id)), add = src.filter(x => x && typeof x.id === 'string' && x.name && !have.has(x.id));
+    if (!add.length) return 0;
+    ED.store.checkpoint('Bring back');
+    const now = Date.now();
+    add.forEach(x => { const y = JSON.parse(JSON.stringify(x)); y.updatedAt = now; R().list.push(y); });
+    const g = D().meta && D().meta.gone; if (g) add.forEach(x => { delete g[x.id]; });
+    ED.store.commit();
+    return add.length;
+  };
+  A['rn-restore'] = () => {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,application/json';
+    inp.addEventListener('change', async () => {
+      const f = inp.files && inp.files[0]; if (!f) return;
+      let raw; try { raw = JSON.parse(await f.text()); } catch (_) { ED.ui.toast('That file could not be read (not a diary .json file)'); return; }
+      const n = RN.restoreFrom(raw);
+      ED.ui.toast(n < 0 ? 'No Insurance & Subscriptions items in that file' : n === 0 ? 'Everything in that file is already here' : U.plural(n, 'item') + ' brought back — reminders and calendar entries follow');
+    });
+    inp.click();
+  };
   A['rn-import'] = () => {
     const pol = ((D().finance || {}).holdings || []).filter(h => h.type === 'insurance' && !R().list.some(x => x.holdingId === h.id)); if (!pol.length) return;
     ED.store.checkpoint('Bring in policies');

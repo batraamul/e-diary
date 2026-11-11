@@ -59,14 +59,30 @@
     const q = pick(base.quotes, local.quotes, remote.quotes); out.quotes = q === undefined ? [] : q;
     const m = pick(base.mission, local.mission, remote.mission); out.mission = m === undefined ? { html: '' } : m;
     out.meta = Object.assign({}, remote.meta || {}, local.meta || {});
+    // 1.26.1: deletion markers of both sides, known before merging (see the sweep at the end)
+    const gone0 = Object.assign({}, (remote.meta && remote.meta.gone) || {}, (local.meta && local.meta.gone) || {});
+    /* 1.26.1: in the sections below, an item that is missing on one side WITHOUT a deletion marker was not deleted
+       there — that side's app simply did not carry it (an older version that does not know the section, or a copy made
+       before it arrived). It is kept. Real deletions always leave a marker (js/store.js markGone). */
+    const keepList = (b, l, r) => {
+      b = b || []; l = l || []; r = r || [];
+      const L = new Set(l.map(x => x && x.id)), R = new Set(r.map(x => x && x.id));
+      const lost = id => id != null && !gone0[id];
+      const out = mergeList(b, l, r), have = new Set(out.map(x => x && x.id));
+      // items the plain merge dropped as "deleted on one side" although nobody marked them deleted
+      r.forEach(x => { if (x && !have.has(x.id) && !L.has(x.id) && lost(x.id)) { out.push(x); have.add(x.id); } });
+      l.forEach(x => { if (x && !have.has(x.id) && !R.has(x.id) && lost(x.id)) { out.push(x); have.add(x.id); } });
+      return out;
+    };
     // sections added in 1.1: lists inside are merged item by item, other fields by the later edit
     const nested = (k, lists, deep) => {      // deep: { field: 1 (map, merged by key) | 2 (map of maps, merged a level deeper) }
       const b = base[k] || {}, l = local[k], r = remote[k];
       if (l == null && r == null) return undefined;
-      if (l == null || r == null) { const v = pick(base[k], l == null ? undefined : l, r == null ? undefined : r); return v === undefined ? null : v; }
+      // 1.26.1: a section one side does not have at all was never removed there (no version removes a whole section)
+      if (l == null || r == null) return l == null ? r : l;
       const o = {};
       new Set(Object.keys(l).concat(Object.keys(r))).forEach(f => {
-        if (lists.indexOf(f) >= 0) o[f] = mergeList(b[f], l[f], r[f]);
+        if (lists.indexOf(f) >= 0) o[f] = keepList(b[f], l[f], r[f]);
         else if (f === 'map' || (deep && deep[f] === 1)) o[f] = mergeMap(b[f], l[f], r[f]);
         else if (deep && deep[f] === 2) o[f] = mergeMap2(b[f], l[f], r[f]);
         else { const v = pick(b[f], l[f], r[f]); if (v !== undefined) o[f] = v; }
@@ -115,6 +131,14 @@
     out.luck = nested('luck', ['pics'], { drive: 1, fix: 1 }) || undefined;
     out.manifest = nested('manifest', ['desires'], { days: 1 }) || undefined;   // 1.25: manifestation journal   // 1.24.1: your pictures for the Daily page
     if (local.letterSvc || remote.letterSvc) { const v = pick(base.letterSvc, local.letterSvc, remote.letterSvc); if (v !== undefined) out.letterSvc = v; }
+    // 1.26.1: any part of the diary this version does not merge by name (one added by a later version) is carried over,
+    // never dropped: the later edit wins, and a part only one side has is kept
+    new Set(Object.keys(local).concat(Object.keys(remote))).forEach(k => {
+      if (k === 'meta' || k in out) return;
+      const l = local[k], r = remote[k];
+      if (l === undefined || r === undefined) { out[k] = l === undefined ? r : l; return; }
+      const v = pick(base[k], l, r); if (v !== undefined) out[k] = v;
+    });
     // deletion markers from both sides (js/store.js markGone): an item deleted anywhere stays deleted, unless it was
     // changed again after it was deleted
     const gone = Object.assign({}, (remote.meta && remote.meta.gone) || {});
