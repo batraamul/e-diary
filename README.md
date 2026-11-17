@@ -601,6 +601,11 @@ Notes & Life now has four pages in the top bar: **Notes & Life · Exercise · We
 - **Google Calendar.** Saving or timing a task, event or study session no longer copies it to Google Calendar by itself. *Only the items I choose* is now switched on (and “send as soon as I drop it on a time” off): use **Add to Google Calendar** in the task, event or study session. Items already in Google Calendar stay there and keep in step. Both switches can be changed back in Settings → Google Calendar.
 - *Version numbers:* the diary stays in the 1.26 series from here on — 1.26.5, 1.26.6 …
 
+**1.26.5 — originals in Google Drive (Cards & Certificates):**
+- Every card and certificate has **Link to the original** (Google Drive, DigiLocker or the issuer's site). The row then has **Open** and, for a Google Drive or Docs file, **Download**. A link adds nothing to the diary's size.
+- **Upload the original to Google Drive…** (in the form, when Google Drive sync is set up) puts a PDF or picture into *E-Diary cards & certificates / <name>* in your Google Drive and fills in the link. It uploads in the background — keep typing — and only the link is saved in the diary. The file is private to your Google account like anything you put in Drive yourself (it is not encrypted by the diary).
+- Pictures are now small previews (at most 800 px, about 30–100 KB) for a quick look. When pictures add more than 2 MB to the diary, the Cards page says so and suggests links instead, so syncing stays quick.
+
 **FD maturity amount (within 1.25):** an FD can take the *Maturity amount* from its receipt; its value then grows to exactly that amount on the maturity date (the bank's own rounding and day count). A cumulative FD's “Interest accruing / payable” table (one row per financial year) is the interest accrued each year for TDS and income tax — it is paid with the principal at maturity.
 
 **Fixed deposits (within 1.25, 9 Nov 2026):** *Interest added* now says how the interest is paid — compounded every quarter / month / half year / year and **paid at maturity** (cumulative FD), **paid at maturity as simple interest, not compounded**, or **paid out to your bank account** (payout FD: the deposit stays at its principal and the note shows the yearly interest to your bank). SCSS and Post office MIS use the payout option.

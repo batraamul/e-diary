@@ -353,3 +353,5 @@ details.fold .gh { margin: 0; font-size: 15px; } details.fold > .pw-list, detail
 .cd-thumb .icon-btn { position: absolute; top: -6px; right: -6px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 50%; }
 .cd-pics { display: grid; gap: 14px; } .cd-pics figure { margin: 0; } .cd-pics img { max-width: 100%; border-radius: 10px; border: 1px solid var(--card-border); display: block; } .cd-pics figcaption { margin-top: 6px; }
 @media (max-width: 560px) { .cd-row { grid-template-columns: 34px minmax(0, 1fr) auto; } .cd-row .cd-no { display: block; grid-column: 2; grid-row: 2; font-size: 13px; margin-top: -6px; } .cd-row .pw-acts { grid-row: 1 / span 2; grid-column: 3; } }
+/* 1.26.5 — link to the original */
+.cd-up { margin: 6px 0 4px; } .cd-up + .hint { display: block; }

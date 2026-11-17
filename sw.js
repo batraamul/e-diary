@@ -1,6 +1,6 @@
 /* E-Diary — offline support. Serves the app from a local cache and refreshes it in the background.
    Change VERSION whenever you edit the app so installed copies pick up the new files. */
-const VERSION = 'e-diary-1.26.4';   // 1.26.4 — Cards & Certificates page; folding groups in Passwords; Google Calendar only for chosen items
+const VERSION = 'e-diary-1.26.5';   // 1.26.5 — cards & certificates: link to the original in Google Drive (open, download, upload); small previews
 const ASSETS = [
   './',
   './index.html',
