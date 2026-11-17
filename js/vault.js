@@ -23,7 +23,19 @@
   V.isSet = () => !!(V.data() && V.data().salt);
   V.unlocked = () => !!V.key;
   /* 1.24: letters (Letters page) live in the same encrypted log; they are not logins */
-  V.logins = () => Array.from(V.items.values()).filter(x => x.kind !== 'letter');
+  /* 1.26.4: cards and certificates (Cards & Certificates page, js/cards.js) live there too */
+  V.logins = () => Array.from(V.items.values()).filter(x => !x.kind || x.kind === 'login');
+  /* 1.26.4: groups that fold. Which ones are folded is remembered on this device (not part of the diary's data). */
+  const FOLDK = 'ed-folded';
+  const folded = () => { try { return JSON.parse(localStorage.getItem(FOLDK) || '{}') || {}; } catch (err) { return {}; } };
+  V.fold = (key, head, body, forceOpen) => '<details class="fold" data-fold="' + e(key) + '"' + (forceOpen ? ' data-forced="1"' : '') + (forceOpen || !folded()[key] ? ' open' : '') + '><summary class="fold-h">' + ED.icon('chevR', 'fold-ic') + head + '</summary>' + body + '</details>';
+  document.addEventListener('toggle', ev => {
+    const d = ev.target; if (!d || !d.dataset || !d.dataset.fold || d.dataset.forced) return;
+    const f = folded(); if (d.open) delete f[d.dataset.fold]; else f[d.dataset.fold] = 1;
+    try { localStorage.setItem(FOLDK, JSON.stringify(f)); } catch (err) { /* private mode: folds last until reload */ }
+  }, true);
+  V.foldAll = (prefix, shut) => { const f = folded(); document.querySelectorAll('details[data-fold^="' + prefix + '"]').forEach(d => { d.open = !shut; if (shut) f[d.dataset.fold] = 1; else delete f[d.dataset.fold]; }); try { localStorage.setItem(FOLDK, JSON.stringify(f)); } catch (err) { /* ignore */ } };
+  (ED.actions = ED.actions || {})['fold-all'] = el => V.foldAll(el.dataset.p, el.dataset.shut === '1');
 
   async function derive(pass, salt, iter) {
     const base = await crypto.subtle.importKey('raw', enc.encode(pass), 'PBKDF2', false, ['deriveKey']);
@@ -69,7 +81,7 @@
   V.lock = (quiet) => {
     if (!V.key) return;
     V.key = null; V.items = new Map(); V.reveal = new Set(); V.sel = null;
-    if (ED.state.tab === 'vault' || ED.state.tab === 'letters') ED.app.render();
+    if (ED.state.tab === 'vault' || ED.state.tab === 'letters' || ED.state.tab === 'cards') ED.app.render();
     if (!quiet) ED.ui.toast('Password log locked', { icon: 'lock' });
   };
   V.touch = () => { V.lastUse = Date.now(); };
@@ -176,7 +188,7 @@
     if (type !== 'change' || !V.key || !d || ['undo', 'replace', 'restore', 'remote', 'other-tab'].indexOf(d.reason) < 0) return;
     const vd = V.data();
     if (!vd || !vd.salt || vd.salt !== V.salt) { V.lock(true); if (vd && vd.salt) ED.ui.toast('The password log was changed on another device. Unlock it again.'); return; }
-    V.decryptAll().then(() => { if (ED.state.tab === 'vault') ED.app.requestRender(); });
+    V.decryptAll().then(() => { if (ED.state.tab === 'vault' || ED.state.tab === 'cards') ED.app.requestRender(); });
   });
 
   /* ---------------- auto-lock ---------------- */
@@ -235,7 +247,7 @@
       if (x.changedAt && Date.now() - x.changedAt > 365 * 864e5) f.push('<span class="pw-flag old" title="Not changed for over a year">' + ED.icon('history') + 'Old</span>');
       return f.join('');
     };
-    const rows = list.map(x => {
+    const row = x => {
       const shown = V.reveal.has(x.id);
       return '<li class="pw-row" data-id="' + e(x.id) + '">' + avatar(x.site || host(x.url)) +
         '<button type="button" class="plain-btn pw-main" data-act="vault-edit" data-id="' + e(x.id) + '"><b>' + (x.fav ? '★ ' : '') + e(x.site || host(x.url) || 'Untitled') + '</b>' +
@@ -247,7 +259,13 @@
         (x.pass ? '<button type="button" class="icon-btn sm" data-act="vault-copy" data-what="pass" data-id="' + e(x.id) + '" aria-label="Copy password" title="Copy password">' + ED.icon('key') + '</button>' : '') +
         (x.url ? '<a class="icon-btn sm" href="' + e(urlOf(x.url)) + '" target="_blank" rel="noopener noreferrer" aria-label="Open website" title="Open ' + e(host(x.url)) + '">' + ED.icon('external') + '</a>' : '') +
         '</span></li>';
-    }).join('');
+    };
+    // 1.26.4: logins in groups (the Group of each login; "Kept at the top" first), each one folds
+    const groups = new Map();
+    list.forEach(x => { const g = x.fav ? '★ Kept at the top' : (x.category || 'Other'); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(x); });
+    const rank = g => g === '★ Kept at the top' ? -1 : g === 'Other' ? 9999 : CATS.indexOf(g) >= 0 ? CATS.indexOf(g) : 500;
+    const rows = Array.from(groups.keys()).sort((a, b) => rank(a) - rank(b) || a.localeCompare(b)).map(g =>
+      V.fold('pw:' + g, '<span class="gh">' + e(g) + '</span> <span class="hint num">· ' + groups.get(g).length + '</span>', '<ul class="pw-list">' + groups.get(g).map(row).join('') + '</ul>', !!V.q)).join('');
     const all = V.logins();
     const weak = all.filter(x => x.pass && V.strength(x.pass).score <= 1).length;
     const reuseN = (() => { const m = new Map(); all.forEach(x => { if (x.pass) m.set(x.pass, (m.get(x.pass) || 0) + 1); }); let n = 0; m.forEach(c => { if (c > 1) n += c; }); return n; })();
@@ -257,7 +275,7 @@
       (!weak && !reuseN && !old ? '<span class="pw-ok">' + ED.icon('check') + 'No weak or reused passwords</span>' : '') + '</div>' : '';
     return health +
       (V.bad ? '<p class="notice">' + V.bad + ' entries could not be opened with this master password (they may come from another device that used a different one).</p>' : '') +
-      (rows ? '<ul class="pw-list">' + rows + '</ul>' : '<div class="empty">' + ED.icon('key') + '<div><b>' + (V.q ? 'No logins match “' + e(V.q) + '”.' : 'No logins yet.') + '</b>' + (V.q ? '' : '<br>Add the websites and apps you sign in to. Use “Generate” for a strong, unique password.') + '</div></div>');
+      (rows ? (groups.size > 1 && !V.q ? '<p class="fold-tools"><button type="button" class="link-btn" data-act="fold-all" data-p="pw:" data-shut="1">Fold all</button> · <button type="button" class="link-btn" data-act="fold-all" data-p="pw:">Open all</button></p>' : '') + rows : '<div class="empty">' + ED.icon('key') + '<div><b>' + (V.q ? 'No logins match “' + e(V.q) + '”.' : 'No logins yet.') + '</b>' + (V.q ? '' : '<br>Add the websites and apps you sign in to. Use “Generate” for a strong, unique password.') + '</div></div>');
   }
 
   const view = {
@@ -291,13 +309,13 @@
         const list = groups.get(g), c = catOf(g), subs = c ? c.subs : [];
         const bySub = new Map(); list.forEach(s => { const k = g !== '★ Pinned' && s.sub ? s.sub : ''; if (!bySub.has(k)) bySub.set(k, []); bySub.get(k).push(s); });
         const keys = Array.from(bySub.keys()).sort((a, b) => (a === '' ? -1 : b === '' ? 1 : (subs.indexOf(a) < 0 ? 999 : subs.indexOf(a)) - (subs.indexOf(b) < 0 ? 999 : subs.indexOf(b)) || a.localeCompare(b)));
-        return '<section class="ws-g"><h3 class="gh">' + e(g) + ' <span class="hint num">· ' + list.length + '</span></h3>' +
-          keys.map(k => (k ? '<h4 class="ws-sub">' + e(k) + '</h4>' : '') + '<ul class="ws-list">' + bySub.get(k).map(row).join('') + '</ul>').join('') + '</section>';
+        return V.fold('ws:' + g, '<span class="gh">' + e(g) + '</span> <span class="hint num">· ' + list.length + '</span>',
+          keys.map(k => (k ? '<h4 class="ws-sub">' + e(k) + '</h4>' : '') + '<ul class="ws-list">' + bySub.get(k).map(row).join('') + '</ul>').join(''), !!q);
       }).join('');
       return '<div class="pw ws">' +
         '<div class="pg-head"><h2 class="pg-title">' + ED.icon('globe', 'pw-ttl-ic') + 'Important websites</h2><span class="row-btns"><button type="button" class="btn small ghost" data-act="site-cats">' + ED.icon('list') + 'Categories</button><button type="button" class="btn small" data-act="site-new">' + ED.icon('plus') + 'Add website</button></span></div>' +
         '<label class="pw-search ws-search">' + ED.icon('search') + '<span class="sr-only">Search websites</span><input id="ws-q" type="search" placeholder="Search websites" value="' + e(ED.state.siteQ || '') + '" autocomplete="off"></label>' +
-        '<div class="st-scroll scroll" data-keep-scroll="ws-list" id="ws-results">' + (body || '<div class="empty">' + ED.icon('globe') + '<div><b>' + (q ? 'No websites match.' : 'No websites yet.') + '</b>' + (q ? '' : '<br>Keep the addresses you use often — e-filing, banking, research portals, course pages.') + '</div></div>') +
+         '<div class="st-scroll scroll" data-keep-scroll="ws-list" id="ws-results">' + (body && order.length > 1 && !q ? '<p class="fold-tools"><button type="button" class="link-btn" data-act="fold-all" data-p="ws:" data-shut="1">Fold all</button> · <button type="button" class="link-btn" data-act="fold-all" data-p="ws:">Open all</button></p>' : '') + (body || '<div class="empty">' + ED.icon('globe') + '<div><b>' + (q ? 'No websites match.' : 'No websites yet.') + '</b>' + (q ? '' : '<br>Keep the addresses you use often — e-filing, banking, research portals, course pages.') + '</div></div>') +
         '<p class="hint ws-note">Website addresses are not secret, so they are not encrypted. Keep sign-in details in the password log on the left.</p></div></div>';
     },
     mount(L, R) {

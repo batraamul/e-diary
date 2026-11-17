@@ -693,6 +693,8 @@ There is no automated test runner in the package; test by hand in the browser:
 
 **1.26.3 (sw `e-diary-1.26.3`):** `usage.meter{date: reading}` (cumulative for the period); `relog(x, P)` rebuilds `usage.log` for that period as reading − previous reading (≥ 0). `meterOf` seeds readings once from an older day-amount log. The log dialog has only reading + date.
 
+**1.26.4 (sw `e-diary-1.26.4`):** new `js/cards.js` (view `cards`, Passwords group: vault · cards · letters). Vault items of `kind: 'card' | 'cert'` { type, person, title, name, number, issuer, date, valid, grade, link, notes, imgs[≤2 JPEG data URLs, ≤1400 px] }; `V.logins()` now = items without a kind. vault.js: `V.fold(key, head, body, forceOpen)` renders `<details class="fold" data-fold>`; folded keys in localStorage `ed-folded` (capture `toggle` listener; `data-forced` while searching); action `fold-all`. gcal.js: `askFirst()` once per diary (settings.gcal.askFirst) sets `pick = true`, `auto = false` and marks existing copies (`map[k].id`) as `one`; never put `askFirst`/`pick` in the default settings (normalize would skip the marking). **Versioning rule from the owner: stay in 1.26.x — do not start 1.27.**
+
 **1.25 (sw `e-diary-1.25-r9`):** `MV.fdVal(P, rate, comp, start, due, k, matAmt)` — with `mk.matAmt`, value = P·(matAmt/P)^(days/term); used by refresh, `MV.maturity` and the dialog preview (`#mv-ma`, `.mv-fdo`).
 
 **1.25 (sw `e-diary-1.25-r8`):** FD `comp` adds `'p'` (payout: `fdAt` = principal); `'s'` = simple interest paid at maturity; GS scss / pomis → `'p'`.

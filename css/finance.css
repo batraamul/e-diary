@@ -115,7 +115,7 @@ a.icon-btn { display: inline-grid; place-items: center; color: var(--ink-2); }
   .pw-row { grid-template-columns: 34px minmax(0, 1fr) auto; }
   .pw-pass { display: none; }
 }
-@media print { .spread[data-view="vault"] .page-left { visibility: hidden; } }
+@media print { .spread[data-view="vault"] .page-left, .spread[data-view="cards"] .page-left { visibility: hidden; } }
 
 /* ---------- Finance: savings, transfers, financial year ---------- */
 .fin-rec.saving .fin-amt { color: var(--ink-2); }
@@ -336,3 +336,20 @@ a.icon-btn { display: inline-grid; place-items: center; color: var(--ink-2); }
 .rn-uc.fut .av { background: transparent; border-color: var(--rule-strong); } .rn-uc.now { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--ink) 35%, transparent); border-radius: 4px; }
 .rn-uc em { position: absolute; bottom: -16px; font-style: normal; font-size: 10px; color: var(--ink-3); }
 @media (max-width: 560px) { .rn-ustats { grid-template-columns: repeat(2, 1fr); } .rn-card { flex-wrap: wrap; } .rn-btns { flex-direction: row; width: 100%; justify-content: flex-end; } }
+
+/* 1.26.4 — foldable groups (Passwords, websites, cards, certificates) and the Cards & Certificates page */
+details.fold { margin-bottom: 6px; border-bottom: 1px solid var(--rule); }
+details.fold > summary.fold-h { display: flex; align-items: center; gap: 6px; padding: 7px 2px; cursor: pointer; list-style: none; user-select: none; border-radius: var(--radius-sm); }
+details.fold > summary.fold-h::-webkit-details-marker { display: none; }
+details.fold > summary.fold-h:hover { background: color-mix(in srgb, var(--ink) 5%, transparent); }
+details.fold .fold-ic { width: 15px; height: 15px; flex: none; color: var(--ink-3); transition: transform .15s; } details.fold[open] > summary .fold-ic { transform: rotate(90deg); }
+details.fold .gh { margin: 0; font-size: 15px; } details.fold > .pw-list, details.fold > .ws-list { padding-left: 4px; } details.fold > .pw-list > li:last-child, details.fold > .ws-list > li:last-child { border-bottom: 0; }
+.fold-tools { margin: 2px 0 4px; font-size: 12.5px; color: var(--ink-3); text-align: right; }
+.cd-row { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto auto; align-items: center; gap: 10px; padding: 7px 2px; border-bottom: 1px solid var(--rule); }
+.cd-row.cert { grid-template-columns: 34px minmax(0, 1fr) auto; }
+.cd-ic { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; font-size: 19px; background: color-mix(in srgb, var(--ink) 6%, transparent); }
+.cd-no { letter-spacing: .04em; white-space: nowrap; } .cd-row .pw-flags svg { width: 12px; height: 12px; vertical-align: -1px; }
+.cd-thumbs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; } .cd-thumb { position: relative; } .cd-thumb img { height: 84px; max-width: 150px; object-fit: cover; border-radius: 8px; border: 1px solid var(--card-border); display: block; }
+.cd-thumb .icon-btn { position: absolute; top: -6px; right: -6px; background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 50%; }
+.cd-pics { display: grid; gap: 14px; } .cd-pics figure { margin: 0; } .cd-pics img { max-width: 100%; border-radius: 10px; border: 1px solid var(--card-border); display: block; } .cd-pics figcaption { margin-top: 6px; }
+@media (max-width: 560px) { .cd-row { grid-template-columns: 34px minmax(0, 1fr) auto; } .cd-row .cd-no { display: block; grid-column: 2; grid-row: 2; font-size: 13px; margin-top: -6px; } .cd-row .pw-acts { grid-row: 1 / span 2; grid-column: 3; } }

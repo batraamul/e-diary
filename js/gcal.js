@@ -675,8 +675,18 @@
     if (G().on) GC.sync();
     else if (GC.via() === 'connector' && GC.mcpState === 'ready' && hasOnes()) pushOne(true);
   }, 4000);
+  /* 1.26.4: nothing goes to Google Calendar unless you choose it. Done once per diary: "Only the items I choose" is
+     switched on and "send as soon as I drop it on a time" off. What is already in Google Calendar is marked as
+     chosen, so it stays there and keeps in step. Both switches can be changed back in Settings → Google Calendar. */
+  const askFirst = () => {
+    const g = G(), gc = D().gcal; if (!g || g.askFirst || !gc) return false;
+    if (!g.pick) { const no = gc.no || {}; Object.keys(gc.map || {}).forEach(k => { const m = gc.map[k]; if (m && m.id && !no[k]) m.one = true; }); g.pick = true; }
+    g.auto = false; g.askFirst = 1;
+    return true;
+  };
   GC.init = () => {
-    ED.store.on((type, d) => { if (type === 'change' && !(d && d.reason === 'gcal')) auto(); });
+    if (askFirst()) ED.store.commit({ silent: true, reason: 'gcal' });
+    ED.store.on((type, d) => { if (type !== 'change' || (d && d.reason === 'gcal')) return; if (askFirst()) ED.store.commit({ silent: true, reason: 'gcal' }); auto(); });
     if (ED.env.claude) {
       let settled = false;
       const done = m => {

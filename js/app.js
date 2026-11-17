@@ -40,6 +40,7 @@
     { id: 'health', label: 'Health', title: 'Health, medicine and treatment' },
     { id: 'events', label: 'Events & Meet\u00adings', title: 'Events, meetings and planning — with your Google Calendar' },
     { id: 'vault', label: 'Pass\u00adwords', title: 'Passwords and important websites' },
+    { id: 'cards', label: 'Cards & Certificates', title: 'Identity and family cards, certificates and achievements — kept locked' },
     { id: 'letters', label: 'Letters', title: 'Letters to God and forefathers, and to family — kept locked' },
   ];
   ED.SECTIONS = SECTIONS;
@@ -52,7 +53,7 @@
     { id: 'money', label: 'Fi\u00adnance', title: 'Money records and the financial plan', views: ['finance', 'renewals', 'finplan'], names: ['Money', 'Insurance & Subscriptions', 'Financial Plan'] },
     { id: 'interview', label: 'Inter\u00adview & Exams', title: 'Interviews, exams, projects, mind maps and Govt jobs', views: ['interview', 'exam', 'projects', 'mindmap', 'jobs'], names: ['Interviews', 'Exam Preparation', 'Projects', 'Mind Maps', 'Govt Jobs'] },
     { id: 'health', label: 'Health', title: 'Health, medicine, treatment and exercise', views: ['health', 'exercise'], names: ['Health', 'Exercise'] },
-    { id: 'vault', label: 'Pass\u00adwords', title: 'Passwords, important websites and letters', views: ['vault', 'letters'], names: ['Passwords', 'Letters'] },
+    { id: 'vault', label: 'Pass\u00adwords', title: 'Passwords, important websites, cards, certificates and letters', views: ['vault', 'cards', 'letters'], names: ['Passwords', 'Cards & Certificates', 'Letters'] },
   ];
   ED.ALLGROUPS = ALLG;
   /* 1.22: pages hidden in Settings → Pages & parts are left out of the tabs (their data stays). The Daily page always shows. */
