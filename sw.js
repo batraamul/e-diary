@@ -1,6 +1,6 @@
 /* E-Diary — offline support. Serves the app from a local cache and refreshes it in the background.
    Change VERSION whenever you edit the app so installed copies pick up the new files. */
-const VERSION = 'e-diary-1.26.7';   // 1.26.7 — a much larger emoji list and a redrawn picker
+const VERSION = 'e-diary-1.26.8';   // 1.26.8 — weather emoji group removed, 7 new groups, larger emojis
 const ASSETS = [
   './',
   './index.html',

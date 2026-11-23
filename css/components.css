@@ -401,7 +401,7 @@ html.locked #toast-root { z-index: 1350; }
 .te-emo-add { position: relative; font-size: 20px; filter: grayscale(1); opacity: .55; } .te-emo-add b { position: absolute; right: -9px; bottom: -6px; font-size: 13px; font-family: var(--font, sans-serif); color: var(--accent); filter: none; }
 .te-emo-ic { font-size: 15px; width: 18px; display: inline-block; text-align: center; }
 /* 1.26.7 — the emoji picker */
-.te-emo-pop { width: min(468px, calc(100vw - 16px)); max-width: min(468px, calc(100vw - 16px)); padding: 0; overflow: hidden; border-radius: 16px; }
+.te-emo-pop { width: min(500px, calc(100vw - 16px)); max-width: min(500px, calc(100vw - 16px)); padding: 0; overflow: hidden; border-radius: 16px; }
 .te-emo { display: flex; flex-direction: column; --emo-font: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; }
 .te-emo-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px 10px;
   background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, transparent), color-mix(in srgb, var(--accent) 3%, transparent)); border-bottom: 1px solid var(--rule); }
@@ -423,15 +423,15 @@ html.locked #toast-root { z-index: 1350; }
 .te-tab.on { opacity: 1; filter: none; background: var(--accent-soft); }
 .te-tab.on::after { content: ""; position: absolute; left: 9px; right: 9px; bottom: -3px; height: 3px; border-radius: 3px; background: var(--accent); }
 .te-emo.searching .te-tab.on::after { display: none; }
-.te-emo-list { height: min(330px, 46vh); overflow-y: auto; padding: 0 10px 8px; position: relative; overscroll-behavior: contain; scrollbar-width: thin; }
+.te-emo-list { height: min(360px, 48vh); overflow-y: auto; padding: 0 10px 8px; position: relative; overscroll-behavior: contain; scrollbar-width: thin; }
 .te-sec[hidden] { display: none; }
 .te-emo-list h4 { display: flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2, var(--ink-3)); margin: 0 -10px; padding: 9px 12px 5px; position: sticky; top: 0; z-index: 1;
   background: color-mix(in srgb, var(--pop-bg, var(--paper-3)) 88%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
 .te-emo-list h4 em { margin-left: auto; font-style: normal; font-weight: 500; letter-spacing: 0; color: var(--ink-3); font-size: 11px; }
 .te-sec-ic { font-family: var(--emo-font); font-size: 14px; text-transform: none; }
 .te-emo.searching .te-emo-list h4 em { display: none; }
-.te-emo-list .te-grid { grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 2px; padding-bottom: 4px; }
-.te-grid .emoji-btn { font-size: 23px; height: 40px; padding: 0; border-radius: 10px; transition: transform .12s ease, background .12s; }
+.te-emo-list .te-grid { grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 3px; padding-bottom: 6px; }
+.te-grid .emoji-btn { font-size: 27px; height: 44px; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; padding: 0; border-radius: 10px; transition: transform .12s ease, background .12s; }
 .te-grid .emoji-btn:hover, .te-grid .emoji-btn:focus-visible { background: var(--accent-soft); transform: scale(1.18); outline: none; position: relative; z-index: 1; }
 .te-emo-none { padding: 24px 8px; text-align: center; color: var(--ink-3); font-size: 13px; }
 .te-emo-foot { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-top: 1px solid var(--rule); background: var(--well); }
@@ -439,14 +439,14 @@ html.locked #toast-root { z-index: 1350; }
 .te-prev-big { font-size: 26px; font-family: var(--emo-font); line-height: 1; min-width: 26px; }
 .te-prev-big:empty { display: none; }
 .te-prev-txt { font-size: 12.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.te-emo-foot .emoji-own { margin: 0; flex: none; width: 168px; }
+.te-emo-foot .emoji-own { margin: 0; flex: none; width: 196px; }
 .te-emo-foot .emoji-own .field { min-height: 30px; font-size: 13px; }
 .emoji-btn.on { background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent); }
 .emoji-btn[hidden] { display: none; }
 @media (max-width: 560px) {
   .te-emo-pop { border-radius: 14px; }
   .te-emo-list { height: min(300px, 42vh); }
-  .te-emo-list .te-grid { grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); }
+  .te-emo-list .te-grid { grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); } .te-grid .emoji-btn { font-size: 26px; height: 42px; }
   .te-grid .emoji-btn:hover { transform: none; }
   .te-emo-prev { display: none; } .te-emo-foot .emoji-own { width: auto; flex: 1; }
   .te-emo-btn { width: 46px; }

@@ -701,6 +701,8 @@ There is no automated test runner in the package; test by hand in the browser:
 
 **1.26.7 (sw `e-diary-1.26.7`):** emoji data moved to `js/taskemoji-data.js` (`ED.TASK_EMOJI` = [[group, 'emoji words|…']], loaded before taskemoji.js; 38 groups, ~1,200 distinct). taskemoji.js: `TE.unique()`, picker markup `.te-emo-head` (current + `[data-none]`), `.te-emo-search` (`.te-emo-q`, `.te-emo-n` count), `.te-emo-tabs` (`.te-tab[data-jump]`, `.on` follows scroll via rAF), `.te-sec[data-sec][data-name]` sections with sticky blurred `h4`, `.te-emo-foot` (hover preview + `.emoji-own`). Search: word-prefix match on emoji words + group name (≤2-letter words must match whole), duplicates across groups hidden. Styles: the 1.26.7 block in components.css.
 
+**1.26.8 (sw `e-diary-1.26.8`):** taskemoji-data.js — 'Weather & meteorology' removed; added 'Content & social media', 'Kitchen & household items', 'Kids & baby', 'Zodiac & astrology', 'Arrows & shapes', 'Office objects & stationery', 'More flags' (44 groups, ~1,360 distinct). CSS: `.te-emo-pop` 500 px, `.te-grid` cells minmax(44px) with 27 px emojis (42 / 26 px on phones), list height min(360px, 48vh), paste box 196 px.
+
 **1.25 (sw `e-diary-1.25-r9`):** `MV.fdVal(P, rate, comp, start, due, k, matAmt)` — with `mk.matAmt`, value = P·(matAmt/P)^(days/term); used by refresh, `MV.maturity` and the dialog preview (`#mv-ma`, `.mv-fdo`).
 
 **1.25 (sw `e-diary-1.25-r8`):** FD `comp` adds `'p'` (payout: `fdAt` = principal); `'s'` = simple interest paid at maturity; GS scss / pomis → `'p'`.

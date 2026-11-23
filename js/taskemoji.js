@@ -1,6 +1,6 @@
 /* E-Diary — an emoji for any task (optional). 1.26.6 added it; 1.26.7 widened the list (js/taskemoji-data.js:
-   34 groups — AI & computing, edge AI, networking, cyber security, space & satellites, drones, defence, research
-   papers & journals, patents, weather, road / rail / air / sea, and every everyday area) and redrew the picker:
+   44 groups — AI & computing, edge AI, networking, cyber security, space & satellites, drones, defence, research
+   papers & journals, patents, road / rail / air / sea, and every everyday area) and redrew the picker:
    a header with the current pick, a search box, icon tabs that follow the scroll, a hover preview and a box for
    any emoji you type or paste. Stored as task.emoji ('' = none); shown before the title everywhere a task is listed
    (ED.model.ttl). */
@@ -42,7 +42,7 @@
         C.map((c, i) => sec(i, c[1][0][0], c[0], c[1])).join('') +
         '<p class="te-emo-none" hidden>No emoji matches — try another word, or type / paste one below.</p></div>' +
       '<div class="te-emo-foot"><div class="te-emo-prev"><span class="te-prev-big"></span><span class="te-prev-txt">Hover an emoji to see its name</span></div>' +
-        '<div class="emoji-own"><input class="field" maxlength="12" placeholder="Paste any emoji" aria-label="Your own emoji"><button type="button" class="btn small" data-own>Use</button></div></div></div>';
+        '<div class="emoji-own"><input class="field" maxlength="12" placeholder="Paste an emoji" aria-label="Your own emoji"><button type="button" class="btn small" data-own>Use</button></div></div></div>';
     ED.ui.popover(anchor, html, {
       cls: 'emoji-pop te-emo-pop',
       onMount(el, p) {
