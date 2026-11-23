@@ -61,7 +61,8 @@
 
     const body =
       '<div class="te">' +
-      '<input id="' + P + '-title" class="te-title" type="text" placeholder="New Task" value="' + e(draft.title) + '" autocomplete="off" aria-label="Task title">' +
+      '<div class="te-titlerow"><button type="button" class="te-emo-btn' + (draft.emoji ? ' has' : '') + '" id="' + P + '-emo" data-te="emoji" data-emo="' + e(draft.emoji || '') + '" title="' + (draft.emoji ? 'Change or remove the emoji' : 'Add an emoji (optional)') + '" aria-label="' + (draft.emoji ? 'Emoji ' + e(draft.emoji) + ' — change or remove' : 'Add an emoji (optional)') + '">' + (draft.emoji ? e(draft.emoji) : '<span class="te-emo-add">🙂<b>+</b></span>') + '</button>' +
+      '<input id="' + P + '-title" class="te-title" type="text" placeholder="New Task" value="' + e(draft.title) + '" autocomplete="off" aria-label="Task title"></div>' +
       '<div class="te-strip" id="' + P + '-strip"></div>' +
       (task && task.repeat ? '<div class="te-series">' + ED.icon('repeat') + '<span>' + e(M.repeatText(task.repeat)) + '. Status applies to <b>' + e(U.fmtLong(k)) + '</b>; other changes apply to every day.</span>' +
         '<button type="button" class="link-btn" data-te="detach">Edit only this day</button></div>' : '') +
@@ -129,6 +130,7 @@
     const collect = () => {
       const f = {};
       f.title = val('title').trim();
+      f.emoji = ($('#' + P + '-emo') && $('#' + P + '-emo').dataset.emo) || '';   // 1.26.6: '' = no emoji
       f.status = val('status');
       f.delegatedTo = val('deleg').trim();
       const pb = api.el.querySelector('.te-prio [aria-pressed="true"]');
@@ -354,6 +356,7 @@
         el.addEventListener('click', async ev => {
           const b = ev.target.closest('[data-te]'); if (!b) return;
           const act = b.dataset.te;
+          if (act === 'emoji') { ED.taskEmoji.pick(b, b.dataset.emo, v => { b.dataset.emo = v; b.classList.toggle('has', !!v); b.innerHTML = v ? e(v) : '<span class="te-emo-add">🙂<b>+</b></span>'; b.title = v ? 'Change or remove the emoji' : 'Add an emoji (optional)'; b.setAttribute('aria-label', v ? 'Emoji ' + v + ' — change or remove' : 'Add an emoji (optional)'); const t = $('#' + P + '-title'); if (t) t.focus(); }); return; }
           if (act === 'done') api.requestClose();
           else if (act === 'delete') {
             const occ = M.occ(task, k || task.date || U.today());

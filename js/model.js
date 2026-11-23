@@ -160,6 +160,9 @@
     String(x.title).localeCompare(String(y.title));
   M.sortOccs = list => list.sort((a, b) => M.cmpTask(a.t, b.t));
   M.code = t => (t.prio || 'B') + (t.num ? t.num : '');
+  /* 1.26.6: a task's optional emoji, shown before its title wherever the task is listed */
+  M.emo = t => (t && t.emoji ? t.emoji + ' ' : '');
+  M.ttl = (t, none) => M.emo(t) + ((t && t.title) || none || '');
 
   M.groupByRole = occs => {
     const groups = M.rolesSorted().map(r => ({ key: r.id, role: r, items: [] }));
@@ -473,7 +476,7 @@
   /* ---------------- text export of one task (sharing) ---------------- */
   M.taskText = (t, k) => {
     const lines = [];
-    lines.push('[' + M.code(t) + '] ' + t.title);
+    lines.push('[' + M.code(t) + '] ' + M.ttl(t));
     const day = k || t.date;
     if (day) lines.push('Date: ' + U.fmtLong(day) + (t.time ? ' at ' + U.fmtTime(t.time, S().h12) : ''));
     if (t.repeat) lines.push('Repeats: ' + M.repeatText(t.repeat));
@@ -525,6 +528,6 @@
     L.push('END:VCALENDAR');
     return L.join('\r\n');
   };
-  M.taskIcs = t => M.ics([{ id: t.id, title: '[' + M.code(t) + '] ' + t.title, date: t.date, start: t.time, dur: t.dur, desc: M.taskText(t), repeat: t.repeat, alarm: t.alarm ? (t.alarmBefore || 0) : null }]);
+  M.taskIcs = t => M.ics([{ id: t.id, title: '[' + M.code(t) + '] ' + M.ttl(t), date: t.date, start: t.time, dur: t.dur, desc: M.taskText(t), repeat: t.repeat, alarm: t.alarm ? (t.alarmBefore || 0) : null }]);
   M.eventIcs = e => M.ics([{ id: e.id, title: e.title, date: e.date, start: e.allDay ? null : e.start, end: e.allDay ? null : e.end, desc: e.notes, location: e.location, repeat: e.repeat, alarm: e.reminder }]);
 })();

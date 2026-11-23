@@ -342,7 +342,7 @@
     const done = !t.repeat && M.isClosed(st);
     const notes = U.stripHtml(t.notes || '').trim();
     const body = Object.assign({
-      summary: (done ? '✓ ' : '') + '[' + M.code(t) + '] ' + (t.title || 'Task'),
+      summary: (done ? '✓ ' : '') + '[' + M.code(t) + '] ' + M.ttl(t, 'Task'),
       description: (notes ? notes + '\n\n' : '') + (t.checklist && t.checklist.length ? t.checklist.map(c => (c.done ? '☑ ' : '☐ ') + c.text).join('\n') + '\n\n' : '') + 'From E-Diary',
       extendedProperties: tag('t:' + t.id),
       reminders: t.alarm && t.time ? { useDefault: false, overrides: [{ method: 'popup', minutes: t.alarmBefore || 0 }] } : { useDefault: false },

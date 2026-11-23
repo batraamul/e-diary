@@ -64,7 +64,7 @@
     const t = x.t, role = M.role(t.roleId), goal = M.goal(t.goalId), cat = M.category(t.categoryId);
     return '<li class="eis-card st-' + e(x.st) + '" draggable="true" data-eis="' + e(t.id) + '" data-tid="' + e(t.id) + '" data-k="' + e(x.k || '') + '"' + (x.carried ? ' data-carried="1"' : '') + (cat ? ' style="--c:' + e(cat.color) + '"' : '') + '>' +
       '<button type="button" class="tstat" data-act="task-toggle" aria-label="' + e(M.statusLabel(x.st)) + ' — click to ' + (M.isClosed(x.st) ? 'reopen' : 'complete') + '" title="' + e(M.statusLabel(x.st)) + '">' + ED.tasksUI.statusIcon(x.st) + '</button>' +
-      '<button type="button" class="plain-btn eis-t" data-act="task-open"><span class="eis-code num">' + e(M.code(t)) + '</span>' + e(t.title || 'Untitled task') +
+      '<button type="button" class="plain-btn eis-t" data-act="task-open"><span class="eis-code num">' + e(M.code(t)) + '</span>' + e(M.ttl(t, 'Untitled task')) +
       '<span class="eis-meta">' + dueChip(x) + (role ? '<span class="eis-tag">' + e(role.icon ? role.icon + ' ' : '') + e(role.name) + '</span>' : '') + (goal ? '<span class="eis-tag goal">' + ED.icon('target') + e(goal.title || goal.name || 'Goal') + '</span>' : '') +
       (x.st === 'delegated' ? '<span class="eis-tag">' + ED.icon('users') + e(t.delegatedTo ? 'with ' + t.delegatedTo : 'delegated') + '</span>' : '') +
       (t.eis ? '<span class="eis-tag pin" title="You placed it in this box">' + ED.icon('pin') + 'placed by you</span>' : '') + '</span></button>' +

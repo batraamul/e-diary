@@ -58,7 +58,7 @@
           '<div class="card-top"><h3 class="card-title tinted" style="--c:' + e(r.color) + '"><button type="button" class="plain-btn" data-act="role-edit" data-id="' + e(r.id) + '">' + (r.icon ? '<span class="emo">' + e(r.icon) + '</span>' : '') + e(r.name) + '</button></h3>' +
           progress(st.pct, st.total > 0 && st.pct === 100) + '</div>' +
           '<div class="card-bot"><span class="card-sub">' + (st.next
-            ? 'Task: <button type="button" class="link-btn plain" data-act="task-open" data-tid="' + e(st.next.t.id) + '" data-k="' + e(st.next.k) + '">' + e(st.next.t.title) + '</button>' + (st.next.k !== U.today() ? ' <span class="hint">(' + e(U.relDay(st.next.k)) + ')</span>' : '')
+            ? 'Task: <button type="button" class="link-btn plain" data-act="task-open" data-tid="' + e(st.next.t.id) + '" data-k="' + e(st.next.k) + '">' + e(M.ttl(st.next.t)) + '</button>' + (st.next.k !== U.today() ? ' <span class="hint">(' + e(U.relDay(st.next.k)) + ')</span>' : '')
             : st.total ? 'No Pending Tasks' : 'No tasks this week') +
           ' <span class="hint num">· ' + st.done + '/' + st.total + '</span></span>' +
           '<span class="card-tools">' +

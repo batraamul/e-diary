@@ -65,7 +65,7 @@
       '<button type="button" class="tstat" data-act="task-toggle" aria-label="' + e(M.statusLabel(st)) + ' — click to ' + (M.isClosed(st) ? 'reopen' : 'complete') + '" title="' + e(M.statusLabel(st)) + '">' + TU.statusIcon(st) + '</button>' +
       '<span class="tcode num">' + e(M.code(t)) + '</span>' +
       '<span class="tbody" data-act="task-open">' +
-      '<span class="ttitle' + (cat ? ' tinted' : '') + '"' + (cat ? ' style="--c:' + e(cat.color) + '"' : '') + '>' + (t.link ? (L => '<span class="tlink" title="' + L[1] + '">' + ED.icon(L[0]) + '</span>')(LINKS[t.link.k] || ['link', 'Opens where this task came from']) : '') + e(t.title || 'Untitled task') + '</span>' +
+      '<span class="ttitle' + (cat ? ' tinted' : '') + '"' + (cat ? ' style="--c:' + e(cat.color) + '"' : '') + '>' + (t.link ? (L => '<span class="tlink" title="' + L[1] + '">' + ED.icon(L[0]) + '</span>')(LINKS[t.link.k] || ['link', 'Opens where this task came from']) : '') + e(M.ttl(t, 'Untitled task')) + '</span>' +
       TU.meta(o) + '</span>' +
       '<span class="tbadges">' + TU.badges(t, 2) + '</span>' +
       '<button type="button" class="tmore icon-btn sm" data-act="task-menu" aria-label="Task actions">' + ED.icon('more') + '</button>' +
@@ -130,8 +130,9 @@
       M.setOccStatus(o, st); ED.store.commit();
     };
     const items = [
-      { header: M.code(t) + ' · ' + (t.title || 'Untitled') },
+      { header: M.code(t) + ' · ' + M.ttl(t, 'Untitled') },
       { label: 'Open…', icon: 'pencil', onClick: () => ED.editors.task({ id: t.id, k: o.k }) },
+      { label: t.emoji ? 'Emoji ' + t.emoji + '…' : 'Add an emoji…', html: '<span class="te-emo-ic">' + (t.emoji || '🙂') + '</span>', onClick: () => ED.taskEmoji.forTask(anchor, t) },
       { sep: true },
     ].concat(M.STATUSES.map(s => ({ label: s.label, html: TU.statusIcon(s.id), checked: s.id === o.st, onClick: setSt(s.id) })));
     items.push({ sep: true });
@@ -151,7 +152,7 @@
 
   TU.pickDate = (anchor, o) => {
     const t = o.t;
-    ED.ui.popover(anchor, '<form class="pick-date"><label class="lbl" for="pd-date">Move “' + e(t.title) + '” to</label>' +
+    ED.ui.popover(anchor, '<form class="pick-date"><label class="lbl" for="pd-date">Move “' + e(M.ttl(t)) + '” to</label>' +
       '<input id="pd-date" type="date" class="field" value="' + e(o.k || t.date || U.today()) + '">' +
       '<div class="row-end"><button type="submit" class="btn primary small">Move</button></div></form>', {
       onMount(el, p) {

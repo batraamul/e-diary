@@ -56,7 +56,7 @@
     const s = t.schedTo, eff = HZ.eff(t);
     return '<li class="hz-row' + (s ? ' sched' : '') + (M.isClosed(eff) ? ' done' : '') + '">' + tick(t, !!s) +
       '<span class="hz-code num">' + e(M.code(t)) + '</span>' +
-      '<button type="button" class="hz-title link-btn" data-act="hz-open" data-tid="' + e(t.id) + '">' + e(t.title) + '</button>' +
+      '<button type="button" class="hz-title link-btn" data-act="hz-open" data-tid="' + e(t.id) + '">' + e(M.ttl(t)) + '</button>' +
       (s ? '<span class="hz-to">' + ED.icon('forward') + 'Scheduled for <b>' + e(HZ.where(t)) + '</b> · ' + e(STL[eff] || eff) + '</span><button type="button" class="link-btn hint" data-act="hz-unsched" data-tid="' + e(t.id) + '">Unschedule</button>'
         : sched) + '</li>';
   };
@@ -92,7 +92,7 @@
         const key = y + '-' + String(i + 1).padStart(2, '0');
         const l = all.filter(t => t.planM === key), d = l.filter(t => M.isClosed(HZ.eff(t))).length, cur = key === U.today().slice(0, 7);
         return '<button type="button" class="hz-mon' + (cur ? ' cur' : '') + '" data-act="hz-month" data-key="' + key + '"><b>' + e(m) + '</b><span class="hint num">' + (l.length ? d + '/' + l.length + ' done' : '—') + '</span>' +
-          (l.length ? '<span class="hz-mon-l">' + l.slice(0, 4).map(t => '<i class="' + (M.isClosed(HZ.eff(t)) ? 'done' : '') + '">' + e(t.title) + '</i>').join('') + (l.length > 4 ? '<i class="hint">+' + (l.length - 4) + ' more</i>' : '') + '</span>' : '') + '</button>';
+          (l.length ? '<span class="hz-mon-l">' + l.slice(0, 4).map(t => '<i class="' + (M.isClosed(HZ.eff(t)) ? 'done' : '') + '">' + e(M.ttl(t)) + '</i>').join('') + (l.length > 4 ? '<i class="hint">+' + (l.length - 4) + ' more</i>' : '') + '</span>' : '') + '</button>';
       }).join('');
       return '<div class="hz hz-r"><div class="pg-head"><h2 class="pg-title">Months of ' + y + '</h2></div><div class="st-scroll scroll" data-keep-scroll="hz-year-r"><div class="hz-months">' + cards + '</div>' +
         '<p class="hint">Tasks scheduled to a month appear in <b>Monthly Tasks</b> with the month noted; open a month to see them.</p></div></div>';
@@ -111,7 +111,7 @@
       const months = [w.slice(0, 7), we.slice(0, 7)];
       const pool = M.masterTasks().filter(t => !t.repeat && M.isPending(t.status || 'open')).sort((a, b) => (months.indexOf(b.planM) >= 0) - (months.indexOf(a.planM) >= 0) || M.cmpTask(a, b));
       const poolHtml = pool.length ? '<details class="hz-pool"' + (st().poolOpen !== false ? ' open' : '') + '><summary>From Monthly Tasks <span class="hint num">· ' + pool.length + '</span></summary><ul class="hz-list">' + pool.slice(0, 40).map(t =>
-        '<li class="hz-row"><span class="hz-code num">' + e(M.code(t)) + '</span><button type="button" class="hz-title link-btn" data-act="hz-open" data-tid="' + e(t.id) + '">' + e(t.title) + '</button>' +
+        '<li class="hz-row"><span class="hz-code num">' + e(M.code(t)) + '</span><button type="button" class="hz-title link-btn" data-act="hz-open" data-tid="' + e(t.id) + '">' + e(M.ttl(t)) + '</button>' +
         (t.planM ? '<span class="chip">' + e(U.MON[+t.planM.slice(5, 7) - 1]) + '</span>' : '') +
         '<button type="button" class="btn small ghost" data-act="hz-toweek" data-tid="' + e(t.id) + '">' + ED.icon('plus') + 'This week</button></li>').join('') + '</ul></details>' : '';
       return '<div class="master hz">' + head('Weekly Tasks', nav) + addForm('week', 'Add a task for this week') +
@@ -124,7 +124,7 @@
       const days = Array.from({ length: 7 }, (x, i) => U.addDays(w, i)).map(k => {
         const occs = M.sortOccs(M.tasksOn(k, { carry: false })), d = occs.filter(o => M.isClosed(o.st)).length;
         return '<div class="hz-day' + (k === today ? ' cur' : '') + '"><button type="button" class="hz-dayh link-btn" data-act="study-day" data-date="' + k + '" data-go="daily"><b>' + U.DAY3[U.dow(k)] + '</b> <span class="num">' + e(U.fmtShort(k)) + '</span><span class="hint num">' + (occs.length ? d + '/' + occs.length : '') + '</span></button>' +
-          (occs.length ? '<ul>' + occs.slice(0, 8).map(o => '<li class="' + (M.isClosed(o.st) ? 'done' : '') + '"><span class="num hint">' + e(M.code(o.t)) + '</span> ' + e(o.t.title) + (o.t.fromPlan ? ' <span class="hint" title="Scheduled from the weekly list">↓</span>' : '') + '</li>').join('') + (occs.length > 8 ? '<li class="hint">+' + (occs.length - 8) + ' more</li>' : '') + '</ul>' : '<p class="hint">—</p>') + '</div>';
+          (occs.length ? '<ul>' + occs.slice(0, 8).map(o => '<li class="' + (M.isClosed(o.st) ? 'done' : '') + '"><span class="num hint">' + e(M.code(o.t)) + '</span> ' + e(M.ttl(o.t)) + (o.t.fromPlan ? ' <span class="hint" title="Scheduled from the weekly list">↓</span>' : '') + '</li>').join('') + (occs.length > 8 ? '<li class="hint">+' + (occs.length - 8) + ' more</li>' : '') + '</ul>' : '<p class="hint">—</p>') + '</div>';
       }).join('');
       return '<div class="hz hz-r"><div class="pg-head"><h2 class="pg-title">The week, day by day</h2></div><div class="st-scroll scroll" data-keep-scroll="hz-week-r"><div class="hz-days">' + days + '</div>' +
         '<p class="hint">Click a day to open it in Daily Tasks.</p></div></div>';

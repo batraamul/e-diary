@@ -170,9 +170,9 @@
       return evs.map(ev => '<button type="button" class="ev-chip" style="--c:' + e(ev.color) + '" data-act="event-open" data-id="' + e(ev.id) + '" data-k="' + k + '" draggable="true" data-drag="event" title="' + e(ev.title) + ' — drag to a time to schedule it">' + e(ev.title) + '</button>').join('') +
         tasks.map(o => {
           const c = M.category(o.t.categoryId);
-          return '<div class="ad-task st-' + o.st + '" style="--c:' + e(c ? c.color : '#5f6670') + '" data-tid="' + e(o.t.id) + '" data-k="' + k + '" draggable="true" data-drag="task" title="' + e(M.code(o.t) + ' ' + o.t.title) + ' — drag to a time to schedule it">' +
+          return '<div class="ad-task st-' + o.st + '" style="--c:' + e(c ? c.color : '#5f6670') + '" data-tid="' + e(o.t.id) + '" data-k="' + k + '" draggable="true" data-drag="task" title="' + e(M.code(o.t) + ' ' + M.ttl(o.t)) + ' — drag to a time to schedule it">' +
             '<button type="button" class="ad-tick" data-act="task-toggle" aria-label="' + e(M.statusLabel(o.st)) + ' — click to ' + (M.isClosed(o.st) ? 'reopen' : 'complete') + '">' + ED.tasksUI.statusIcon(o.st) + '</button>' +
-            '<button type="button" class="ad-t" data-act="task-open">' + e(M.code(o.t)) + ' ' + e(o.t.title || 'Untitled task') + '</button></div>';
+            '<button type="button" class="ad-t" data-act="task-open">' + e(M.code(o.t)) + ' ' + e(M.ttl(o.t, 'Untitled task')) + '</button></div>';
         }).join('');
     },
 
@@ -203,7 +203,7 @@
         const a = U.toMin(o.t.time), b = a + Math.max(15, o.t.dur || 30);
         const cat = M.category(o.t.categoryId);
         items.push({ a, b, html: pos => '<div class="tg-item tg-task st-' + o.st + '" style="' + pos + ';--c:' + e(cat ? cat.color : '#5f6670') + '" data-act="task-open" data-tg="task" data-tid="' + e(o.t.id) + '" data-k="' + k + '" data-a="' + a + '" data-b="' + b + '" title="' + e(M.code(o.t) + ' ' + o.t.title) + '">' +
-          '<b>' + e(M.code(o.t)) + ' ' + e(o.t.title) + '</b><span class="num tg-when">' + e(U.fmtTime(o.t.time, h12)) + '</span>' + rs + '</div>' });
+          '<b>' + e(M.code(o.t)) + ' ' + e(M.ttl(o.t)) + '</b><span class="num tg-when">' + e(U.fmtTime(o.t.time, h12)) + '</span>' + rs + '</div>' });
       });
       if (ED.study && !(s && s.filter)) ED.study.timedOn(k).forEach(x => {
         const a = U.toMin(x.time), b = a + Math.max(15, x.s.min || 60);
@@ -243,8 +243,8 @@
       return M.groupByCategory(occs).map(g => {
         const c = g.cat;
         const rows = g.items.filter(o => !(hideDone && !M.isPending(o.st) && o.st !== 'delegated')).map(o =>
-          '<div class="cp-li st-' + o.st + '" data-act="task-open" data-tid="' + e(o.t.id) + '" data-k="' + k + '" draggable="true" data-drag="task" title="' + e(o.t.title) + '">' +
-          '<span class="code num">' + e(M.code(o.t)) + '</span><span class="ttl' + (c ? ' tinted' : '') + '"' + (c ? ' style="--c:' + e(c.color) + '"' : '') + '>' + e(o.t.title) + '</span>' +
+          '<div class="cp-li st-' + o.st + '" data-act="task-open" data-tid="' + e(o.t.id) + '" data-k="' + k + '" draggable="true" data-drag="task" title="' + e(M.ttl(o.t)) + '">' +
+          '<span class="code num">' + e(M.code(o.t)) + '</span><span class="ttl' + (c ? ' tinted' : '') + '"' + (c ? ' style="--c:' + e(c.color) + '"' : '') + '>' + e(M.ttl(o.t)) + '</span>' +
           (o.t.repeat ? '<span class="mini-b">' + ED.letterIcon(M.repeatBadge(o.t.repeat)) + '</span>' : '') + '</div>').join('');
         if (!rows) return '';
         return '<div class="cp-lg"><span class="cp-lg-h">' + (c ? '<span class="emo">' + e(c.icon || '•') + '</span>' + e(c.name) : 'Other') + '</span>' + rows + '</div>';
@@ -270,7 +270,7 @@
             e(ev.title) + (ev.allDay ? '' : ' <span class="num">' + e(U.fmtTime(ev.start, h12).replace(':00', '')) + '</span>') + '</button>').join('') +
           occs.map(o => {
             const c = M.category(o.t.categoryId);
-            return '<div class="m-t st-' + o.st + (c ? ' tinted' : '') + (o.t.allDay ? ' allday' : '') + '"' + (c ? ' style="--c:' + e(c.color) + '"' : '') + ' data-act="task-open" data-tid="' + e(o.t.id) + '" data-k="' + k + '" draggable="true" data-drag="task" title="' + e(M.code(o.t) + ' ' + o.t.title) + (o.t.allDay ? ' (all day)' : o.t.time ? ' (' + U.fmtTime(o.t.time, h12) + ')' : '') + '">' + e(o.t.title) + '</div>';
+            return '<div class="m-t st-' + o.st + (c ? ' tinted' : '') + (o.t.allDay ? ' allday' : '') + '"' + (c ? ' style="--c:' + e(c.color) + '"' : '') + ' data-act="task-open" data-tid="' + e(o.t.id) + '" data-k="' + k + '" draggable="true" data-drag="task" title="' + e(M.code(o.t) + ' ' + M.ttl(o.t)) + (o.t.allDay ? ' (all day)' : o.t.time ? ' (' + U.fmtTime(o.t.time, h12) + ')' : '') + '">' + e(M.ttl(o.t)) + '</div>';
           }).join('');
         // the day's study sessions as one line: how many are ticked of how many planned
         let study = '';

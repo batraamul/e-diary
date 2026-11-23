@@ -1,6 +1,6 @@
 /* E-Diary — offline support. Serves the app from a local cache and refreshes it in the background.
    Change VERSION whenever you edit the app so installed copies pick up the new files. */
-const VERSION = 'e-diary-1.26.5';   // 1.26.5 — cards & certificates: link to the original in Google Drive (open, download, upload); small previews
+const VERSION = 'e-diary-1.26.6';   // 1.26.6 — an emoji for any task, shown in every list and calendar
 const ASSETS = [
   './',
   './index.html',
@@ -35,6 +35,7 @@ const ASSETS = [
   './js/calendar.js',
   './js/tgdrag.js',
   './js/editors.js',
+  './js/taskemoji.js',
   './js/view-daily.js',
   './js/view-plan.js',
   './js/view-mission.js',

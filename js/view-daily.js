@@ -181,7 +181,7 @@
       const lines = [U.fmtLong(k), ''];
       M.groupByRole(M.tasksOn(k)).forEach(g => {
         lines.push((g.role ? g.role.name : 'Other tasks').toUpperCase());
-        g.items.forEach(o => lines.push((M.isClosed(o.st) ? '☑ ' : '☐ ') + M.code(o.t) + ' ' + o.t.title + (o.t.time ? ' (' + U.fmtTime(o.t.time, S().h12) + ')' : '')));
+        g.items.forEach(o => lines.push((M.isClosed(o.st) ? '☑ ' : '☐ ') + M.code(o.t) + ' ' + M.ttl(o.t) + (o.t.time ? ' (' + U.fmtTime(o.t.time, S().h12) + ')' : '')));
         lines.push('');
       });
       const evs = M.eventsOn(k);
