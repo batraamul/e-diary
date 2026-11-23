@@ -1,65 +1,93 @@
-/* E-Diary — 1.26.6: an emoji for any task (optional). The task editor's emoji button and the task ⋯ menu open this
-   picker: categories (travel, transport, birthdays and celebrations, work, study, health, food, family, home, money,
-   faith, nature, sport, tech, time, symbols), a search box, “No emoji” and any emoji you type or paste.
-   Stored as task.emoji ('' = none); shown before the title everywhere a task is listed — task lists, every calendar,
-   the Eisenhower matrix, Weekly / Yearly, Google Calendar, .ics and shared text (ED.model.ttl). */
+/* E-Diary — an emoji for any task (optional). 1.26.6 added it; 1.26.7 widened the list (js/taskemoji-data.js:
+   34 groups — AI & computing, edge AI, networking, cyber security, space & satellites, drones, defence, research
+   papers & journals, patents, weather, road / rail / air / sea, and every everyday area) and redrew the picker:
+   a header with the current pick, a search box, icon tabs that follow the scroll, a hover preview and a box for
+   any emoji you type or paste. Stored as task.emoji ('' = none); shown before the title everywhere a task is listed
+   (ED.model.ttl). */
 (function () {
   'use strict';
   const ED = window.ED, U = ED.util, e = U.esc;
-  // [emoji, search words]
-  const C = [
-    ['Travel & places', '✈️ air flight plane travel trip|🛫 departure take off flight|🛬 arrival landing flight|🧳 luggage suitcase packing trip|🗺️ map tour route|🧭 compass direction trek|🏖️ beach holiday vacation|🏝️ island holiday|🏔️ mountain hills trek|⛰️ mountain|🏕️ camping|🗻 mount|🌋 volcano|🏜️ desert|🏞️ park national|🏛️ monument museum heritage|🕌 mosque|🛕 temple mandir|⛪ church|🕍 synagogue|🏰 fort castle|🗼 tower|🗽 statue|🎡 fair ferris|🎢 amusement park|🏨 hotel stay|🏩 hotel|🛂 passport visa immigration|🛃 customs|🎫 ticket booking|🎟️ ticket admission|📸 photos camera trip|🌍 world abroad|🌏 asia world|🌐 international globe|🧾 booking receipt'],
-    ['Transport', '🚌 bus|🚍 bus coach|🚎 trolley bus|🚐 minibus van|🚆 train railway|🚄 fast train vande bharat|🚅 bullet train|🚇 metro subway|🚉 railway station|🚊 tram|🚝 monorail|🚞 hill train|🚂 steam train|🚃 coach railway|🚕 taxi cab ola uber|🚖 taxi|🛺 auto rickshaw|🚗 car drive|🚙 suv car|🛻 pickup truck|🚚 truck shifting delivery|🚛 lorry|🏍️ motorbike bike|🛵 scooter|🚲 bicycle cycle|🛴 kick scooter|🚑 ambulance|🚒 fire engine|🚓 police car|🚁 helicopter|🛩️ small plane|🚀 rocket launch|🛰️ satellite|🚢 ship cruise|⛴️ ferry|🛥️ boat|⛵ sailing|🚤 speed boat|⛽ fuel petrol|🅿️ parking|🛣️ highway road trip|🚦 traffic|🔧 car service repair'],
-    ['Celebrations', '🎂 birthday cake happy birthday|🥳 party celebrate birthday|🎉 celebration party congrats|🎊 confetti celebration|🎈 balloon birthday|🎁 gift present|💐 bouquet flowers wishes|🌹 rose|💍 ring engagement|💒 wedding|👰 bride wedding|🤵 groom wedding|💑 couple anniversary|💞 anniversary love|❤️ love heart|💌 love letter card|🪔 diya diwali deepawali|🎆 fireworks|🎇 sparkler diwali|🧨 crackers|🪅 piñata|🎄 christmas|🎃 halloween|🏮 lantern|🎀 ribbon|🍰 cake|🧁 cupcake|🍾 champagne|🥂 cheers toast|🎶 music sangeet|💃 dance|🕺 dance|🙌 congratulations|👏 applause|🏆 award trophy|🥇 first gold medal|🎓 graduation convocation'],
-    ['Work & office', '💼 work office briefcase|🏢 office building|🗂️ file files|📁 folder file|📂 open file|📋 clipboard checklist|📝 note write memo|✍️ sign signature write|📄 document letter|📑 papers|🧾 bill invoice|📊 chart report presentation|📈 growth chart|📉 decline chart|📅 calendar date|🗓️ planner schedule|📆 calendar|📌 pin important|📍 location|📎 attach clip|🖇️ paper clips|✂️ cut|🗃️ records|🗄️ cabinet records|🖊️ pen|🖋️ fountain pen|📧 email mail|📨 incoming mail|📤 send outbox|📥 inbox|📞 phone call|☎️ telephone|📠 fax|🤝 meeting deal handshake|👔 formal tie interview|🧑‍💼 officer manager|👨‍💼 officer|⚖️ legal court law|🏛️ government ministry|🪪 id card|📮 post|📦 parcel package|🔏 confidential|🔐 secure|🗳️ election vote'],
-    ['Study & learning', '📚 books study|📖 reading book|📘 book|📗 book|📙 book|📕 book|📓 notebook|📔 notebook|🎓 graduation degree|🏫 school|🎒 school bag|✏️ pencil|📐 geometry|📏 ruler|🧮 maths abacus|🔬 microscope science lab|🧪 chemistry experiment|🧫 biology|🧬 dna genetics|🔭 telescope astronomy|🌡️ temperature|💡 idea|🧠 brain think|❓ question|❗ important|✅ done check|☑️ check|🧑‍🏫 teacher class|🧑‍🎓 student|📜 certificate|🗒️ notes|🖍️ crayon|🧾 exam result|🏅 medal|🥈 second|🥉 third|📝 exam test|⏳ deadline'],
-    ['Health & fitness', '💊 medicine tablet|💉 injection vaccine|🩺 doctor checkup|🩹 bandage|🏥 hospital|🦷 dentist teeth|👁️ eye|👓 glasses spectacles|🧘 yoga meditation|🏃 run running jog|🚶 walk|🏋️ gym weights|🤸 exercise|🚴 cycling|🏊 swimming|🧗 climbing|⛹️ basketball|🥗 salad diet|🍎 apple healthy|💧 water drink|😴 sleep|🛌 rest bed|❤️‍🩹 recovery|🩸 blood test|🫀 heart|🫁 lungs|🧴 lotion|🦴 bone|🤒 sick fever|🤧 cold|😷 mask|🧑‍⚕️ doctor|🌿 ayurveda herbal'],
-    ['Food & drink', '🍳 cooking breakfast|🥞 pancakes|🍞 bread|🥐 croissant|🥪 sandwich|🍲 meal curry|🍛 rice curry|🍜 noodles|🍝 pasta|🍕 pizza|🍔 burger|🌮 taco|🥘 dinner|🍱 tiffin lunch box|🥡 takeaway|🍽️ dinner meal|🥗 salad|🍲 soup|🍚 rice|🫓 roti chapati|🧆 snacks|🍿 popcorn movie|🍫 chocolate|🍬 sweets|🍭 candy|🍩 donut|🍪 cookie|🍦 ice cream|🍎 fruit|🍌 banana|🥭 mango|🍇 grapes|🍉 watermelon|🥕 vegetables|🧅 onion|🥛 milk|☕ coffee tea|🍵 tea chai|🧃 juice|🥤 drink|🍺 beer|🍷 wine|🛒 grocery shopping|🧂 salt spices'],
-    ['Family & people', '👪 family|👨‍👩‍👦 family son|👨‍👩‍👧 family daughter|👶 baby|🧒 child kid|👦 boy son|👧 girl daughter|👨 man husband|👩 woman wife|👴 grandfather elder|👵 grandmother elder|🧓 elder parent|👫 friends|👬 friends|👭 friends|🤗 hug|🙋 volunteer|🧑‍🤝‍🧑 meet people|💬 chat talk|🗣️ speak|👥 group team|🫂 support|🙏 thanks pray namaste|👋 hello visit|🤝 meet|🧑‍🍼 parenting|🐶 dog pet|🐱 cat pet|🐦 bird|🐟 fish|🐄 cow'],
-    ['Home & chores', '🏠 home house|🏡 home garden|🧹 cleaning sweep|🧺 laundry washing|🧼 soap wash|🧽 sponge dishes|🪣 bucket|🧻 tissue|🛏️ bed|🛋️ sofa|🪑 chair|🚪 door|🪟 window|🔑 key|🔒 lock|🔨 hammer repair|🪛 screwdriver|🔧 wrench fix|⚙️ settings maintenance|🔌 plug electric|💡 bulb light|🪴 plant|🌱 garden plant|🗑️ trash garbage|♻️ recycle|🔥 gas stove|🚿 shower|🛁 bath|🚰 water tap|❄️ ac fridge|📺 tv|🧯 fire safety|🪜 ladder|🏗️ construction renovation'],
-    ['Money & shopping', '💰 money|💵 cash|💸 spend payment|💳 card payment|🏦 bank|🪙 coin|💹 stocks market|📈 investment growth|🧾 bill receipt|🛒 shopping cart grocery|🛍️ shopping bags|🏷️ price tag sale|💲 price|🧮 accounts tax|📑 tax return itr|🏧 atm|🪪 kyc|🔁 renewal subscription|📆 emi due date|🏠 rent|⚡ electricity bill|📱 mobile recharge|🌐 internet bill|🚰 water bill|🔥 gas bill|🎁 gift'],
-    ['Faith & spiritual', '🙏 prayer pooja|🕉️ om|🪔 diya aarti|🛕 temple mandir|📿 mala jaap|🔱 trishul shiva|🌺 flowers offering|🌼 marigold|🥥 coconut|🍚 prasad bhog|🔔 bell|🐚 shankh|🌙 moon chaturthi|🌕 purnima full moon|🌑 amavasya|☀️ surya sunrise|🔥 havan yagya|🧘 meditation dhyan|📖 path gita ramayan|🕯️ candle|✨ blessing|🐘 ganesh|🐒 hanuman|🦚 krishna peacock|🪷 lotus lakshmi|🐍 naag|☸️ dharma wheel|☪️ islam|✝️ christian|🕎 menorah|☬ khanda sikh|🛐 worship'],
-    ['Nature & weather', '☀️ sunny sun|🌤️ partly sunny|⛅ cloudy|🌥️ cloud|☁️ cloud|🌦️ rain sun|🌧️ rain|⛈️ thunderstorm|🌩️ lightning|🌨️ snow|❄️ cold winter|🌬️ wind|🌪️ tornado cyclone|🌫️ fog mist|🌈 rainbow|🌂 umbrella|☔ rain umbrella|🌡️ temperature heat|💨 wind|🌊 sea waves|🌸 spring blossom|🍂 autumn|🍁 leaf|🌳 tree|🌲 forest|🌴 palm|🌵 cactus|🌻 sunflower|🌾 crop harvest|🌙 night|⭐ star|🌌 sky|🌏 earth|🛰️ satellite|🎈 radiosonde balloon'],
-    ['Sport & hobbies', '⚽ football|🏏 cricket|🏸 badminton|🎾 tennis|🏓 table tennis|🏐 volleyball|🏀 basketball|🏑 hockey|♟️ chess|🎲 board game|🎮 video game|🧩 puzzle|🎯 target goal|🎳 bowling|🎣 fishing|🏹 archery|🥋 martial arts|🥊 boxing|⛳ golf|🎨 painting art|🖌️ brush|🎭 theatre drama|🎬 movie film|🎥 video|📷 photography|🎵 music|🎸 guitar|🎹 piano|🥁 drums|🎤 singing|🎧 podcast listening|📻 radio|📺 series tv|🪁 kite|🧶 knitting|🪡 sewing|🌱 gardening|✈️ flying drone'],
-    ['Tech & devices', '💻 laptop computer|🖥️ desktop|⌨️ keyboard|🖱️ mouse|🖨️ printer|📱 phone mobile|📲 call|☎️ landline|🔋 battery charge|🔌 charger|💾 save backup|💿 disc|📀 dvd|🗜️ compress|🧑‍💻 coding programming|👨‍💻 developer|🤖 ai robot|🛰️ satellite|📡 antenna radar|🔭 telescope|🔬 lab|⚙️ settings|🛠️ tools fix|🔧 repair|🔩 nut bolt|🧰 toolbox|🔐 password security|🛡️ security protect|🕵️ intelligence investigate|🌐 website internet|☁️ cloud|📶 wifi signal|🖧 network|🚁 drone uav|✈️ aircraft avionics'],
-    ['Time & reminders', '⏰ alarm reminder|⏱️ stopwatch timer|⏲️ timer|🕐 time clock|⌛ hourglass|⏳ deadline waiting|📅 date|🗓️ schedule|🔔 notification reminder|🔕 silent|📣 announcement|📢 notice|🚨 urgent alert|⚠️ warning caution|❗ important|‼️ very important|❓ question|🔁 repeat|🔂 repeat once|🔄 update renew|▶️ start|⏸️ pause|⏹️ stop|⏭️ next|🆕 new|🆓 free|🔜 soon|🔚 end|🏁 finish|🚩 flag milestone'],
-    ['Symbols & feelings', '⭐ star favourite|🌟 shining|✨ sparkle|🔥 hot fire priority|💯 hundred perfect|✅ done|❌ cancel no|⭕ circle|🔴 red|🟠 orange|🟡 yellow|🟢 green|🔵 blue|🟣 purple|⚫ black|⚪ white|🟥 red square|🟩 green square|🟦 blue square|❤️ red heart love|🧡 orange heart|💛 yellow heart|💚 green heart|💙 blue heart|💜 purple heart|🖤 black heart|😊 happy smile|😃 joy|😂 laugh|😍 love|🤩 excited|😎 cool|🤔 think|😴 sleepy|😢 sad|😡 angry|😇 blessed|🤞 hope luck|👍 good ok|👎 bad|💪 strong strength|🐸 frog eat the frog|🎯 focus target|🧿 nazar protection|🍀 luck clover|☮️ peace|🇮🇳 india flag|🏳️ flag'],
-  ].map(([name, s]) => [name, s.split('|').map(x => { const i = x.indexOf(' '); return [x.slice(0, i), x.slice(i + 1)]; })]);
+  const C = (ED.TASK_EMOJI || []).map(([name, s]) => [name, s.split('|').map(x => x.trim()).filter(Boolean).map(x => {
+    const i = x.indexOf(' '); return i < 0 ? [x, ''] : [x.slice(0, i), x.slice(i + 1).trim()];
+  })]);
   const TE = (ED.taskEmoji = { cats: C });
   const LS = 'ed-emoji-recent';
-  const recent = () => { try { return (JSON.parse(localStorage.getItem(LS) || '[]') || []).slice(0, 16); } catch (err) { return []; } };
-  const remember = x => { if (!x) return; try { localStorage.setItem(LS, JSON.stringify([x].concat(recent().filter(y => y !== x)).slice(0, 16))); } catch (err) { /* private window */ } };
+  const recent = () => { try { return (JSON.parse(localStorage.getItem(LS) || '[]') || []).slice(0, 18); } catch (err) { return []; } };
+  const remember = x => { if (!x) return; try { localStorage.setItem(LS, JSON.stringify([x].concat(recent().filter(y => y !== x)).slice(0, 18))); } catch (err) { /* private window */ } };
+  /* words for an emoji (first group that has it) — for the preview and titles */
+  let words = null;
+  const wordsOf = x => {
+    if (!words) { words = {}; C.forEach(c => c[1].forEach(([k, w]) => { if (!(k in words)) words[k] = w; })); }
+    return words[x] || '';
+  };
   TE.count = () => C.reduce((a, c) => a + c[1].length, 0);
+  TE.unique = () => new Set([].concat(...C.map(c => c[1].map(x => x[0])))).size;
+  const label = w => { const s = (w || '').split(' ').slice(0, 3).join(' '); return s ? s.charAt(0).toUpperCase() + s.slice(1) : ''; };
 
   /* the picker: TE.pick(anchor, current, onPick(emoji | '')) */
   TE.pick = (anchor, cur, onPick) => {
-    const btn = (x, w) => '<button type="button" class="emoji-btn' + (x === cur ? ' on' : '') + '" data-emo="' + e(x) + '" title="' + e(w || x) + '" aria-label="' + e((w || x).split(' ')[0] || x) + '">' + x + '</button>';
+    const btn = (x, w) => '<button type="button" class="emoji-btn' + (x === cur ? ' on' : '') + '" data-emo="' + e(x) + '" title="' + e(w || x) + '" aria-label="' + e(label(w) || x) + '">' + x + '</button>';
     const r = recent();
+    const tab = (k, icon, name) => '<button type="button" class="te-tab" data-jump="' + k + '" title="' + e(name) + '" aria-label="' + e(name) + '">' + icon + '</button>';
+    const sec = (k, icon, name, items) => '<section class="te-sec" data-sec="' + k + '" data-name="' + e(name.toLowerCase()) + '"><h4><span class="te-sec-ic">' + icon + '</span>' + e(name) + '<em>' + items.length + '</em></h4>' +
+      '<div class="emoji-grid te-grid">' + items.map(x => btn(x[0], x[1])).join('') + '</div></section>';
     const html = '<div class="te-emo">' +
-      '<div class="te-emo-top"><label class="pw-search">' + ED.icon('search') + '<span class="sr-only">Search emoji</span><input class="te-emo-q" type="search" placeholder="Search: bus, train, birthday, exam, temple…" autocomplete="off"></label>' +
-      '<button type="button" class="btn small' + (!cur ? ' primary' : '') + '" data-none>' + ED.icon('x') + 'No emoji</button></div>' +
-      '<div class="te-emo-tabs" role="tablist">' + (r.length ? '<button type="button" class="chip" data-jump="recent">Recent</button>' : '') + C.map((c, i) => '<button type="button" class="chip" data-jump="' + i + '">' + c[1][0][0] + ' ' + e(c[0]) + '</button>').join('') + '</div>' +
+      '<div class="te-emo-head"><div class="te-emo-cur"><span class="te-emo-big' + (cur ? '' : ' none') + '">' + (cur || '🙂') + '</span>' +
+        '<div class="te-emo-who"><b>Task emoji</b><small>' + (cur ? e(label(wordsOf(cur)) || 'Chosen') : 'None chosen — optional') + '</small></div></div>' +
+        '<button type="button" class="te-none' + (!cur ? ' on' : '') + '" data-none>' + ED.icon('x') + 'No emoji</button></div>' +
+      '<label class="te-emo-search">' + ED.icon('search') + '<span class="sr-only">Search emoji</span><input class="te-emo-q" type="search" placeholder="Search ' + TE.unique() + ' emojis: bus, satellite, IEEE, patent, birthday…" autocomplete="off" spellcheck="false"><span class="te-emo-n" aria-live="polite"></span></label>' +
+      '<div class="te-emo-tabs" role="tablist">' + (r.length ? tab('recent', '🕘', 'Recent') : '') + C.map((c, i) => tab(i, c[1][0][0], c[0])).join('') + '</div>' +
       '<div class="te-emo-list">' +
-      (r.length ? '<h4 data-sec="recent">Recent</h4><div class="emoji-grid">' + r.map(x => btn(x)).join('') + '</div>' : '') +
-      C.map((c, i) => '<h4 data-sec="' + i + '">' + e(c[0]) + '</h4><div class="emoji-grid">' + c[1].map(x => btn(x[0], x[1])).join('') + '</div>').join('') +
-      '<p class="hint te-emo-none" hidden>No emoji matches — try another word, or type / paste one below.</p></div>' +
-      '<div class="emoji-own"><input class="field" maxlength="12" placeholder="Or type / paste any emoji" aria-label="Your own emoji"><button type="button" class="btn small" data-own>Use</button></div></div>';
+        (r.length ? sec('recent', '🕘', 'Recently used', r.map(x => [x, wordsOf(x)])) : '') +
+        C.map((c, i) => sec(i, c[1][0][0], c[0], c[1])).join('') +
+        '<p class="te-emo-none" hidden>No emoji matches — try another word, or type / paste one below.</p></div>' +
+      '<div class="te-emo-foot"><div class="te-emo-prev"><span class="te-prev-big"></span><span class="te-prev-txt">Hover an emoji to see its name</span></div>' +
+        '<div class="emoji-own"><input class="field" maxlength="12" placeholder="Paste any emoji" aria-label="Your own emoji"><button type="button" class="btn small" data-own>Use</button></div></div></div>';
     ED.ui.popover(anchor, html, {
       cls: 'emoji-pop te-emo-pop',
       onMount(el, p) {
-        const q = el.querySelector('.te-emo-q'), list = el.querySelector('.te-emo-list');
-        setTimeout(() => q.focus(), 30);
+        const q = el.querySelector('.te-emo-q'), list = el.querySelector('.te-emo-list'), tabs = el.querySelector('.te-emo-tabs');
+        const pb = el.querySelector('.te-prev-big'), pt = el.querySelector('.te-prev-txt'), n = el.querySelector('.te-emo-n');
+        if (window.matchMedia && !window.matchMedia('(pointer: coarse)').matches) setTimeout(() => q.focus(), 30);
         const done = v => { p.close(true); remember(v); onPick(v); };
+        /* active tab follows the scroll */
+        let raf = 0;
+        const mark = () => {
+          raf = 0; const top = list.scrollTop + 8; let k = null;
+          list.querySelectorAll('.te-sec:not([hidden])').forEach(s => { if (s.offsetTop <= top || k === null) k = s.dataset.sec; });
+          tabs.querySelectorAll('.te-tab').forEach(t => {
+            const on = t.dataset.jump === k; t.classList.toggle('on', on);
+            if (on && (t.offsetLeft < tabs.scrollLeft || t.offsetLeft + t.offsetWidth > tabs.scrollLeft + tabs.clientWidth)) tabs.scrollLeft = t.offsetLeft - tabs.clientWidth / 2;
+          });
+        };
+        list.addEventListener('scroll', () => { if (!raf) raf = requestAnimationFrame(mark); }, { passive: true });
+        mark();
+        /* search: every word must match; an emoji shown once */
         q.addEventListener('input', () => {
-          const s = q.value.trim().toLowerCase(); let any = false;
-          list.querySelectorAll('.emoji-btn').forEach(b => { const hit = !s || (b.title || '').toLowerCase().indexOf(s) >= 0 || b.dataset.emo === s; b.hidden = !hit; if (hit) any = true; });
-          list.querySelectorAll('h4').forEach(h => { const g = h.nextElementSibling; h.hidden = !!s && !g.querySelector('.emoji-btn:not([hidden])'); g.hidden = h.hidden; });
-          const rh = list.querySelector('h4[data-sec="recent"]'); if (rh && s) { rh.hidden = true; rh.nextElementSibling.hidden = true; }
-          list.querySelector('.te-emo-none').hidden = any;
+          const parts = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean); const seen = new Set(); let hits = 0;
+          list.querySelectorAll('.te-sec').forEach(s => {
+            let any = false;
+            s.querySelectorAll('.emoji-btn').forEach(b => {
+              const t = ' ' + (b.title + ' ' + s.dataset.name).toLowerCase().replace(/[&,]/g, ' ') + ' ';
+              const ok = !parts.length || (parts.every(w => t.indexOf(' ' + w + (w.length <= 2 ? ' ' : '')) >= 0) || b.dataset.emo === q.value.trim());
+              const show = ok && (!parts.length || !seen.has(b.dataset.emo));
+              if (show && parts.length) { seen.add(b.dataset.emo); hits++; }
+              b.hidden = !show; if (show) any = true;
+            });
+            s.hidden = !any || (!!parts.length && s.dataset.sec === 'recent');
+          });
+          el.classList.toggle('searching', !!parts.length);
+          n.textContent = parts.length ? hits + ' found' : '';
+          list.querySelector('.te-emo-none').hidden = !parts.length || hits > 0;
+          list.scrollTop = 0; mark();
         });
-        q.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); const b = list.querySelector('.emoji-btn:not([hidden])'); if (b && q.value.trim()) done(b.dataset.emo); } });
+        q.addEventListener('keydown', ev => { if (ev.key === 'Enter') { ev.preventDefault(); const b = list.querySelector('.te-sec:not([hidden]) .emoji-btn:not([hidden])'); if (b && q.value.trim()) done(b.dataset.emo); } });
+        const show = b => { pb.textContent = b.dataset.emo; pt.textContent = label(b.title === b.dataset.emo ? '' : b.title) || 'Emoji'; };
+        list.addEventListener('pointerover', ev => { const b = ev.target.closest('.emoji-btn'); if (b) show(b); });
+        list.addEventListener('focusin', ev => { const b = ev.target.closest('.emoji-btn'); if (b) show(b); });
         el.addEventListener('click', ev => {
-          const j = ev.target.closest('[data-jump]'); if (j) { const h = list.querySelector('h4[data-sec="' + j.dataset.jump + '"]'); if (h) list.scrollTop = h.offsetTop - list.offsetTop; return; }
+          const j = ev.target.closest('[data-jump]');
+          if (j) { const s = list.querySelector('.te-sec[data-sec="' + j.dataset.jump + '"]'); if (s) { if (q.value) { q.value = ''; q.dispatchEvent(new Event('input')); } list.scrollTo({ top: s.offsetTop, behavior: 'smooth' }); } return; }
           const b = ev.target.closest('[data-emo]'); if (b) { done(b.dataset.emo); return; }
           if (ev.target.closest('[data-none]')) { p.close(true); onPick(''); return; }
           if (ev.target.closest('[data-own]')) { const v = el.querySelector('.emoji-own input').value.trim(); if (v) done(v); }
