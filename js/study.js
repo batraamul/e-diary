@@ -726,12 +726,59 @@
   const slotOpt = (sl, sel) => opt(sl.no, 'Slot ' + sl.no + ' · ' + sl.name + (sl.time ? ' · ' + U.fmtTime(sl.time, ED.store.data.settings.h12) : ''), sel);
 
   /* the dropdowns shared by the session editor and "Add to the schedule" */
+  /* 1.26.9: the subject's topics as a tree (subtopics indented under their topic), then every exam and interview
+     preparation with its topics — whatever is in Exam preparation and Interview Prep can be picked in any session */
+  const IND = '\u00a0\u00a0\u00a0';
+  ST.topicRows = trackId => {
+    const list = ST.topicsFor(trackId), own = ((ST.plan() || {}).topics || []).filter(x => x.trackId === trackId);
+    const lw = v => String(v || '').trim().toLowerCase();
+    const node = n => own.find(x => lw(x.name) === lw(n));
+    const isChild = n => { const x = node(n); return !!(x && x.parent && own.some(y => y.id === x.parent)); };
+    const out = [], seen = new Set();
+    const put = (n, lvl) => {
+      if (seen.has(lw(n))) return; seen.add(lw(n)); out.push([n, lvl]);
+      const x = node(n); if (x) own.filter(y => y.parent === x.id).forEach(k => { if (list.some(t => lw(t) === lw(k.name))) put(k.name, lvl + 1); });
+    };
+    list.filter(n => !isChild(n)).forEach(n => put(n, 0));
+    list.forEach(n => put(n, 0));                                   // anything left (e.g. a subtopic whose topic is gone)
+    return out;
+  };
+  ST.prepGroups = trackId => {
+    const d = ED.store.data, ex = (d.exam && d.exam.list) || [], tops = (d.exam && d.exam.topics) || [], p = ST.plan() || {};
+    const mine = new Set(((p.topics || []).filter(x => x.trackId === trackId && /^tp-ex-/.test(x.id || ''))).map(x => x.id.slice(6)));
+    const lw = v => String(v || '').trim().toLowerCase();
+    const out = [];
+    ex.slice().sort((a, b) => String(a.date || '9999').localeCompare(String(b.date || '9999'))).forEach(x => {
+      const l = tops.filter(t => t.examId === x.id && t.name);
+      if (!l.length || l.some(t => mine.has(t.id))) return;         // none yet, or they are this subject's own topics already
+      const subs = []; l.forEach(t => { const sb = (t.subj || '').trim(); if (subs.indexOf(sb) < 0) subs.push(sb); });
+      const flat = subs.length === 1 && (!subs[0] || /^(general|exam)$/i.test(subs[0]) || lw(subs[0]) === lw(x.name) || lw(x.name).indexOf(lw(subs[0])) >= 0 || lw(subs[0]).indexOf(lw(x.name)) >= 0);
+      const rows = [];
+      subs.forEach(sb => { if (!flat) rows.push([sb || 'General', 0]); l.filter(t => (t.subj || '').trim() === sb).forEach(t => rows.push([t.name, flat ? 0 : 1])); });
+      out.push({ label: '📝 ' + (x.name || 'Exam') + (x.date ? ' · ' + U.fmtShort(x.date) : ''), rows });
+    });
+    const tr = ST.track(trackId), qs = (d.interview && d.interview.qs) || [];
+    const cats = Array.from(new Set(qs.map(q => q.cat).filter(Boolean)));
+    if (cats.length && !(tr && /^interview preparation$/i.test(tr.name || ''))) {
+      const ivs = ((d.interview && d.interview.list) || []).filter(x => !x.date || x.date >= U.today());
+      const rows = [];
+      if (ivs.length > 1) ivs.forEach(x => {
+        const name = [x.role, x.org].filter(Boolean).join(', ') || 'Interview', cs = Array.from(new Set(qs.filter(q => !q.forId || q.forId === x.id).map(q => q.cat).filter(Boolean)));
+        rows.push([name, 0]); cs.forEach(c => rows.push([c, 1]));
+      }); else cats.forEach(c => rows.push([c, 0]));
+      out.push({ label: '🎤 Interview preparation' + (ivs[0] && ivs[0].date ? ' · ' + U.fmtShort(ivs[0].date) : ''), rows });
+    }
+    return out;
+  };
   function topicSelect(id, trackId, cur, extra) {
-    const list = ST.topicsFor(trackId);
-    const has = cur && list.some(t => t.toLowerCase() === cur.toLowerCase());
-    return '<select id="' + id + '" class="field">' + opt('', extra || '— no topic —', !cur) + (cur && !has ? opt(cur, cur, true) : '') +
-      (list.length ? '<optgroup label="Topics for this subject">' + list.map(t => opt(t, t, cur && t.toLowerCase() === cur.toLowerCase())).join('') + '</optgroup>' : '') +
-      opt(NEW, '＋ A new topic…', false) + '</select>';
+    const rows = ST.topicRows(trackId), lc = String(cur || '').toLowerCase();
+    let picked = false;
+    const o = (v, lvl) => { const on = !!cur && !picked && String(v).toLowerCase() === lc; if (on) picked = true; return opt(v, (lvl ? IND.repeat(lvl) + '↳ ' : '') + v, on); };
+    const mine = rows.length ? '<optgroup label="Topics for this subject">' + rows.map(r => o(r[0], r[1])).join('') + '</optgroup>' : '';
+    const prep = ST.prepGroups(trackId).map(g => '<optgroup label="' + e(g.label) + '">' + g.rows.map(r => o(r[0], r[1])).join('') + '</optgroup>').join('');
+    const lead = cur && !picked && !rows.some(r => r[0].toLowerCase() === lc) && !ST.prepGroups(trackId).some(g => g.rows.some(r => r[0].toLowerCase() === lc)) ? opt(cur, cur, true) : '';
+    if (lead) picked = true;
+    return '<select id="' + id + '" class="field">' + opt('', extra || '— no topic —', !cur) + lead + mine + prep + opt(NEW, '＋ A new topic…', false) + '</select>';
   }
   function sourceSelect(id, trackId, cur) {
     const all = ST.sources();
@@ -1241,16 +1288,49 @@
     const names = [name].concat(under.map(t => t.name)), has = t => names.some(n => lowT(n) === lowT(t));
     const ses = ST.sessions().filter(s => s.trackId === trackId && ST.topicsOf(s).some(has));
     const wks = (p.weeks || []).filter(w => w.themes && has(w.themes[trackId]));
-    const bits = [under.length ? U.plural(under.length, 'subtopic') + ' under it' : '', ses.length ? U.plural(ses.length, 'session') + ' lose this topic (they stay in the plan)' : '', wks.length ? U.plural(wks.length, 'week') + ' lose it as the week’s topic' : ''].filter(Boolean);
+    const linked = node && /^tp-(ex|exs|iv)-/.test(node.id || '');
+    const bits = [under.length ? U.plural(under.length, 'subtopic') + ' under it' : '', ses.length ? U.plural(ses.length, 'session') + ' lose this topic (they stay in the plan)' : '', wks.length ? U.plural(wks.length, 'week') + ' lose it as the week’s topic' : '', linked ? 'it stays in Exam preparation / Interview Prep and is only taken out of the Study lists' : ''].filter(Boolean);
     if (bits.length && !(await ED.ui.confirm({ title: 'Delete topic', message: 'Delete “' + name + '”? ' + bits.join('; ') + '. Books, lectures and papers filed under it are kept, unfiled.', ok: 'Delete', danger: true }))) return;
     ED.store.checkpoint('Delete topic');
     const ids = new Set(under.map(t => t.id).concat(node ? [node.id] : []));
+    if (ED.studyLink && ED.studyLink.hide) ED.studyLink.hide(Array.from(ids));   // 1.26.9: exam / interview topics are not brought back
     p.topics = p.topics.filter(t => !ids.has(t.id));
     wks.forEach(w => { w.themes[trackId] = ''; });
     const now = Date.now();
     ses.forEach(s => { const l = ST.topicsOf(s).filter(t => !has(t)); s.topic = l[0] || ''; s.moreTopics = l.slice(1); s.updatedAt = now; });
     ST.sources().forEach(x => { if (x.trackId && x.trackId !== trackId) return; if (has(x.topic)) { x.topic = ''; x.sub = ''; } else if (has(x.sub)) x.sub = ''; });
     ED.store.commit(); ED.ui.undoToast('Topic deleted');
+  };
+  /* 1.26.9: delete every topic of a subject at once — its topic list, the week topics, the topic names on its sessions
+     (the sessions stay) and exam / interview topics (they stay in Exam preparation / Interview Prep) */
+  ST.clearTopics = async trackId => {
+    const p = ST.plan(), tr = ST.track(trackId); if (!p || !tr) return;
+    const names = ST.topicsFor(trackId); if (!names.length) { ED.ui.toast('“' + tr.name + '” has no topics'); return; }
+    const has = t => names.some(n => lowT(n) === lowT(t));
+    const ses = ST.sessions().filter(s => s.trackId === trackId && ST.topicsOf(s).some(has));
+    const wks = (p.weeks || []).filter(w => w.themes && w.themes[trackId]);
+    if (!(await ED.ui.confirm({ title: 'Delete all topics of “' + tr.name + '”', message: 'Delete all ' + U.plural(names.length, 'topic') + ' (with their subtopics)?' + (ses.length ? ' ' + U.plural(ses.length, 'session') + ' lose their topic but stay in the plan.' : '') + (wks.length ? ' ' + U.plural(wks.length, 'week') + ' lose the week’s topic.' : '') + ' Exam and interview topics stay in Exam preparation / Interview Prep. The subject itself stays; Undo brings everything back.', ok: 'Delete all topics', danger: true }))) return;
+    ED.store.checkpoint('Delete all topics');
+    const gone = p.topics.filter(t => t.trackId === trackId);
+    if (ED.studyLink && ED.studyLink.hide) ED.studyLink.hide(gone.map(t => t.id));
+    p.topics = p.topics.filter(t => t.trackId !== trackId);
+    wks.forEach(w => { w.themes[trackId] = ''; });
+    const now = Date.now();
+    ses.forEach(s => { s.topic = ''; s.moreTopics = []; s.updatedAt = now; });
+    ST.sources().forEach(x => { if (x.trackId !== trackId) return; if (has(x.topic)) { x.topic = ''; x.sub = ''; } else if (has(x.sub)) x.sub = ''; });
+    ED.store.commit(); ED.ui.undoToast('All topics of “' + tr.name + '” deleted');
+  };
+  /* 1.26.9: delete a whole subject from the Topics page (as in Edit the plan → Subjects) */
+  ST.deleteSubjectAsk = async trackId => {
+    const tr = ST.track(trackId); if (!tr || !ED.studyEdit) return;
+    const l = ST.sessions().filter(s => s.trackId === trackId), done = l.filter(s => s.done).length;
+    if (!(await ED.ui.confirm({ title: 'Delete the subject “' + tr.name + '”', message: (l.length - done ? U.plural(l.length - done, 'session') + ' not ticked will be deleted. ' : '') + (done ? 'Its ' + U.plural(done, 'ticked session') + ' stay in your progress, so the subject is kept for them (its topics are emptied). ' : 'The subject and its topics go. ') + 'Exam and interview topics stay in Exam preparation / Interview Prep. Undo brings it all back.', ok: 'Delete subject', danger: true }))) return;
+    ED.store.checkpoint('Delete subject');
+    const p = ST.plan(), gone = (p.topics || []).filter(t => t.trackId === trackId);
+    if (ED.studyLink && ED.studyLink.hide) ED.studyLink.hide(gone.map(t => t.id));
+    const r = ED.studyEdit.deleteSubject(trackId);
+    if (r.kept) p.topics = (p.topics || []).filter(t => t.trackId !== trackId);
+    ED.store.commit(); ED.ui.undoToast(r.kept ? 'Deleted ' + U.plural(r.removed, 'session') + '; “' + tr.name + '” kept for its ticked sessions' : '“' + tr.name + '” deleted');
   };
   /* the topic and subtopic a book / lecture / paper is filed under, as a label */
   ST.filedAs = x => [x.topic, x.sub].filter(Boolean).join(' › ');
@@ -1701,6 +1781,10 @@
   A['study-topic-add'] = el => ST.addTopic(el.dataset.track, el.dataset.parent || null, el.dataset.pid || null);
   A['study-topic-ren'] = el => ST.renameTopic(el.dataset.track, el.dataset.name);
   A['study-topic-del'] = el => ST.deleteTopic(el.dataset.track, el.dataset.name);
+  A['study-topic-clear'] = el => ST.clearTopics(el.dataset.track);
+  A['study-subj-del'] = el => ST.deleteSubjectAsk(el.dataset.track);
+  A['sl-skip'] = el => { if (!ED.studyLink) return; ED.store.checkpoint('Study topics'); ED.studyLink.skipExam(el.dataset.id, el.dataset.on === '1'); ED.store.commit(); ED.ui.undoToast(el.dataset.on === '1' ? 'Its topics are taken out of Study (they stay in Exam preparation)' : 'Its topics are back in Study'); };
+  A['sl-unhide'] = () => { if (!ED.studyLink) return; ED.store.checkpoint('Study topics'); ED.studyLink.unhideAll(); ED.store.commit(); ED.ui.undoToast('Deleted exam and interview topics are back in Study'); };
   A['study-day'] = el => { const st = ED.state.study || (ED.state.study = {}); st.day = el.dataset.date; if (el.dataset.go) ED.go.tab(el.dataset.go); else ED.app.render(); };
   A['study-menu'] = el => {
     const p = ST.plan();

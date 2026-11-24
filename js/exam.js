@@ -106,7 +106,7 @@
       rows: subs.map(sb => { const l = all.filter(t => (t.subj || 'General') === sb), dn = l.filter(t => t.st >= 2).length; return { label: sb, value: pct(dn, l.length), total: 100, valueLabel: dn + '/' + l.length + ' · ' + pct(dn, l.length) + '%', tip: l.filter(t => t.st === 3).length + ' revised · ' + l.filter(t => t.st === 1).length + ' being learnt' }; }),
       table: CH.table(['Subject', 'Topics', 'Done', 'Revised'], subs.map(sb => { const l = all.filter(t => (t.subj || 'General') === sb); return [sb, String(l.length), String(l.filter(t => t.st >= 2).length), String(l.filter(t => t.st === 3).length)]; })),
     }) : '';
-    const add = '<form class="ex-add" data-form="ex-topics"><div class="ex-add-r"><input class="field" name="subj" list="ex-subj" placeholder="Subject (e.g. General Studies, Electronics)" aria-label="Subject" value="' + e(s.lastSubj || '') + '">' +
+    const add = '<form class="ex-add" data-form="ex-topics"><div class="ex-add-r"><input class="field" name="subj" list="ex-subj" placeholder="Subject of ' + e(x.name || 'this exam') + ' (e.g. Physics) — empty: ' + e(x.name || 'the exam') + '" aria-label="Subject" value="' + e(((s.lastSubjBy || {})[x.id]) || (subs.length === 1 ? subs[0] : '')) + '">' +
       '<datalist id="ex-subj">' + subs.map(sb => '<option value="' + e(sb) + '">').join('') + '</datalist></div>' +
       '<textarea class="field" name="topics" rows="3" placeholder="Topics — one per line (paste the syllabus here)" aria-label="Topics, one per line"></textarea>' +
       '<div class="row-btns"><button type="submit" class="btn small primary">' + ED.icon('plus') + 'Add topics</button></div></form>';
@@ -276,14 +276,15 @@
   };
   F['ex-topics'] = f => {
     const x = sel(); if (!x) return;
-    const subj = f.elements.subj.value.trim() || 'General';
+    // 1.26.9: an empty subject means the exam itself (it used to be 'General'), and the box no longer carries a subject over from another exam
+    const subj = f.elements.subj.value.trim() || (x.name || 'General').trim();
     const names = f.elements.topics.value.split(/\n+/).map(s => s.replace(/^[\s•\-–*\d.)]+/, '').trim()).filter(Boolean);
     if (!names.length) { f.elements.topics.focus(); return; }
     const have = new Set(topicsOf(x.id).filter(t => (t.subj || 'General') === subj).map(t => t.name.toLowerCase()));
     const add = names.filter((n, i) => names.indexOf(n) === i && !have.has(n.toLowerCase()));
     ED.store.checkpoint('Add topics');
     add.forEach(n => EX().topics.push({ id: U.uid('xt'), examId: x.id, subj, name: n, st: 0, rev: 0, last: null, weak: false, updatedAt: Date.now() }));
-    st().lastSubj = subj;
+    (st().lastSubjBy = st().lastSubjBy || {})[x.id] = subj;      // remembered for this exam only
     ED.store.commit();
     ED.ui.undoToast(add.length ? U.plural(add.length, 'topic') + ' added to ' + subj : 'Those topics are already there');
   };

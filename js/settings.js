@@ -74,7 +74,11 @@
         [[7, '1 week old'], [14, '2 weeks old'], [30, '30 days old'], [60, '60 days old'], [90, '90 days old'], [365, '1 year old'], [0, 'any age']].map(x => opt(x[0], x[1], (s.carryDays == null ? 30 : s.carryDays) === x[0])).join('') + '</select></div>' +
         sw('sg-done', s.showCompleted, 'Show completed tasks', 'When off, completed, forwarded and cancelled tasks are hidden from lists.') +
         '<h3 class="set-h">The diary</h3>' +
-        sw('sg-cover', s.cover !== false, 'Open from the closed cover', 'The diary starts closed and opens with a page turn. The book button at the top closes it again (and locks the password log).') + (ED.dayExt ? ED.dayExt.settingsHtml() : '');
+        sw('sg-cover', s.cover !== false, 'Open from the closed cover', 'The diary starts closed and opens with a page turn. The book button at the top closes it again (and locks the password log).') + (ED.dayExt ? ED.dayExt.settingsHtml() : '') +
+        /* 1.26.9: check for a newer version yourself (the "A new version is ready → Reload" message still comes by itself) */
+        '<h3 class="set-h">App version</h3><div class="set-upd"><p class="hint">This diary: <b>version ' + e(ED.VERSION || '?') + '</b>. A new version normally shows itself as “A new version of the diary is ready → Reload”. You can also check now and load it yourself — your entries are not touched.</p>' +
+        '<div class="row-btns"><button type="button" class="btn small" id="sg-upd-check">' + ED.icon('sync') + 'Check for a new version</button><button type="button" class="btn small primary" id="sg-upd-go" hidden>' + ED.icon('download') + 'Load the new version now</button></div>' +
+        '<p class="hint" id="sg-upd-msg" role="status" aria-live="polite"></p></div>';
     },
     bind_general(b) {
       if (ED.dayExt) ED.dayExt.bindSettings(b);
@@ -93,6 +97,16 @@
       on('sg-carrydays', 'change', ev => { s.carryDays = +ev.target.value; ED.store.commit(); });
       on('sg-done', 'change', ev => { s.showCompleted = ev.target.checked; ED.store.commit(); });
       on('sg-cover', 'change', ev => { s.cover = ev.target.checked; ED.store.commit(); });
+      const msg = b.querySelector('#sg-upd-msg'), go = b.querySelector('#sg-upd-go'), chk = b.querySelector('#sg-upd-check');
+      on('sg-upd-check', 'click', async () => {
+        chk.disabled = true; go.hidden = true; msg.textContent = 'Checking…';
+        const r = await SET.latestVersion();
+        chk.disabled = false;
+        if (r.err) { msg.textContent = r.err; return; }
+        if (SET.newer(r.v, ED.VERSION)) { msg.innerHTML = '<b>Version ' + e(r.v) + ' is available</b> (you have ' + e(ED.VERSION) + ').'; go.hidden = false; go.textContent = ''; go.insertAdjacentHTML('beforeend', ED.icon('download') + 'Load version ' + e(r.v) + ' now'); }
+        else { msg.innerHTML = 'You have the latest version (' + e(ED.VERSION) + '). <button type="button" class="link-btn" id="sg-upd-force">Load a fresh copy anyway</button>'; b.querySelector('#sg-upd-force').addEventListener('click', () => SET.loadLatest(msg)); }
+      });
+      on('sg-upd-go', 'click', () => { go.disabled = true; SET.loadLatest(msg); });
     },
 
     /* ---------------- Google Calendar (js/gcal.js) ---------------- */
@@ -530,5 +544,38 @@
       });
     },
   });
+  /* 1.26.9: version check — read the version from the site's sw.js (never from a cache) and compare */
+  SET.newer = (a, b) => {
+    const n = v => String(v || '').replace(/^e-diary-/, '').split(/[^0-9]+/).filter(Boolean).map(Number);
+    const x = n(a), y = n(b);
+    for (let i = 0; i < Math.max(x.length, y.length); i++) { const d = (x[i] || 0) - (y[i] || 0); if (d) return d > 0; }
+    return false;
+  };
+  SET.latestVersion = async () => {
+    if (ED.env.claude) return { err: 'Inside Claude the diary is always the latest version — nothing to load.' };
+    if (!ED.env.http) return { err: 'This copy is opened from a file on this computer, so it cannot check online. Download the newest copy (or open https://batraamul.github.io/e-diary/).' };
+    try {
+      const res = await fetch('sw.js?check=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) return { err: 'Could not reach the diary’s website (' + res.status + '). Try again when you are online.' };
+      const m = (await res.text()).match(/VERSION\s*=\s*'e-diary-([^']+)'/);
+      return m ? { v: m[1] } : { err: 'Could not read the version on the website.' };
+    } catch (err) { return { err: 'You seem to be offline — try again when you are connected.' }; }
+  };
+  /* load it: let the service worker fetch the new version and take over, then reload; if that does not happen within
+     15 seconds, clear the stored copy of the app (never the diary) and reload — the same as …/index.html?repair */
+  SET.loadLatest = async msgEl => {
+    const say = t => { if (msgEl) msgEl.textContent = t; };
+    try { if (ED.store && ED.store.flushNow) ED.store.flushNow(); } catch (err) { /* saving goes on */ }
+    await new Promise(r => setTimeout(r, 600));                     // let the last save reach this browser's storage
+    say('Loading the new version… the diary reloads by itself in a moment.');
+    const hard = () => { if (window.EDrepair) window.EDrepair(); else location.reload(); };
+    if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) { hard(); return; }
+    let done = false;
+    const finish = () => { if (done) return; done = true; location.reload(); };
+    navigator.serviceWorker.addEventListener('controllerchange', finish);
+    setTimeout(() => { if (!done) { done = true; hard(); } }, 15000);
+    try { const reg = await navigator.serviceWorker.getRegistration(); if (reg) { await reg.update(); if (!reg.installing && !reg.waiting) setTimeout(() => { if (!done) { done = true; hard(); } }, 2500); } else { done = true; hard(); } }
+    catch (err) { done = true; hard(); }
+  };
   SET.init();
 })();

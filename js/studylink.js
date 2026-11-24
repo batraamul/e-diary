@@ -21,6 +21,34 @@
   const examTopics = id => ((D().exam && D().exam.topics) || []).filter(t => !id || t.examId === id);
   const examOf = id => ((D().exam && D().exam.list) || []).find(x => x.id === id) || null;
   const subjOf = t => (t.subj || '').trim() || ((examOf(t.examId) || {}).name || 'Exam');
+  /* 1.26.9: names that belong together — equal, or one holds the other as whole words
+     ("National Mathematics Olympiad" ↔ "National Mathematics Olympiad Level 1", "UAV" ↔ "UAV and airborne systems") */
+  const norm = v => low(v).replace(/[^a-z0-9]+/g, ' ').trim();
+  const rel = (a, b) => { a = norm(a); b = norm(b); return !!(a && b && (a === b || (' ' + a + ' ').indexOf(' ' + b + ' ') >= 0 || (' ' + b + ' ').indexOf(' ' + a + ' ') >= 0)); };
+  const generic = sb => !sb || /^(general|exam)$/i.test(String(sb).trim());
+  const slug = v => norm(v).replace(/ /g, '-').slice(0, 40) || 'x';
+  /* 1.26.9: topics you deleted from the Study lists (they stay in Exam preparation / Interview Prep), per study plan,
+     and exams taken out of Study as a whole */
+  const pkOf = p => 'p:' + (p.id || p.title || 'plan');
+  const hidMap = p => { const c = cfg(); if (!c.hide || typeof c.hide !== 'object') c.hide = {}; const k = pkOf(p); if (!c.hide[k] || typeof c.hide[k] !== 'object') c.hide[k] = {}; return c.hide[k]; };
+  SL.hide = ids => { const p = ST() && ST().plan(); if (!p) return 0; const h = hidMap(p); let n = 0; (ids || []).forEach(id => { if (/^tp-(ex|exs|iv)-/.test(id || '') && !h[id]) { h[id] = 1; n++; } }); return n; };
+  SL.hiddenCount = () => { const p = ST() && ST().plan(); return p ? Object.keys(hidMap(p)).length : 0; };
+  SL.unhideAll = () => { const p = ST() && ST().plan(); if (p) cfg().hide[pkOf(p)] = {}; };
+  SL.skipped = id => !!((cfg().skipEx || {})[id]);
+  SL.skipExam = (id, on) => { const c = cfg(); if (!c.skipEx || typeof c.skipEx !== 'object') c.skipEx = {}; if (on) c.skipEx[id] = 1; else delete c.skipEx[id]; };
+  /* 1.26.9: before, the Exam preparation subject box kept the last subject typed — even in another exam — so the
+     Science and Cyber syllabus went in under “National Mathematics Olympiad” and showed in that subject in Study. Once:
+     a topic whose subject is another exam's name (and not its own exam's) is put under its own exam's name. */
+  SL.repairSubjects = () => {
+    const ex = D().exam; if (!ex || ex.subjFix >= 1) return false;
+    const list = ex.list || [], now = Date.now(); let n = 0;
+    (ex.topics || []).forEach(t => {
+      const x = list.find(y => y.id === t.examId), sb = (t.subj || '').trim(); if (!x || !sb || rel(sb, x.name)) return;
+      if (list.some(o => o.id !== x.id && rel(sb, o.name))) { t.subj = (x.name || sb).trim(); t.updatedAt = now; n++; }
+    });
+    ex.subjFix = 1; SL.repaired = n;
+    return true;
+  };
 
   /* ---------------- topics kept in step ---------------- */
   let busy = false;
@@ -28,8 +56,10 @@
     if (busy || !D() || !ST() || !ST().plan()) return false;
     busy = true; let ch = false;
     try {
+      if (SL.repairSubjects()) ch = true;
       const p = ST().plan(), c = cfg();
       if (!Array.isArray(p.topics)) p.topics = [];
+      const hid = hidMap(p);
       const track = name => p.tracks.find(t => low(t.name) === low(name)) || null;
       /* 1.25: a subject that is not in the study plan yet is added (once) — before, its topics were left out. A subject
          you delete yourself is not added again (settings.studyLink.made remembers it). */
@@ -48,18 +78,50 @@
         tr = ST().addTrack(name); tr.auto = 'link'; made[k] = tr.id; ch = true; return tr;
       };
       const want = new Map();
-      if (c.exam) examTopics().forEach(t => { if (!t.name) return; const tr = ensure(subjOf(t)); if (tr) want.set('tp-ex-' + t.id, { trackId: tr.id, name: t.name }); });
+      /* 1.26.9: each exam goes to its own subject — the one named like it (or holding its name), else one made for it.
+         A syllabus subject you also have as a study subject (e.g. Physics) keeps going there; any other syllabus subject
+         becomes a topic of the exam's subject, with its topics as subtopics. */
+      const exTr = {};
+      const trackFor = x => {
+        if (x.id in exTr) return exTr[x.id];
+        const nm = (x.name || 'Exam').trim(), mk = 'ex:' + x.id;
+        let tr = track(nm) || p.tracks.find(t => rel(t.name, nm)) || (isId(made[mk]) ? p.tracks.find(t => t.id === made[mk]) : null);
+        if (!tr && made[mk] === 'deleted') return (exTr[x.id] = null);
+        if (!tr) tr = ensure(nm);
+        if (tr) { used.add(low(tr.name)); if (made[mk] !== tr.id) { made[mk] = tr.id; ch = true; } }
+        return (exTr[x.id] = tr || null);
+      };
+      if (c.exam) examTopics().forEach(t => {
+        const x = examOf(t.examId); if (!t.name || !x || SL.skipped(x.id)) return;
+        const sb = (t.subj || '').trim();
+        let tr = !generic(sb) && !rel(sb, x.name) ? track(sb) : null, parent = null;
+        if (tr) used.add(low(tr.name));
+        else {
+          tr = trackFor(x); if (!tr) return;
+          if (!generic(sb) && !rel(sb, x.name) && !rel(sb, tr.name)) {
+            const own = p.topics.find(o => o.trackId === tr.id && low(o.name) === low(sb) && !/^tp-(ex|exs|iv)-/.test(o.id || ''));
+            parent = own ? own.id : 'tp-exs-' + x.id + '-' + slug(sb);
+            if (!own && !hid[parent]) want.set(parent, { trackId: tr.id, name: sb });
+            if (hid[parent]) return;                                   // its syllabus subject was deleted from Study
+          }
+        }
+        const id = 'tp-ex-' + t.id; if (!hid[id]) want.set(id, { trackId: tr.id, name: t.name, parent });
+      });
       if (c.iv && D().interview && (D().interview.qs || []).some(q => q.cat)) {
         const tr = ensure(IVSUBJ);
-        if (tr) Array.from(new Set((D().interview.qs || []).map(q => q.cat).filter(Boolean))).forEach(cat => want.set('tp-iv-' + low(cat).replace(/[^a-z0-9]+/g, '-'), { trackId: tr.id, name: cat }));
+        if (tr) Array.from(new Set((D().interview.qs || []).map(q => q.cat).filter(Boolean))).forEach(cat => { const id = 'tp-iv-' + low(cat).replace(/[^a-z0-9]+/g, '-'); if (!hid[id]) want.set(id, { trackId: tr.id, name: cat }); });
       }
       want.forEach((v, id) => {
         const old = p.topics.find(x => x.id === id);
-        if (!old) { if (!p.topics.some(x => x.trackId === v.trackId && low(x.name) === low(v.name))) { p.topics.push({ id, trackId: v.trackId, name: v.name, auto: true }); ch = true; } }
-        else if (old.name !== v.name || old.trackId !== v.trackId) { old.name = v.name; old.trackId = v.trackId; ch = true; }
+        if (!old) { if (!p.topics.some(x => x.trackId === v.trackId && low(x.name) === low(v.name))) { p.topics.push(Object.assign({ id, trackId: v.trackId, name: v.name, auto: true }, v.parent ? { parent: v.parent } : {})); ch = true; } }
+        else if (old.name !== v.name || old.trackId !== v.trackId || (old.auto && (old.parent || null) !== (v.parent || null))) {
+          old.name = v.name; old.trackId = v.trackId;
+          if (old.auto) { if (v.parent) old.parent = v.parent; else delete old.parent; }
+          ch = true;
+        }
       });
       const n = p.topics.length;
-      p.topics = p.topics.filter(x => !/^tp-(ex|iv)-/.test(x.id || '') || want.has(x.id));
+      p.topics = p.topics.filter(x => !/^tp-(ex|exs|iv)-/.test(x.id || '') || want.has(x.id));
       if (p.topics.length !== n) ch = true;
       // remove subjects this link added that are no longer needed and hold nothing of yours
       p.tracks.slice().forEach(tr => {
@@ -178,7 +240,7 @@
   SL.prepEnsure = key => {
     const p = ST().plan(), c = SL.prepChoices(key).find(x => x.key === key); if (!p || !c) return null;
     if (!Array.isArray(p.topics)) p.topics = [];
-    const find = name => p.tracks.find(t => low(t.name) === low(name));
+    const find = name => p.tracks.find(t => low(t.name) === low(name)) || p.tracks.find(t => rel(t.name, name));
     const n = {}; c.tops.forEach(t => { n[t.subj] = (n[t.subj] || 0) + 1; });
     const most = Object.keys(n).sort((a, b) => n[b] - n[a]).map(find).find(Boolean);
     const tr = find(c.subj) || most || ST().addTrack(c.subj);
