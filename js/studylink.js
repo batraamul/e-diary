@@ -39,14 +39,17 @@
   /* 1.26.9: before, the Exam preparation subject box kept the last subject typed — even in another exam — so the
      Science and Cyber syllabus went in under “National Mathematics Olympiad” and showed in that subject in Study. Once:
      a topic whose subject is another exam's name (and not its own exam's) is put under its own exam's name. */
+  /* 1.26.10: also when that other exam was deleted already (its name is gone from the list): a subject that is itself
+     the name of an exam (“… Olympiad”, “… Exam”, “… Examination”) and not this exam's name is a mis-filed subject */
+  const EXAMLIKE = /\b(olympiads?|exams?|examination|entrance|ntse|kvpy|nso|imo|nco|ieo|igko)\b/i;
   SL.repairSubjects = () => {
-    const ex = D().exam; if (!ex || ex.subjFix >= 1) return false;
+    const ex = D().exam; if (!ex || ex.subjFix >= 2) return false;
     const list = ex.list || [], now = Date.now(); let n = 0;
     (ex.topics || []).forEach(t => {
       const x = list.find(y => y.id === t.examId), sb = (t.subj || '').trim(); if (!x || !sb || rel(sb, x.name)) return;
-      if (list.some(o => o.id !== x.id && rel(sb, o.name))) { t.subj = (x.name || sb).trim(); t.updatedAt = now; n++; }
+      if (list.some(o => o.id !== x.id && rel(sb, o.name)) || EXAMLIKE.test(sb)) { t.subj = (x.name || sb).trim(); t.updatedAt = now; n++; }
     });
-    ex.subjFix = 1; SL.repaired = n;
+    ex.subjFix = 2; SL.repaired = n;
     return true;
   };
 

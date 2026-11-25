@@ -502,3 +502,9 @@ span.iv-lv { cursor: default; }
 /* v1.13 — Google Calendar: only the items I choose */
 .gc-auto-off { opacity: .45; pointer-events: none; }
 .gc-pick.on { color: var(--accent); border-color: var(--accent); }
+
+/* 1.26.10: syllabus subject heading with rename / delete */
+.ex-gh { display: flex; align-items: center; gap: 4px; }
+.ex-gh .grow { flex: 1 1 auto; min-width: 0; }
+.ex-gh .icon-btn { opacity: .55; } .ex-gh:hover .icon-btn, .ex-gh .icon-btn:focus-visible { opacity: 1; }
+@media (hover: none) { .ex-gh .icon-btn { opacity: .8; } }

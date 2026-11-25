@@ -114,7 +114,9 @@
     const groups = subs.map(sb => {
       const l = all.filter(t => (t.subj || 'General') === sb && (f === '' || (f === 'weak' ? t.weak : String(t.st || 0) === f)));
       if (!l.length) return '';
-      return '<section class="ex-grp"><h3 class="gh">' + e(sb) + ' <span class="hint num">· ' + l.filter(t => t.st >= 2).length + '/' + l.length + '</span></h3><ul class="ex-topics">' + l.map(t => {
+      return '<section class="ex-grp"><h3 class="gh ex-gh"><span class="grow">' + e(sb) + ' <span class="hint num">· ' + l.filter(t => t.st >= 2).length + '/' + l.length + '</span></span>' +
+        '<button type="button" class="icon-btn sm" data-act="ex-subj-ren" data-id="' + e(x.id) + '" data-subj="' + e(sb) + '" aria-label="Rename the subject ' + e(sb) + '" title="Rename this subject (or move its topics to another subject)">' + ED.icon('pencil') + '</button>' +
+        '<button type="button" class="icon-btn sm" data-act="ex-subj-del" data-id="' + e(x.id) + '" data-subj="' + e(sb) + '" aria-label="Delete the subject ' + e(sb) + ' and its topics" title="Delete this subject and all its topics">' + ED.icon('trash') + '</button></h3><ul class="ex-topics">' + l.map(t => {
         const r = nextRev(t);
         return '<li class="ex-t s-' + stCls(t.st) + '"><button type="button" class="ex-st s-' + stCls(t.st) + '" data-act="ex-st" data-id="' + e(t.id) + '" title="' + e(STATUS[t.st || 0]) + ' — click for the next step" aria-label="' + e(t.name) + ': ' + e(STATUS[t.st || 0]) + '. Change">' + e(STATUS[t.st || 0]) + '</button>' +
           '<button type="button" class="plain-btn ex-tn" data-act="ex-topic" data-id="' + e(t.id) + '">' + (t.weak ? '<span class="ex-weak" title="Marked weak">!</span>' : '') + e(t.name) + '</button>' +
@@ -256,6 +258,28 @@
   CHG['ex-pick'] = el => { st().sel = el.value; ED.app.render(); };
   CHG['ex-stf'] = el => { st().stf = el.value; ED.app.renderPage('right'); CH.bind(document.getElementById('pg-right')); };
   A['ex-topic'] = el => XP.editTopic(el.dataset.id);
+  /* 1.26.10: rename a syllabus subject (typing another subject's name moves its topics there) or delete it with its topics */
+  const examOf = id => EX().list.find(y => y.id === id);
+  const inSubj = (id, sb) => topicsOf(id).filter(t => (t.subj || 'General') === sb);
+  A['ex-subj-ren'] = async el => {
+    const x = examOf(el.dataset.id), sb = el.dataset.subj; if (!x) return;
+    const v = await ED.ui.prompt({ title: 'Rename subject', label: 'New name for “' + sb + '” in ' + (x.name || 'this exam'), value: sb === x.name ? sb : (x.name || sb), ok: 'Rename',
+      hint: 'Its ' + U.plural(inSubj(x.id, sb).length, 'topic') + ' keep their status and revision dates. Type the name of another subject of this exam to move them there. The Study planner follows.' });
+    const nm = (v == null ? '' : String(v)).trim(); if (!nm || nm === sb) return;
+    ED.store.checkpoint('Rename subject'); const now = Date.now();
+    inSubj(x.id, sb).forEach(t => { t.subj = nm; t.updatedAt = now; });
+    (st().lastSubjBy = st().lastSubjBy || {})[x.id] = nm;
+    ED.store.commit(); ED.ui.undoToast('“' + sb + '” is now “' + nm + '”');
+  };
+  A['ex-subj-del'] = async el => {
+    const x = examOf(el.dataset.id), sb = el.dataset.subj; if (!x) return;
+    const l = inSubj(x.id, sb);
+    if (!(await ED.ui.confirm({ title: 'Delete subject', message: 'Delete “' + sb + '” and its ' + U.plural(l.length, 'topic') + ' from ' + (x.name || 'this exam') + '? They also leave the Study planner. Undo brings them back.', ok: 'Delete', danger: true }))) return;
+    ED.store.checkpoint('Delete subject'); const ids = new Set(l.map(t => t.id));
+    EX().topics = EX().topics.filter(t => !ids.has(t.id));
+    if (st().lastSubjBy && st().lastSubjBy[x.id] === sb) delete st().lastSubjBy[x.id];
+    ED.store.commit(); ED.ui.undoToast('“' + sb + '” deleted');
+  };
   A['ex-mock'] = el => XP.editMock(el.dataset.id || null);
   /* status steps on: not started → learning → done → revised → (back to not started) */
   A['ex-st'] = el => {
