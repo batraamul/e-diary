@@ -707,6 +707,8 @@ There is no automated test runner in the package; test by hand in the browser:
 
 **1.26.10 (sw `e-diary-1.26.10`):** studylink `SL.repairSubjects` runs again once (`exam.subjFix = 2`): also fixes a `subj` matching `EXAMLIKE` (/olympiad|exam|examination|entrance|ntse|kvpy|nso|imo|nco|ieo|igko/) that does not relate to its own exam's name. exam.js: syllabus heading `.ex-gh` with actions `ex-subj-ren` (prompt; sets `subj` on that exam's topics, `lastSubjBy`) and `ex-subj-del` (confirm; removes them), both with checkpoint + undo; styles at the end of `css/more.css`.
 
+**1.26.11 (sw `e-diary-1.26.11`):** emoji picker group buttons renamed `.te-tab` → `.te-etab` (taskemoji.js, components.css); `.te-tab` belongs to the task editor's Notes/Subtasks/Checklist/Sharing tabs (editors.js). Check new class names against `grep` of js/css before use.
+
 **1.25 (sw `e-diary-1.25-r9`):** `MV.fdVal(P, rate, comp, start, due, k, matAmt)` — with `mk.matAmt`, value = P·(matAmt/P)^(days/term); used by refresh, `MV.maturity` and the dialog preview (`#mv-ma`, `.mv-fdo`).
 
 **1.25 (sw `e-diary-1.25-r8`):** FD `comp` adds `'p'` (payout: `fdAt` = principal); `'s'` = simple interest paid at maturity; GS scss / pomis → `'p'`.

@@ -28,7 +28,7 @@
   TE.pick = (anchor, cur, onPick) => {
     const btn = (x, w) => '<button type="button" class="emoji-btn' + (x === cur ? ' on' : '') + '" data-emo="' + e(x) + '" title="' + e(w || x) + '" aria-label="' + e(label(w) || x) + '">' + x + '</button>';
     const r = recent();
-    const tab = (k, icon, name) => '<button type="button" class="te-tab" data-jump="' + k + '" title="' + e(name) + '" aria-label="' + e(name) + '">' + icon + '</button>';
+    const tab = (k, icon, name) => '<button type="button" class="te-etab" data-jump="' + k + '" title="' + e(name) + '" aria-label="' + e(name) + '">' + icon + '</button>';
     const sec = (k, icon, name, items) => '<section class="te-sec" data-sec="' + k + '" data-name="' + e(name.toLowerCase()) + '"><h4><span class="te-sec-ic">' + icon + '</span>' + e(name) + '<em>' + items.length + '</em></h4>' +
       '<div class="emoji-grid te-grid">' + items.map(x => btn(x[0], x[1])).join('') + '</div></section>';
     const html = '<div class="te-emo">' +
@@ -55,7 +55,7 @@
         const mark = () => {
           raf = 0; const top = list.scrollTop + 8; let k = null;
           list.querySelectorAll('.te-sec:not([hidden])').forEach(s => { if (s.offsetTop <= top || k === null) k = s.dataset.sec; });
-          tabs.querySelectorAll('.te-tab').forEach(t => {
+          tabs.querySelectorAll('.te-etab').forEach(t => {
             const on = t.dataset.jump === k; t.classList.toggle('on', on);
             if (on && (t.offsetLeft < tabs.scrollLeft || t.offsetLeft + t.offsetWidth > tabs.scrollLeft + tabs.clientWidth)) tabs.scrollLeft = t.offsetLeft - tabs.clientWidth / 2;
           });

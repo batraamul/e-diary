@@ -1,6 +1,6 @@
 /* E-Diary — offline support. Serves the app from a local cache and refreshes it in the background.
    Change VERSION whenever you edit the app so installed copies pick up the new files. */
-const VERSION = 'e-diary-1.26.10';   // 1.26.10 — mis-filed exam subjects repaired even when the other exam was deleted; rename / delete a syllabus subject
+const VERSION = 'e-diary-1.26.11';   // 1.26.11 — task editor tabs no longer overlap
 const ASSETS = [
   './',
   './index.html',
